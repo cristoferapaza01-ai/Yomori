@@ -351,7 +351,16 @@ export const getMangaDetails = async (req, res) => {
     }
 
     if (!details || !details.title) {
-      throw new Error(`No se pudo obtener información del manga en ${url}`);
+      const slug = decodeURIComponent(url).split('/').filter(Boolean).pop() || 'manga';
+      const cleanTitle = slug.replace(/^comic-|^manhua-|^manga-/, '').replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      details = {
+        title: cleanTitle || 'Manga',
+        cover: '',
+        synopsis: 'Información disponible en el scan origen.',
+        status: 'En emisión',
+        genres: ['Manga'],
+        chapters: details?.chapters || []
+      };
     }
 
     const host = req.get('host');

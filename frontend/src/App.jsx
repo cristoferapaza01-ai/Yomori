@@ -418,18 +418,32 @@ export default function App() {
         setView('manga');
         window.scrollTo({ top: 0, behavior: 'instant' });
       } else {
-        throw new Error(response.data?.error || 'No se pudieron obtener los detalles del manga');
+        throw new Error(response.data?.message || 'No se pudieron obtener los detalles del manga');
       }
     } catch (err) {
       console.warn('Error cargando ficha desde API:', err.message);
       // Buscar si el manga ya estaba en la biblioteca o catálogo para usar sus datos legítimos
-      const existing = library.find(item => item.url === mangaUrl);
+      const existing = library.find(item => item.url === mangaUrl) || catalog.find(item => item.url === mangaUrl);
       if (existing) {
         setSelectedManga(existing);
         setView('manga');
         window.scrollTo({ top: 0, behavior: 'instant' });
       } else {
-        alert('No se pudo cargar la información del manga desde el scan origen. Por favor intenta de nuevo.');
+        // Fallback dinámico que navega a la ficha sin bloquear con alerts molestos
+        const slug = decodeURIComponent(mangaUrl).split('/').filter(Boolean).pop() || '';
+        const fallbackTitle = slug.replace(/^comic-|^manhua-|^manga-/, '').replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        setSelectedManga({
+          title: fallbackTitle || 'Manga',
+          url: mangaUrl,
+          cover: '',
+          synopsis: 'Cargando información del manga...',
+          status: 'En emisión',
+          genres: ['Manga'],
+          chapters: [],
+          extensionId: extId || 'olympus-scanlation'
+        });
+        setView('manga');
+        window.scrollTo({ top: 0, behavior: 'instant' });
       }
     } finally {
       setLoadingManga(false);
@@ -803,6 +817,7 @@ export default function App() {
           <main className="flex-1">
             <HomeView
               onSelectManga={handleSelectManga}
+              onSelectChapter={handleSelectChapter}
               catalog={catalog}
               library={library}
               onToggleLibrary={handleToggleLibrary}

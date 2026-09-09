@@ -92,19 +92,19 @@ const DEFAULT_HERO_SLIDES = [
   },
   {
     id: 'hero-3',
-    title: 'Secta de la montaña',
-    originalTitle: 'Return of the Mount Hua Sect',
-    synopsis: 'Chung Myung, el decimotercer discípulo de la Gran Secta del Monte Hua y uno de los 3 Grandes Espadachines, renace 100 años en el futuro para revivir la gloria perdida de su antigua hermandad caída.',
-    cover: 'https://media.imagesolymp.xyz/comics/covers/127/tmpuydj8qir-lg.webp',
-    backdrop: 'https://media.imagesolymp.xyz/comics/covers/127/tmpuydj8qir-lg.webp',
+    title: 'Academia de la Ascensión',
+    originalTitle: 'Ascension Academy',
+    synopsis: 'En un mundo donde los elegidos entrenan en academias dimensionales para despertar sus mayores dones, un joven decidido supera las adversidades para convertirse en el guerrero supremo de su generación.',
+    cover: 'https://media.imagesolymp.xyz/comics/covers/11/11-lg.webp',
+    backdrop: 'https://media.imagesolymp.xyz/comics/covers/11/11-lg.webp',
     rating: '9.9',
     year: '2026',
     status: 'Activo',
     genres: ['Cultivación', 'Artes Marciales', 'Aventura', 'Shounen'],
     scanSource: 'Olympus Scanlation',
     extensionId: 'olympus-scanlation',
-    url: 'https://olympusxyz.com/series/comic-secta-de-la-montana-20260907-080511549',
-    latestChapter: '192 capítulos'
+    url: 'https://olympusxyz.com/series/comic-academia-de-la-ascension-20260909-080419413',
+    latestChapter: '40 capítulos'
   },
   {
     id: 'hero-4',
@@ -183,12 +183,12 @@ const INITIAL_POPULAR = [
   },
   {
     id: 'pop-3',
-    title: 'Secta de la montaña',
-    cover: 'https://media.imagesolymp.xyz/comics/covers/127/tmpuydj8qir-lg.webp',
+    title: 'Academia de la Ascensión',
+    cover: 'https://media.imagesolymp.xyz/comics/covers/11/11-lg.webp',
     status: 'Activo',
     rank: 3,
     extensionId: 'olympus-scanlation',
-    url: 'https://olympusxyz.com/series/comic-secta-de-la-montana-20260907-080511549',
+    url: 'https://olympusxyz.com/series/comic-academia-de-la-ascension-20260909-080419413',
     views: '1.4M',
     rating: '9.9',
     scanSource: 'Olympus Scanlation'
@@ -219,15 +219,15 @@ const INITIAL_POPULAR = [
   },
   {
     id: 'pop-6',
-    title: 'El Rebelde de la Noble Familia Tiránica',
-    cover: 'https://media.imagesolymp.xyz/comics/covers/1669/tmpzom76466-lg.webp',
+    title: 'Lookism',
+    cover: 'https://media.imagesolymp.xyz/comics/covers/18/XTPSnDxOUPhotoauto_scaleLevel3width_800-lg.webp',
     status: 'Activo',
     rank: 6,
-    extensionId: 'olympus-scanlation',
-    url: 'https://olympusxyz.com/series/comic-el-rebelde-de-la-noble-familia-tiranica',
+    extensionId: 'zonatmo',
+    url: 'https://leercapitulo.com/manga/lptcna0l9q/lookism/',
     views: '980K',
     rating: '9.9',
-    scanSource: 'Olympus Scanlation'
+    scanSource: 'ZonaTMO'
   }
 ];
 
@@ -241,6 +241,7 @@ const INITIAL_RELEASES = [
     scan: 'Plot Twist No Fansub',
     extensionId: 'plot-twist-no-fansub',
     url: 'https://plotnofansub.com/manga/grand-blue/',
+    chapterUrl: 'https://plotnofansub.com/manga/grand-blue/',
     cover: 'https://uploads.mangadex.org/covers/fffbfac3-b7ad-41ee-9581-b4d90ecec941/0c6c8758-6819-4262-9671-30d5989c0fb8.jpg.512.jpg'
   },
   {
@@ -252,18 +253,20 @@ const INITIAL_RELEASES = [
     scan: 'ZonaTMO',
     extensionId: 'zonatmo',
     url: 'https://leercapitulo.com/manga/wjjmh6cpwz/subiendo-de-nivel-10-000-anos-en-el-futuro/',
+    chapterUrl: 'https://leercapitulo.com/leer/wjjmh6cpwz/subiendo-de-nivel-10-000-anos-en-el-futuro/357/',
     cover: 'https://leercapitulo.com/covers/b1/31265b4e9277b26ac8c0fe7296c1d3.jpg'
   },
   {
     id: 'rel-3',
-    title: 'Secta de la montaña',
-    chapter: 'Capítulo 192',
+    title: 'Academia de la Ascensión',
+    chapter: 'Capítulo 40',
     time: 'Hace 25 min',
     type: 'Manhwa',
     scan: 'Olympus Scanlation',
     extensionId: 'olympus-scanlation',
-    url: 'https://olympusxyz.com/series/comic-secta-de-la-montana-20260907-080511549',
-    cover: 'https://media.imagesolymp.xyz/comics/covers/127/tmpuydj8qir-lg.webp'
+    url: 'https://olympusxyz.com/series/comic-academia-de-la-ascension-20260909-080419413',
+    chapterUrl: 'https://olympusxyz.com/capitulo/41724/comic-academia-de-la-ascension-20260909-080419413',
+    cover: 'https://media.imagesolymp.xyz/comics/covers/11/11-lg.webp'
   },
   {
     id: 'rel-4',
@@ -348,6 +351,7 @@ const SIMULATED_COMMUNITY_POOL = [
 
 export default function HomeView({
   onSelectManga,
+  onSelectChapter,
   catalog = [],
   library = [],
   onToggleLibrary,
@@ -1374,7 +1378,13 @@ export default function HomeView({
 
               {/* Botón de Acción Directo al Lector / Detalles */}
               <button
-                onClick={() => onSelectManga(currentReleaseManga.url, currentReleaseManga.extensionId)}
+                onClick={() => {
+                  if (onSelectChapter && (currentReleaseManga.chapterUrl || currentReleaseManga.url)) {
+                    onSelectChapter(currentReleaseManga.chapterUrl || currentReleaseManga.url, currentReleaseManga.url);
+                  } else {
+                    onSelectManga(currentReleaseManga.url, currentReleaseManga.extensionId);
+                  }
+                }}
                 className="w-full sm:w-auto shrink-0 px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-purple-900/50 hover:shadow-purple-700/60 transition-all duration-300 cursor-pointer group hover:scale-[1.02]"
               >
                 <Play className="w-4 h-4 fill-current group-hover:scale-110 transition-transform" />

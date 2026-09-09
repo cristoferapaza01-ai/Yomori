@@ -1,1 +1,22 @@
-﻿[]
+[
+  {
+    "id": "olympus-scanlation",
+    "name": "Olympus Scanlation",
+    "version": "2.2.0",
+    "baseUrl": "https://olympusxyz.com",
+    "icon": "https://olympusxyz.com/olympus-logo-96.webp",
+    "lang": "es",
+    "scriptFile": "olympus-scanlation.js",
+    "installedAt": "2026-09-09T20:21:46.054Z"
+  },
+  {
+    "id": "zonatmo",
+    "name": "ZonaTMO",
+    "version": "3.0.0",
+    "baseUrl": "https://zonatmo.org",
+    "icon": "https://zonatmo.com/favicon.ico",
+    "lang": "es",
+    "scriptFile": "zonatmo.js",
+    "installedAt": "2026-09-09T20:22:11.452Z"
+  }
+]
