@@ -1,0 +1,92 @@
+[
+  {
+    "id": "olympus-scanlation",
+    "name": "Olympus Scanlation",
+    "version": "2.2.0",
+    "baseUrl": "https://olympusxyz.com",
+    "icon": "https://olympusxyz.com/olympus-logo-96.webp",
+    "lang": "es",
+    "scriptFile": "olympus-scanlation.js",
+    "installedAt": "2026-09-07T12:35:00.000Z"
+  },
+  {
+    "id": "zonatmo",
+    "name": "ZonaTMO",
+    "version": "3.0.0",
+    "baseUrl": "https://zonatmo.org",
+    "icon": "https://zonatmo.com/favicon.ico",
+    "lang": "es",
+    "scriptFile": "zonatmo.js",
+    "installedAt": "2026-09-07T12:35:00.000Z"
+  },
+  {
+    "id": "manhwalatino",
+    "name": "ManhwaLatino",
+    "version": "2.2.0",
+    "baseUrl": "https://manhwalatino.lat",
+    "icon": "https://manhwalatino.lat/favicon.ico",
+    "lang": "es",
+    "scriptFile": "manhwalatino.js",
+    "installedAt": "2026-09-07T12:35:00.000Z"
+  },
+  {
+    "id": "miauscan",
+    "name": "MiauScan",
+    "version": "3.0.0",
+    "baseUrl": "https://leemiau.com",
+    "icon": "https://leemiau.com/wp-content/uploads/2022/02/cropped-gatita.png",
+    "lang": "es",
+    "scriptFile": "miauscan.js",
+    "installedAt": "2026-09-07T12:35:00.000Z"
+  },
+  {
+    "id": "skymangas",
+    "name": "SkyMangas",
+    "version": "3.0.0",
+    "baseUrl": "https://skymangas.com",
+    "icon": "https://skymangas.com/favicon.ico",
+    "lang": "es",
+    "scriptFile": "skymangas.js",
+    "installedAt": "2026-09-07T21:45:00.000Z"
+  },
+  {
+    "id": "plot-twist-no-fansub",
+    "name": "Plot Twist No Fansub",
+    "version": "3.0.0",
+    "baseUrl": "https://plotnofansub.com",
+    "icon": "https://plotnofansub.com/wp-content/uploads/2021/04/cropped-logo-192x192.png",
+    "lang": "es",
+    "scriptFile": "plot-twist-no-fansub.js",
+    "installedAt": "2026-09-07T20:45:00.000Z"
+  },
+  {
+    "id": "ikigai-mnagas",
+    "name": "Ikigai Mnagas",
+    "version": "2.2.0",
+    "baseUrl": "https://manhwalatino.lat",
+    "icon": "https://ikigaimangas.com/favicon.ico",
+    "lang": "es",
+    "scriptFile": "ikigai-mnagas.js",
+    "installedAt": "2026-09-07T12:35:00.000Z"
+  },
+  {
+    "id": "mangadex",
+    "name": "MangaDex",
+    "version": "2.2.0",
+    "baseUrl": "https://mangadex.org",
+    "icon": "https://mangadex.org/favicon.ico",
+    "lang": "es",
+    "scriptFile": "mangadex.js",
+    "installedAt": "2026-09-07T19:35:02.427Z"
+  },
+  {
+    "id": "rn-scanlation",
+    "name": "RN Scanlation",
+    "version": "3.0.0",
+    "baseUrl": "https://rncalation.online",
+    "icon": "https://rncalation.online/icons/icon-192.png",
+    "lang": "es",
+    "scriptFile": "rn-scanlation.js",
+    "installedAt": "2026-09-07T20:20:00.000Z"
+  }
+]

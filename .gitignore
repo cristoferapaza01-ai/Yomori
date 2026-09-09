@@ -1,0 +1,29 @@
+﻿# Dependencies
+node_modules/
+package-lock.json
+
+# Production builds
+dist/
+build/
+
+# Local database & downloads
+backend/data/downloads/
+backend/data/cache/
+backend/data/database/
+
+# Logs & temp
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.tmp/
+scratch_*.mjs
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,12 @@
+[
+  {
+    "id": "olympus-scanlation",
+    "name": "Olympus Scanlation",
+    "version": "2.1.0",
+    "baseUrl": "https://olympusxyz.com",
+    "icon": "https://olympusxyz.com/olympus-logo-96.webp",
+    "lang": "es",
+    "scriptFile": "olympus-scanlation.js",
+    "installedAt": "2026-09-07T02:24:43.225Z"
+  }
+]

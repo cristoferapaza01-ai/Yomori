@@ -1,0 +1,17 @@
+{
+  "name": "tachiyomi-repositorio-extensiones",
+  "version": "1.0.0",
+  "description": "Repositorio modular de extensiones de scraping para lector web estilo Tachiyomi",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "node test-extension.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "cheerio": "^1.0.0",
+    "puppeteer": "^24.4.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
+  }
+}
