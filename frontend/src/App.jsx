@@ -14,13 +14,18 @@ import FloatingControls from './components/FloatingControls.jsx';
 import SettingsModal from './components/SettingsModal.jsx';
 import ExtensionsModal from './components/ExtensionsModal.jsx';
 import AuthModal from './components/AuthModal.jsx';
-import ChapterCommentsDrawer from './components/ChapterCommentsDrawer.jsx';
+import OfficialLandingPage from './components/OfficialLandingPage.jsx';
 import { ArrowLeft, ExternalLink, Maximize2, Minimize2, Settings as SettingsIcon, LogIn, User } from 'lucide-react';
 
 export default function App() {
+  const isElectron = typeof window !== 'undefined' && (
+    window.navigator.userAgent.includes('Electron') || 
+    window.location.search.includes('mode=app')
+  );
+
   const chapterExtractionCache = useRef({});
-  // Vista principal: 'home' | 'library' | 'updates' | 'history' | 'explore' | 'downloads' | 'settings' | 'manga' | 'reader'
-  const [view, setView] = useState('home');
+  // En Electron/Desktop: 'home' (lector). En Web: 'landing' (descarga de la app)
+  const [view, setView] = useState(() => isElectron ? 'home' : 'landing');
   const [exploreSubTab, setExploreSubTab] = useState('sources'); // 'sources' | 'extensions' | 'migration'
 
   // Autenticación de Usuario
@@ -724,6 +729,11 @@ export default function App() {
   };
 
   const currentLibraryItem = library.find((i) => i.url === selectedManga?.url);
+
+  // Si estamos en la Web (Modo Landing de Descarga Oficial), mostrar ÚNICAMENTE la página de presentación y descarga
+  if (view === 'landing') {
+    return <OfficialLandingPage onOpenWebReader={() => setView('home')} />;
+  }
 
   return (
     <div className="min-h-screen bg-[#07090e] text-gray-100 flex font-sans selection:bg-purple-600 selection:text-white">
