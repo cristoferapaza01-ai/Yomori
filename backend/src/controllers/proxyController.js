@@ -44,6 +44,10 @@ export const proxyImage = async (req, res) => {
       refererHeader = 'https://leercapitulo.com/';
     } else if (fetchUrl.includes('olympusxyz.com') || fetchUrl.includes('imagesolymp.xyz')) {
       refererHeader = 'https://olympusxyz.com/';
+    } else if (fetchUrl.includes('zonatmo.org') || fetchUrl.includes('tmofans.com') || fetchUrl.includes('storage2.zonatmo') || fetchUrl.includes('storage.zonatmo')) {
+      refererHeader = 'https://zonatmo.org/';
+    } else if (fetchUrl.includes('miauscan') || fetchUrl.includes('leemiau')) {
+      refererHeader = 'https://leemiau.com/';
     } else if (fetchUrl.includes('plotnofansub.com')) {
       refererHeader = 'https://plotnofansub.com/';
       if (global.plotTwistCookieHeader) {

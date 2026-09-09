@@ -2,31 +2,75 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, RefreshCw, AlertTriangle, CheckCircle, ArrowUp, Sun, Moon, Loader2, Lock } from 'lucide-react';
 
 function ChapterImage({ page, index, totalPages, useProxy, gap, filterStyle }) {
+  const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [fallbackLevel, setFallbackLevel] = useState(0); // 0: primary (proxy if enabled or local), 1: direct originalUrl, 2: clean direct
   const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
+    setIsLoaded(false);
     setHasError(false);
+    setFallbackLevel(0);
   }, [page.originalUrl, page.proxyUrl, page.url]);
 
-  const imageSource = page.isOffline || page.localUrl
-    ? (page.localUrl || page.url)
-    : (useProxy && page.proxyUrl 
+  // Determinar la mejor URL según el nivel de fallback
+  let imageSource = '';
+  if (page.isOffline || page.localUrl) {
+    imageSource = page.localUrl || page.url;
+  } else if (fallbackLevel === 0) {
+    imageSource = useProxy && page.proxyUrl 
       ? `${page.proxyUrl}&retry=${retryCount}` 
-      : `${page.originalUrl || page.url}${page.url?.includes('?') ? '&' : '?'}retry=${retryCount}`);
+      : `${page.originalUrl || page.url}${page.url?.includes('?') ? '&' : '?'}retry=${retryCount}`;
+  } else if (fallbackLevel === 1) {
+    // Si proxy falló, intentar directo a la fuente
+    imageSource = `${page.originalUrl || page.url}${page.url?.includes('?') ? '&' : '?'}fb=direct&retry=${retryCount}`;
+  } else {
+    // Si todo falló, intentar URL sin query params
+    const raw = (page.originalUrl || page.url || '').split('?')[0];
+    imageSource = raw;
+  }
+
+  const handleError = () => {
+    if (fallbackLevel === 0 && (page.originalUrl || page.url) && useProxy) {
+      console.warn(`[Reader] Viñeta ${index + 1} falló en proxy, intentando directo:`, page.originalUrl || page.url);
+      setFallbackLevel(1);
+    } else if (fallbackLevel === 1) {
+      console.warn(`[Reader] Viñeta ${index + 1} falló directo, intentando URL limpia`);
+      setFallbackLevel(2);
+    } else {
+      setHasError(true);
+    }
+  };
 
   const handleRetry = (e) => {
     e.stopPropagation();
     setHasError(false);
+    setIsLoaded(false);
+    setFallbackLevel(0);
     setRetryCount((prev) => prev + 1);
   };
 
   return (
     <div
       id={`page-${index + 1}`}
-      className="relative w-full flex flex-col items-center justify-center bg-transparent select-none"
+      className="relative w-full flex flex-col items-center justify-center bg-transparent select-none min-h-[350px] sm:min-h-[500px]"
       style={{ marginBottom: `${gap}px` }}
     >
+      {/* Skeleton / Placeholder mientras descarga la viñeta */}
+      {!isLoaded && !hasError && (
+        <div className="w-full h-[450px] sm:h-[600px] bg-[#0e111a] border border-gray-800/40 rounded-2xl flex flex-col items-center justify-center gap-3 text-gray-500 animate-pulse select-none">
+          <div className="relative flex items-center justify-center">
+            <Loader2 className="w-8 h-8 animate-spin text-purple-500/80" />
+            <span className="absolute text-[10px] font-mono font-bold text-purple-300">
+              {index + 1}
+            </span>
+          </div>
+          <p className="text-xs font-mono font-medium text-gray-400">
+            Cargando viñeta {index + 1} de {totalPages}
+          </p>
+        </div>
+      )}
+
       {!hasError ? (
         <img
           src={imageSource}
@@ -34,25 +78,146 @@ function ChapterImage({ page, index, totalPages, useProxy, gap, filterStyle }) {
           loading={index < 6 ? 'eager' : 'lazy'}
           fetchPriority={index < 3 ? 'high' : 'auto'}
           decoding="async"
-          onError={() => setHasError(true)}
+          onLoad={() => setIsLoaded(true)}
+          onError={handleError}
           style={filterStyle}
-          className="w-full h-auto object-contain block transition-opacity duration-200"
+          className={`w-full h-auto object-contain block transition-opacity duration-300 ${
+            isLoaded ? 'opacity-100' : 'opacity-0 absolute inset-0 pointer-events-none'
+          }`}
         />
       ) : (
-        <div className="w-full py-10 px-4 bg-red-950/20 border border-red-900/40 rounded-2xl my-4 flex flex-col items-center justify-center text-center gap-2.5">
+        <div className="w-full py-12 px-4 bg-red-950/20 border border-red-900/40 rounded-2xl my-4 flex flex-col items-center justify-center text-center gap-2.5">
           <AlertTriangle className="w-7 h-7 text-amber-400" />
           <p className="text-xs font-semibold text-gray-300">
-            No se pudo cargar la viñeta {index + 1}
+            No se pudo cargar la viñeta {index + 1} de {totalPages}
           </p>
           <button
             onClick={handleRetry}
-            className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md transition active:scale-95"
+            className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md transition active:scale-95 cursor-pointer"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             <span>Reintentar viñeta</span>
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+function PaginatedImage({ page, currentPage, totalPages, useProxy, filterStyle, readingMode, onNextPage, onPrevPage }) {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const [fallbackLevel, setFallbackLevel] = useState(0);
+  const [retryCount, setRetryCount] = useState(0);
+
+  useEffect(() => {
+    setIsLoaded(false);
+    setHasError(false);
+    setFallbackLevel(0);
+  }, [page?.originalUrl, page?.proxyUrl, page?.url, currentPage]);
+
+  if (!page) {
+    return (
+      <div className="py-24 text-center text-gray-500 text-xs">
+        Página {currentPage} no disponible
+      </div>
+    );
+  }
+
+  let imageSource = '';
+  if (page.isOffline || page.localUrl) {
+    imageSource = page.localUrl || page.url;
+  } else if (fallbackLevel === 0) {
+    imageSource = useProxy && page.proxyUrl
+      ? `${page.proxyUrl}&retry=${retryCount}`
+      : `${page.originalUrl || page.url}${page.url?.includes('?') ? '&' : '?'}retry=${retryCount}`;
+  } else if (fallbackLevel === 1) {
+    imageSource = `${page.originalUrl || page.url}${page.url?.includes('?') ? '&' : '?'}fb=direct&retry=${retryCount}`;
+  } else {
+    const raw = (page.originalUrl || page.url || '').split('?')[0];
+    imageSource = raw;
+  }
+
+  const handleError = () => {
+    if (fallbackLevel === 0 && (page.originalUrl || page.url) && useProxy) {
+      setFallbackLevel(1);
+    } else if (fallbackLevel === 1) {
+      setFallbackLevel(2);
+    } else {
+      setHasError(true);
+    }
+  };
+
+  const handleRetry = (e) => {
+    e.stopPropagation();
+    setHasError(false);
+    setIsLoaded(false);
+    setFallbackLevel(0);
+    setRetryCount(prev => prev + 1);
+  };
+
+  return (
+    <div className="relative max-h-[85vh] w-full flex items-center justify-center min-h-[400px]">
+      {!isLoaded && !hasError && (
+        <div className="w-[85vw] max-w-2xl h-[70vh] bg-[#0e111a] border border-gray-800/40 rounded-2xl flex flex-col items-center justify-center gap-3 text-gray-500 animate-pulse select-none">
+          <div className="relative flex items-center justify-center">
+            <Loader2 className="w-10 h-10 animate-spin text-purple-500/80" />
+            <span className="absolute text-xs font-mono font-bold text-purple-300">
+              {currentPage}
+            </span>
+          </div>
+          <p className="text-xs font-mono font-medium text-gray-400">
+            Cargando página {currentPage} de {totalPages}...
+          </p>
+        </div>
+      )}
+
+      {!hasError ? (
+        <img
+          src={imageSource}
+          alt={`Página ${currentPage} de ${totalPages}`}
+          onLoad={() => setIsLoaded(true)}
+          onError={handleError}
+          style={filterStyle}
+          className={`max-h-[85vh] max-w-full object-contain rounded-lg shadow-2xl transition-opacity duration-300 ${
+            isLoaded ? 'opacity-100' : 'opacity-0 absolute inset-0 pointer-events-none'
+          }`}
+        />
+      ) : (
+        <div className="w-full max-w-md py-12 px-6 bg-red-950/20 border border-red-900/40 rounded-2xl flex flex-col items-center justify-center text-center gap-3">
+          <AlertTriangle className="w-8 h-8 text-amber-400" />
+          <p className="text-sm font-semibold text-gray-300">
+            No se pudo cargar la página {currentPage}
+          </p>
+          <button
+            onClick={handleRetry}
+            className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md transition active:scale-95 cursor-pointer"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Reintentar página</span>
+          </button>
+        </div>
+      )}
+
+      {/* Zonas de toque táctil / clic laterales */}
+      <div
+        onClick={(e) => {
+          e.stopPropagation();
+          if (readingMode === 'paginated-rtl') onNextPage();
+          else onPrevPage();
+        }}
+        className="absolute left-0 top-0 bottom-0 w-1/3 z-20 cursor-w-resize"
+        title="Página anterior/siguiente"
+      />
+      <div
+        onClick={(e) => {
+          e.stopPropagation();
+          if (readingMode === 'paginated-rtl') onPrevPage();
+          else onNextPage();
+        }}
+        className="absolute right-0 top-0 bottom-0 w-1/3 z-20 cursor-e-resize"
+        title="Página siguiente/anterior"
+      />
     </div>
   );
 }
@@ -406,40 +571,16 @@ export default function Reader({
               <p className="text-xs text-gray-400 mt-1">Conectando con la fuente</p>
             </div>
           ) : (
-            chapterData.pages[currentPage - 1] && (
-              <div className="relative max-h-[85vh] flex items-center justify-center">
-                <img
-                  src={
-                    settings.useProxy && chapterData.pages[currentPage - 1].proxyUrl
-                      ? chapterData.pages[currentPage - 1].proxyUrl
-                      : (chapterData.pages[currentPage - 1].originalUrl || chapterData.pages[currentPage - 1].url)
-                  }
-                  alt={`Página ${currentPage}`}
-                  style={filterStyle}
-                  className="max-h-[85vh] max-w-full object-contain rounded-lg shadow-2xl"
-                />
-
-                {/* Zonas de toque táctil / clic laterales */}
-                <div
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (readingMode === 'paginated-rtl') handleNextPage();
-                    else handlePrevPage();
-                  }}
-                  className="absolute left-0 top-0 bottom-0 w-1/3 z-20 cursor-w-resize"
-                  title="Página anterior/siguiente"
-                />
-                <div
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (readingMode === 'paginated-rtl') handlePrevPage();
-                    else handleNextPage();
-                  }}
-                  className="absolute right-0 top-0 bottom-0 w-1/3 z-20 cursor-e-resize"
-                  title="Página siguiente/anterior"
-                />
-              </div>
-            )
+            <PaginatedImage
+              page={chapterData.pages[currentPage - 1]}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              useProxy={settings.useProxy}
+              filterStyle={filterStyle}
+              readingMode={readingMode}
+              onNextPage={handleNextPage}
+              onPrevPage={handlePrevPage}
+            />
           )}
         </div>
       )}

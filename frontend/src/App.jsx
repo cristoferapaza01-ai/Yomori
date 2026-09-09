@@ -989,7 +989,7 @@ export default function App() {
               setIsAutoScrolling={setIsAutoScrolling}
               initialPage={initialReaderPage}
               onPageChange={(page, total) => handleUpdateChapterProgress(chapterData.currentUrl, page, total)}
-              onRetry={() => handleOpenChapter(chapterData?.currentUrl, selectedManga?.url || chapterData?.mangaUrl)}
+              onRetry={() => handleSelectChapter(chapterData?.currentUrl, selectedManga?.url || chapterData?.mangaUrl)}
             />
 
             <FloatingControls
