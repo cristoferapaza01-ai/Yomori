@@ -11,9 +11,14 @@ import SettingsView from './components/SettingsView.jsx';
 import MangaDetailsView from './components/MangaDetailsView.jsx';
 import Reader from './components/Reader.jsx';
 import FloatingControls from './components/FloatingControls.jsx';
+import ChapterCommentsDrawer from './components/ChapterCommentsDrawer.jsx';
 import SettingsModal from './components/SettingsModal.jsx';
 import ExtensionsModal from './components/ExtensionsModal.jsx';
 import AuthModal from './components/AuthModal.jsx';
+import ProfileView from './components/ProfileView.jsx';
+import MessagesView from './components/MessagesView.jsx';
+import CommunitiesView from './components/CommunitiesView.jsx';
+import UserCardPopover from './components/UserCardPopover.jsx';
 import OfficialLandingPage from './components/OfficialLandingPage.jsx';
 import { ArrowLeft, ExternalLink, Maximize2, Minimize2, Settings as SettingsIcon, LogIn, User } from 'lucide-react';
 
@@ -28,13 +33,21 @@ export default function App() {
   const [view, setView] = useState(() => isElectron ? 'home' : 'landing');
   const [exploreSubTab, setExploreSubTab] = useState('sources'); // 'sources' | 'extensions' | 'migration'
 
-  // Autenticación de Usuario
+  // Autenticación y Perfil de Usuario
   const [currentUser, setCurrentUser] = useState(() => {
     const saved = localStorage.getItem('tachiyomi_user');
     return saved ? JSON.parse(saved) : null;
   });
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('login'); // 'login' | 'register'
+  const [selectedProfileUserId, setSelectedProfileUserId] = useState(null);
+  const [initialDirectChatUserId, setInitialDirectChatUserId] = useState(null);
+  const [userCardModal, setUserCardModal] = useState({
+    isOpen: false,
+    userId: null,
+    usernameFallback: null,
+    userAvatarFallback: null
+  });
 
   const handleOpenAuth = (mode = 'login') => {
     setAuthModalMode(mode);
@@ -44,6 +57,32 @@ export default function App() {
   const handleLogout = () => {
     localStorage.removeItem('tachiyomi_user');
     setCurrentUser(null);
+  };
+
+  const handleOpenUserCard = (userId, username, avatar) => {
+    setUserCardModal({
+      isOpen: true,
+      userId,
+      usernameFallback: username,
+      userAvatarFallback: avatar
+    });
+  };
+
+  const handleViewProfile = (userId = null) => {
+    setSelectedProfileUserId(userId);
+    setView('profile');
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  };
+
+  const handleOpenDirectChat = (userId) => {
+    setInitialDirectChatUserId(userId);
+    setView('messages');
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  };
+
+  const handleUpdateCurrentUser = (updatedUser) => {
+    setCurrentUser(updatedUser);
+    localStorage.setItem('tachiyomi_user', JSON.stringify(updatedUser));
   };
 
   // Repositorios y Extensiones
@@ -758,7 +797,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#07090e] text-gray-100 flex font-sans selection:bg-purple-600 selection:text-white">
       
-      {/* 1. SIDEBAR LATERAL (Estilo Tachiyomi: Biblioteca, Actualizaciones, Historial, Explorar, Descargas, Ajustes) */}
+      {/* 1. SIDEBAR LATERAL (Estilo Tachiyomi: Biblioteca, Actualizaciones, Historial, Explorar, Mensajes, Comunidades, Descargas, Ajustes) */}
       {view !== 'reader' && (
         <Sidebar
           currentView={view}
@@ -771,6 +810,7 @@ export default function App() {
           historyCount={history.length}
           currentUser={currentUser}
           onOpenAuth={handleOpenAuth}
+          onOpenProfile={() => handleViewProfile(null)}
           onLogout={handleLogout}
         />
       )}
@@ -829,6 +869,7 @@ export default function App() {
               onToggleLibrary={handleToggleLibrary}
               currentUser={currentUser}
               onOpenAuth={handleOpenAuth}
+              onOpenUserCard={handleOpenUserCard}
               installedExtensions={installedExtensions}
               onInstallAllExtensions={handleInstallAllExtensions}
               onGoToExplore={() => {
@@ -922,6 +963,53 @@ export default function App() {
         )}
 
         {/* ========================================================= */}
+        {/* APARTADO: MENSAJES DIRECTOS Y AMIGOS                      */}
+        {/* ========================================================= */}
+        {view === 'messages' && (
+          <main className="flex-1">
+            <MessagesView
+              currentUser={currentUser}
+              initialActiveUserId={initialDirectChatUserId}
+              library={library}
+              catalog={catalog}
+              onSelectManga={handleSelectManga}
+              onViewUserProfile={handleViewProfile}
+              onOpenAuth={handleOpenAuth}
+            />
+          </main>
+        )}
+
+        {/* ========================================================= */}
+        {/* APARTADO: COMUNIDADES Y SALAS EN VIVO                     */}
+        {/* ========================================================= */}
+        {view === 'communities' && (
+          <main className="flex-1">
+            <CommunitiesView
+              currentUser={currentUser}
+              onOpenAuth={handleOpenAuth}
+              onOpenUserCard={handleOpenUserCard}
+              onSelectManga={handleSelectManga}
+            />
+          </main>
+        )}
+
+        {/* ========================================================= */}
+        {/* APARTADO: PERFIL DE USUARIO INTEGRADO EN PANTALLA         */}
+        {/* ========================================================= */}
+        {view === 'profile' && (
+          <main className="flex-1">
+            <ProfileView
+              targetUserId={selectedProfileUserId}
+              currentUser={currentUser}
+              onUpdateCurrentUser={handleUpdateCurrentUser}
+              onSelectManga={handleSelectManga}
+              onOpenDirectChat={handleOpenDirectChat}
+              onBack={() => setView('home')}
+            />
+          </main>
+        )}
+
+        {/* ========================================================= */}
         {/* APARTADO 5: DESCARGAS                                     */}
         {/* ========================================================= */}
         {view === 'downloads' && (
@@ -970,6 +1058,9 @@ export default function App() {
               onDownloadChapter={handleDownloadChapter}
               onDownloadBatch={handleDownloadBatch}
               onDeleteDownload={handleDeleteDownload}
+              currentUser={currentUser}
+              onOpenAuth={handleOpenAuth}
+              onOpenUserCard={handleOpenUserCard}
             />
           </main>
         )}
@@ -1007,13 +1098,15 @@ export default function App() {
               onToggleAutoScroll={() => setIsAutoScrolling(prev => !prev)}
             />
 
-            {/* Panel Flotante Lateral de Comentarios en Vivo (Sin oscurecer la página) */}
+            {/* Panel Flotante Lateral de Comentarios en Vivo */}
             <ChapterCommentsDrawer
               chapterUrl={chapterData?.currentUrl}
               chapterTitle={chapterData?.chapterTitle || 'Capítulo'}
               mangaTitle={chapterData?.mangaTitle || selectedManga?.title || 'Manga'}
               currentPage={currentPage}
               currentUser={currentUser}
+              onOpenAuth={handleOpenAuth}
+              onOpenUserCard={handleOpenUserCard}
             />
           </main>
         )}
@@ -1037,13 +1130,35 @@ export default function App() {
           onRefreshInstalled={fetchInstalledExtensions}
         />
 
-        {/* Modal de Autenticación (Login / Registro con Google) */}
+        {/* Modal de Autenticación (Login / Registro) */}
         <AuthModal
           isOpen={isAuthModalOpen}
           onClose={() => setIsAuthModalOpen(false)}
           initialMode={authModalMode}
           onLoginSuccess={(user) => {
             setCurrentUser(user);
+          }}
+        />
+
+        {/* Tarjeta Flotante Interactiva de Perfil de Usuario (Estilo Discord) */}
+        <UserCardPopover
+          isOpen={userCardModal.isOpen}
+          onClose={() => setUserCardModal({ isOpen: false, userId: null, usernameFallback: null, userAvatarFallback: null })}
+          userId={userCardModal.userId}
+          usernameFallback={userCardModal.usernameFallback}
+          userAvatarFallback={userCardModal.userAvatarFallback}
+          currentUser={currentUser}
+          onViewFullProfile={(uid) => {
+            setUserCardModal({ isOpen: false });
+            handleViewProfile(uid);
+          }}
+          onOpenDirectChat={(uid) => {
+            setUserCardModal({ isOpen: false });
+            handleOpenDirectChat(uid);
+          }}
+          onSelectManga={(url, extId) => {
+            setUserCardModal({ isOpen: false });
+            handleSelectManga(url, extId);
           }}
         />
       </div>

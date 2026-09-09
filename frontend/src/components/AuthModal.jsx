@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import axios from 'axios';
 import { 
   X, 
   AtSign, 
@@ -7,8 +8,29 @@ import {
   CheckCircle2, 
   AlertCircle,
   Eye,
-  EyeOff
+  EyeOff,
+  BookOpen,
+  Sparkles,
+  Loader2,
+  KeyRound
 } from 'lucide-react';
+
+// Validador de formato de correo estándar RFC 5322
+const isValidEmailFormat = (val) => {
+  if (!val || typeof val !== 'string') return false;
+  const clean = val.trim();
+  if (clean.length > 254 || clean.length < 5) return false;
+  const parts = clean.split('@');
+  if (parts.length !== 2) return false;
+  const [local, domain] = parts;
+  if (local.length > 64 || local.length === 0) return false;
+  if (!domain.includes('.')) return false;
+  const domainParts = domain.split('.');
+  if (domainParts.some(p => p.length === 0)) return false;
+  const tld = domainParts[domainParts.length - 1];
+  if (tld.length < 2) return false;
+  return /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/.test(clean);
+};
 
 export default function AuthModal({
   isOpen,
@@ -17,17 +39,20 @@ export default function AuthModal({
   onLoginSuccess
 }) {
   const [mode, setMode] = useState(initialMode); // 'login' | 'register'
+  const [username, setUsername] = useState('');
+  const [emailOrUser, setEmailOrUser] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
   if (!isOpen) return null;
 
-  // Cálculo de fuerza de contraseña para los 5 segmentos visuales
+  // Cálculo visual de seguridad de contraseña
   const calculateStrength = (pass) => {
     if (!pass) return 0;
     let score = 0;
@@ -40,79 +65,138 @@ export default function AuthModal({
   };
 
   const strengthScore = calculateStrength(password);
+  const isCurrentEmailValid = isValidEmailFormat(email);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccessMessage('');
 
-    if (!email.trim() || !email.includes('@')) {
-      setError('Por favor ingresa un correo electrónico válido.');
-      return;
-    }
-
-    if (!password || password.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres.');
-      return;
-    }
-
     if (mode === 'register') {
-      if (password !== confirmPassword) {
-        setError('Las contraseñas no coinciden.');
+      if (!username.trim() || username.trim().length < 3) {
+        setError('El nombre de usuario debe tener al menos 3 caracteres.');
         return;
       }
 
-      // Registro exitoso
-      const username = email.split('@')[0];
-      const newUser = {
-        email,
-        name: username.charAt(0).toUpperCase() + username.slice(1),
-        avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`,
-        provider: 'local',
-        createdAt: new Date().toISOString()
-      };
+      if (!isValidEmailFormat(email)) {
+        setError('Por favor ingresa un correo electrónico válido (ejemplo: usuario@correo.com con su dominio .com, .es, etc.).');
+        return;
+      }
 
-      localStorage.setItem('tachiyomi_user', JSON.stringify(newUser));
-      setSuccessMessage('¡Cuenta creada con éxito!');
-      setTimeout(() => {
-        if (onLoginSuccess) onLoginSuccess(newUser);
-        onClose();
-      }, 700);
+      if (!password || password.length < 6) {
+        setError('La contraseña debe tener al menos 6 caracteres.');
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        setError('Las contraseñas no coinciden. Verifícalas por favor.');
+        return;
+      }
+
+      setIsLoading(true);
+
+      try {
+        const response = await axios.post('/api/auth/register', {
+          username: username.trim(),
+          email: email.trim(),
+          password
+        });
+
+        if (response.data?.success && response.data?.user) {
+          const user = response.data.user;
+          localStorage.setItem('tachiyomi_user', JSON.stringify(user));
+          setSuccessMessage('¡Cuenta creada con éxito! Bienvenido a Yomori.');
+          setTimeout(() => {
+            if (onLoginSuccess) onLoginSuccess(user);
+            onClose();
+          }, 600);
+        } else {
+          setError(response.data?.message || 'No se pudo crear la cuenta.');
+        }
+      } catch (err) {
+        const msg = err.response?.data?.message || err.message;
+        
+        // Fallback local en caso de estar completamente offline
+        if (err.code === 'ERR_NETWORK' || !err.response) {
+          const localUser = {
+            id: 'local_' + Date.now(),
+            username: username.trim(),
+            email: email.trim(),
+            avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username.trim())}`,
+            provider: 'local',
+            createdAt: new Date().toISOString()
+          };
+          localStorage.setItem('tachiyomi_user', JSON.stringify(localUser));
+          setSuccessMessage('¡Cuenta creada localmente!');
+          setTimeout(() => {
+            if (onLoginSuccess) onLoginSuccess(localUser);
+            onClose();
+          }, 600);
+          return;
+        }
+
+        setError(msg);
+      } finally {
+        setIsLoading(false);
+      }
+
     } else {
-      // Login exitoso
-      const username = email.split('@')[0];
-      const loggedUser = {
-        email,
-        name: username.charAt(0).toUpperCase() + username.slice(1),
-        avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`,
-        provider: 'local',
-        loggedInAt: new Date().toISOString()
-      };
+      // Modo LOGIN
+      if (!emailOrUser.trim()) {
+        setError('Por favor ingresa tu usuario o correo electrónico.');
+        return;
+      }
 
-      localStorage.setItem('tachiyomi_user', JSON.stringify(loggedUser));
-      setSuccessMessage('¡Inicio de sesión correcto!');
-      setTimeout(() => {
-        if (onLoginSuccess) onLoginSuccess(loggedUser);
-        onClose();
-      }, 700);
+      if (!password) {
+        setError('Por favor ingresa tu contraseña.');
+        return;
+      }
+
+      setIsLoading(true);
+
+      try {
+        const response = await axios.post('/api/auth/login', {
+          emailOrUsername: emailOrUser.trim(),
+          password
+        });
+
+        if (response.data?.success && response.data?.user) {
+          const user = response.data.user;
+          localStorage.setItem('tachiyomi_user', JSON.stringify(user));
+          setSuccessMessage(`¡Bienvenido de nuevo, ${user.username}!`);
+          setTimeout(() => {
+            if (onLoginSuccess) onLoginSuccess(user);
+            onClose();
+          }, 600);
+        } else {
+          setError(response.data?.message || 'Usuario o contraseña incorrectos.');
+        }
+      } catch (err) {
+        const msg = err.response?.data?.message || 'Credenciales incorrectas o usuario no encontrado.';
+
+        // Fallback local si el usuario ya estaba registrado en localStorage
+        if (err.code === 'ERR_NETWORK' || !err.response) {
+          const saved = localStorage.getItem('tachiyomi_user');
+          if (saved) {
+            try {
+              const u = JSON.parse(saved);
+              if (u.email === emailOrUser.trim() || u.username === emailOrUser.trim()) {
+                setSuccessMessage(`¡Bienvenido, ${u.username}!`);
+                setTimeout(() => {
+                  if (onLoginSuccess) onLoginSuccess(u);
+                  onClose();
+                }, 600);
+                return;
+              }
+            } catch (e) {}
+          }
+        }
+
+        setError(msg);
+      } finally {
+        setIsLoading(false);
+      }
     }
-  };
-
-  const handleGoogleAuth = () => {
-    const googleUser = {
-      email: 'lector.tachiyomi@gmail.com',
-      name: 'Google Reader',
-      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80',
-      provider: 'google',
-      loggedInAt: new Date().toISOString()
-    };
-
-    localStorage.setItem('tachiyomi_user', JSON.stringify(googleUser));
-    setSuccessMessage('¡Autenticado con Google!');
-    setTimeout(() => {
-      if (onLoginSuccess) onLoginSuccess(googleUser);
-      onClose();
-    }, 600);
   };
 
   return (
@@ -124,13 +208,17 @@ export default function AuthModal({
         onClick={onClose}
       />
 
-      {/* Contenedor del Modal */}
-      <div className="relative w-full max-w-md bg-[#181e2b] border border-gray-700/80 rounded-[32px] p-6 sm:p-8 shadow-2xl z-10 overflow-hidden transform transition-all">
+      {/* Contenedor del Modal con Colores Yomori */}
+      <div className="relative w-full max-w-md bg-[#10141f] border border-purple-900/40 rounded-[32px] p-6 sm:p-8 shadow-2xl shadow-purple-950/50 z-10 overflow-hidden transform transition-all">
         
+        {/* Glow de fondo decorativo */}
+        <div className="absolute -top-20 -left-20 w-48 h-48 bg-purple-600/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-20 -right-20 w-48 h-48 bg-indigo-600/15 rounded-full blur-3xl pointer-events-none" />
+
         {/* Controles Superiores: Botón Switch (Izquierda) y Botón Cerrar (Derecha) */}
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-2 relative z-10">
           
-          {/* Botón Switch Modo (Registrar / Login) */}
+          {/* Botón Switch Modo (Registrarse / Iniciar Sesión) */}
           <button
             type="button"
             onClick={() => {
@@ -138,86 +226,132 @@ export default function AuthModal({
               setError('');
               setSuccessMessage('');
             }}
-            className="px-5 py-2 rounded-full bg-[#f59e0b] hover:bg-[#d97706] text-black font-black text-xs tracking-wide shadow-lg shadow-amber-500/20 transition transform active:scale-95 cursor-pointer"
+            className="px-4 py-2 rounded-xl bg-purple-950/70 hover:bg-purple-900 border border-purple-700/50 text-purple-200 font-bold text-xs tracking-wide shadow-md transition transform active:scale-95 cursor-pointer flex items-center gap-1.5"
           >
-            {mode === 'login' ? 'Registrar' : 'Login'}
+            <span>{mode === 'login' ? 'Crear Cuenta' : 'Iniciar Sesión'}</span>
           </button>
 
           {/* Botón Circular Cerrar (X) */}
           <button
             type="button"
             onClick={onClose}
-            className="w-10 h-10 rounded-full bg-[#262f40] hover:bg-[#323c52] text-gray-300 hover:text-white flex items-center justify-center transition cursor-pointer border border-gray-600/40"
+            className="w-9 h-9 rounded-full bg-gray-800/80 hover:bg-gray-700 text-gray-400 hover:text-white flex items-center justify-center transition cursor-pointer border border-gray-700/50"
             aria-label="Cerrar modal"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Emblema / Logo Central */}
-        <div className="flex justify-center my-3">
-          <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-amber-600 via-orange-500 to-amber-400 p-0.5 shadow-xl shadow-orange-500/30 flex items-center justify-center">
-            <div className="w-full h-full rounded-full bg-[#1c2230] border-2 border-amber-500/80 flex items-center justify-center overflow-hidden">
-              {/* Icono de Templo / Portal en Escudo Dorado */}
-              <div className="w-14 h-14 rounded-full bg-gradient-to-b from-amber-500 to-orange-600 flex items-center justify-center text-black font-black shadow-inner">
-                <svg viewBox="0 0 24 24" className="w-8 h-8 fill-current text-[#141822]">
-                  <path d="M12 2L2 7v2h20V7L12 2zm-8 8v9h2v-9H4zm5 0v9h2v-9H9zm5 0v9h2v-9h-2zm5 0v9h2v-9h-2zM2 20v2h20v-2H2z" />
-                </svg>
+        {/* Emblema Oficial Yomori */}
+        <div className="flex justify-center my-3 relative z-10">
+          <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-purple-600 via-fuchsia-500 to-indigo-600 p-0.5 shadow-xl shadow-purple-600/30 flex items-center justify-center">
+            <div className="w-full h-full rounded-2xl bg-[#121622] border border-purple-500/50 flex items-center justify-center overflow-hidden">
+              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-inner">
+                <BookOpen className="w-7 h-7 text-white" />
               </div>
             </div>
           </div>
         </div>
 
         {/* Títulos */}
-        <div className="text-center mb-6">
-          <h2 className="text-2xl font-black text-white tracking-tight">
-            {mode === 'login' ? '¡Bienvenido de nuevo!' : '¡Crea tu cuenta!'}
+        <div className="text-center mb-6 relative z-10">
+          <h2 className="text-2xl font-black text-white tracking-tight flex items-center justify-center gap-2">
+            <span>{mode === 'login' ? '¡Bienvenido a Yomori!' : '¡Crea tu Cuenta!'}</span>
+            <Sparkles className="w-5 h-5 text-purple-400" />
           </h2>
           <p className="text-xs text-gray-400 mt-1">
             {mode === 'login' 
-              ? 'Ingresa tus credenciales para acceder a tu cuenta.' 
-              : 'Completa tus datos para disfrutar de lectura ilimitada.'}
+              ? 'Ingresa tus credenciales para sincronizar tus mangas y capítulos.' 
+              : 'Regístrate para guardar tu progreso y favoritos en la nube.'}
           </p>
         </div>
 
         {/* Alertas */}
         {error && (
-          <div className="mb-4 p-3 rounded-2xl bg-rose-950/70 border border-rose-800 text-rose-300 text-xs flex items-center gap-2">
+          <div className="mb-4 p-3 rounded-2xl bg-rose-950/70 border border-rose-800/80 text-rose-300 text-xs flex items-center gap-2 animate-fadeIn">
             <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
             <span>{error}</span>
           </div>
         )}
 
         {successMessage && (
-          <div className="mb-4 p-3 rounded-2xl bg-emerald-950/70 border border-emerald-800 text-emerald-300 text-xs flex items-center gap-2">
+          <div className="mb-4 p-3 rounded-2xl bg-emerald-950/70 border border-emerald-800/80 text-emerald-300 text-xs flex items-center gap-2 animate-fadeIn">
             <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
             <span>{successMessage}</span>
           </div>
         )}
 
         {/* Formulario */}
-        <form onSubmit={handleSubmit} className="space-y-3.5">
+        <form onSubmit={handleSubmit} className="space-y-3.5 relative z-10">
           
-          {/* Campo Correo */}
-          <div className="relative">
-            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-              <AtSign className="w-5 h-5" />
+          {/* MODO REGISTRO: Campo Nombre de Usuario */}
+          {mode === 'register' && (
+            <div className="relative">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                <User className="w-4 h-4 text-purple-400" />
+              </div>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Nombre de Usuario (Apodo)"
+                required
+                className="w-full bg-[#181d2a] border border-gray-700/80 rounded-2xl pl-11 pr-4 py-3 text-xs sm:text-sm text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition select-text"
+              />
             </div>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Correo"
-              required
-              className="w-full bg-[#242b3b] border border-gray-700/80 rounded-2xl pl-12 pr-4 py-3.5 text-xs sm:text-sm text-white placeholder-gray-400 focus:outline-none focus:border-amber-500 transition select-text"
-            />
-          </div>
+          )}
+
+          {/* Campo Correo o Usuario */}
+          {mode === 'register' ? (
+            <div className="relative">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                <AtSign className="w-4 h-4 text-purple-400" />
+              </div>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Correo electrónico (ej: usuario@gmail.com)"
+                required
+                className={`w-full bg-[#181d2a] border rounded-2xl pl-11 pr-11 py-3 text-xs sm:text-sm text-white placeholder-gray-400 focus:outline-none transition select-text ${
+                  email && isCurrentEmailValid 
+                    ? 'border-emerald-500/80 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500' 
+                    : email && !isCurrentEmailValid 
+                      ? 'border-amber-500/70 focus:border-amber-500 focus:ring-1 focus:ring-amber-500' 
+                      : 'border-gray-700/80 focus:border-purple-500 focus:ring-1 focus:ring-purple-500'
+                }`}
+              />
+              {email && (
+                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                  {isCurrentEmailValid ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  ) : (
+                    <span className="text-[10px] font-mono font-bold text-amber-400">@dominio.com</span>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="relative">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                <User className="w-4 h-4 text-purple-400" />
+              </div>
+              <input
+                type="text"
+                value={emailOrUser}
+                onChange={(e) => setEmailOrUser(e.target.value)}
+                placeholder="Correo o Nombre de Usuario"
+                required
+                className="w-full bg-[#181d2a] border border-gray-700/80 rounded-2xl pl-11 pr-4 py-3.5 text-xs sm:text-sm text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition select-text"
+              />
+            </div>
+          )}
 
           {/* Campos Contraseña */}
           {mode === 'login' ? (
             <div className="relative">
               <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-                <Lock className="w-5 h-5" />
+                <Lock className="w-4 h-4 text-purple-400" />
               </div>
               <input
                 type={showPassword ? 'text' : 'password'}
@@ -225,12 +359,13 @@ export default function AuthModal({
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Contraseña"
                 required
-                className="w-full bg-[#242b3b] border border-gray-700/80 rounded-2xl pl-12 pr-11 py-3.5 text-xs sm:text-sm text-white placeholder-gray-400 focus:outline-none focus:border-amber-500 transition select-text"
+                className="w-full bg-[#181d2a] border border-gray-700/80 rounded-2xl pl-11 pr-11 py-3.5 text-xs sm:text-sm text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition select-text"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(prev => !prev)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 cursor-pointer p-1"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-purple-300 cursor-pointer p-1"
+                title={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -239,7 +374,7 @@ export default function AuthModal({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div className="relative">
                 <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-                  <Lock className="w-4 h-4" />
+                  <Lock className="w-4 h-4 text-purple-400" />
                 </div>
                 <input
                   type={showPassword ? 'text' : 'password'}
@@ -247,13 +382,13 @@ export default function AuthModal({
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Contraseña"
                   required
-                  className="w-full bg-[#242b3b] border border-gray-700/80 rounded-2xl pl-10 pr-3 py-3 text-xs text-white placeholder-gray-400 focus:outline-none focus:border-amber-500 transition select-text"
+                  className="w-full bg-[#181d2a] border border-gray-700/80 rounded-2xl pl-10 pr-3 py-3 text-xs text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition select-text"
                 />
               </div>
 
               <div className="relative">
                 <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-                  <Lock className="w-4 h-4" />
+                  <KeyRound className="w-4 h-4 text-purple-400" />
                 </div>
                 <input
                   type={showPassword ? 'text' : 'password'}
@@ -261,25 +396,30 @@ export default function AuthModal({
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Confirmar"
                   required
-                  className="w-full bg-[#242b3b] border border-gray-700/80 rounded-2xl pl-10 pr-3 py-3 text-xs text-white placeholder-gray-400 focus:outline-none focus:border-amber-500 transition select-text"
+                  className="w-full bg-[#181d2a] border border-gray-700/80 rounded-2xl pl-10 pr-3 py-3 text-xs text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition select-text"
                 />
               </div>
             </div>
           )}
 
-          {/* Segmentos de Fuerza de Contraseña (Como en Imagen 2) */}
+          {/* Segmentos de Fuerza de Contraseña */}
           {mode === 'register' && (
-            <div className="flex items-center gap-1.5 pt-1 px-1">
-              {[1, 2, 3, 4, 5].map((seg) => (
-                <div
-                  key={seg}
-                  className={`flex-1 h-2 rounded-full transition-colors ${
-                    seg <= strengthScore 
-                      ? strengthScore >= 4 ? 'bg-emerald-500' : strengthScore >= 2 ? 'bg-amber-500' : 'bg-rose-500'
-                      : 'bg-[#283144]'
-                  }`}
-                />
-              ))}
+            <div className="space-y-1 pt-1 px-1">
+              <div className="flex items-center gap-1.5">
+                {[1, 2, 3, 4, 5].map((seg) => (
+                  <div
+                    key={seg}
+                    className={`flex-1 h-1.5 rounded-full transition-colors ${
+                      seg <= strengthScore 
+                        ? strengthScore >= 4 ? 'bg-emerald-500' : strengthScore >= 2 ? 'bg-purple-500' : 'bg-rose-500'
+                        : 'bg-[#22293a]'
+                    }`}
+                  />
+                ))}
+              </div>
+              <p className="text-[10px] text-gray-400 font-mono text-right">
+                {strengthScore >= 4 ? 'Seguridad: Alta' : strengthScore >= 2 ? 'Seguridad: Media' : 'Seguridad: Básica'}
+              </p>
             </div>
           )}
 
@@ -291,17 +431,17 @@ export default function AuthModal({
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded bg-[#242b3b] border-gray-600 text-amber-500 focus:ring-0 cursor-pointer"
+                  className="w-4 h-4 rounded bg-[#181d2a] border-gray-600 text-purple-600 focus:ring-0 cursor-pointer accent-purple-600"
                 />
                 <span>Recordarme</span>
               </label>
 
               <button
                 type="button"
-                onClick={() => alert('Se ha enviado un enlace de recuperación a tu correo.')}
-                className="text-amber-400 hover:text-amber-300 font-medium transition cursor-pointer"
+                onClick={() => alert('Para restablecer tu contraseña, contacta al soporte de Yomori o ingresa tu correo registrado.')}
+                className="text-purple-400 hover:text-purple-300 font-medium transition cursor-pointer"
               >
-                Recuperar contraseña
+                ¿Olvidaste tu contraseña?
               </button>
             </div>
           )}
@@ -309,45 +449,17 @@ export default function AuthModal({
           {/* Botón Principal de Acción (Login / Registrar) */}
           <button
             type="submit"
-            className="w-full py-3.5 rounded-2xl bg-[#f59e0b] hover:bg-[#d97706] text-black font-black text-sm tracking-wide shadow-xl shadow-amber-500/20 transition transform active:scale-98 cursor-pointer mt-2"
+            disabled={isLoading}
+            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-sm tracking-wide shadow-xl shadow-purple-600/30 transition transform hover:scale-[1.01] active:scale-98 cursor-pointer mt-3 flex items-center justify-center gap-2 disabled:opacity-50"
           >
-            {mode === 'login' ? 'Login' : 'Registrar'}
-          </button>
-
-          {/* Separador */}
-          <div className="relative my-4 flex items-center justify-center">
-            <div className="border-t border-gray-700/80 w-full" />
-            <span className="bg-[#181e2b] px-3 text-[11px] text-gray-400 uppercase tracking-wider font-semibold absolute">
-              O
-            </span>
-          </div>
-
-          {/* Botón de Autenticación con Google */}
-          <button
-            type="button"
-            onClick={handleGoogleAuth}
-            className="w-full py-3 rounded-2xl bg-[#242b3b] hover:bg-[#2e374a] border border-gray-700 text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-3 transition cursor-pointer shadow-md"
-          >
-            {/* SVG Oficial de Google */}
-            <svg className="w-4 h-4" viewBox="0 0 24 24">
-              <path
-                fill="#EA4335"
-                d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.2 9 5 12 5z"
-              />
-              <path
-                fill="#4285F4"
-                d="M23.5 12.3c0-.8-.1-1.7-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"
-              />
-              <path
-                fill="#FBBC05"
-                d="M5.6 14.8c-.3-.8-.4-1.8-.4-2.8s.2-2 .4-2.8L1.9 6.3C.7 8.7 0 10.3 0 12s.7 3.3 1.9 5.7l3.7-2.9z"
-              />
-              <path
-                fill="#34A853"
-                d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.2-6.4-5.2L1.9 16c1.8 3.7 5.6 7 10.1 7z"
-              />
-            </svg>
-            <span>{mode === 'login' ? 'Iniciar sesión con Google' : 'Registrarse con Google'}</span>
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>{mode === 'login' ? 'Iniciando sesión...' : 'Registrando cuenta...'}</span>
+              </>
+            ) : (
+              <span>{mode === 'login' ? 'Iniciar Sesión' : 'Crear mi Cuenta'}</span>
+            )}
           </button>
 
         </form>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import LiveChatRoom from './LiveChatRoom.jsx';
 import { 
   ArrowLeft, 
   Play, 
@@ -42,7 +43,10 @@ export default function MangaDetailsView({
   downloadQueue = { items: [] },
   onDownloadChapter,
   onDownloadBatch,
-  onDeleteDownload
+  onDeleteDownload,
+  currentUser = null,
+  onOpenAuth,
+  onOpenUserCard
 }) {
   const [sortAsc, setSortAsc] = useState(false);
   const [chapterFilter, setChapterFilter] = useState('');
@@ -642,6 +646,19 @@ export default function MangaDetailsView({
             </div>
           )}
         </div>
+      </div>
+
+      {/* 3. COMUNIDAD Y CHAT EN VIVO DEL MANGA */}
+      <div className="mt-8 animate-detailsHeroIn" style={{ animationDelay: '180ms', animationFillMode: 'both' }}>
+        <LiveChatRoom
+          roomId={`manga:${btoa(encodeURIComponent(manga.url || manga.title || 'default')).slice(0, 32)}`}
+          title={`Comunidad de ${manga.title}`}
+          subtitle={`Debate sobre la historia, teorías y comparte opiniones en vivo con otros lectores de ${manga.title}.`}
+          currentUser={currentUser}
+          onOpenAuth={onOpenAuth}
+          onOpenUserCard={onOpenUserCard}
+          mangaTitle={manga.title}
+        />
       </div>
 
       {/* Modal Confirmación de Eliminación de Descarga */}

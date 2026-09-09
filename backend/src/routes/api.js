@@ -22,6 +22,26 @@ import {
   deleteDownloadedChapter, 
   serveLocalPage 
 } from '../controllers/downloadController.js';
+import { 
+  register, 
+  login, 
+  getProfile, 
+  updateProfile, 
+  getPublicProfile, 
+  syncUserData 
+} from '../controllers/authController.js';
+import { 
+  getRoomMessages, 
+  postMessage, 
+  toggleLikeMessage 
+} from '../controllers/chatController.js';
+import {
+  getCommunities,
+  createCommunity,
+  toggleJoinCommunity,
+  toggleFriend,
+  getFriendsAndDMs
+} from '../controllers/socialController.js';
 
 const router = Router();
 
@@ -29,7 +49,7 @@ router.get('/health', (req, res) => {
   res.json({
     status: 'online',
     timestamp: new Date().toISOString(),
-    service: 'Tachiyomi Web Reader Engine'
+    service: 'Yomori Reader Engine'
   });
 });
 
@@ -64,5 +84,25 @@ router.get('/downloads/page', serveLocalPage);
 // Control de caché
 router.get('/cache/stats', getCacheStats);
 router.post('/cache/clear', clearCache);
+
+// Autenticación y Perfil de usuarios de Yomori
+router.post('/auth/register', register);
+router.post('/auth/login', login);
+router.get('/auth/me', getProfile);
+router.put('/auth/profile', updateProfile);
+router.post('/auth/sync', syncUserData);
+router.get('/users/:userId', getPublicProfile);
+
+// Chat en vivo y salas de comentarios persistentes
+router.get('/chat/messages', getRoomMessages);
+router.post('/chat/send', postMessage);
+router.post('/chat/like', toggleLikeMessage);
+
+// Comunidades, Amigos y Mensajes Directos (DMs)
+router.get('/social/communities', getCommunities);
+router.post('/social/communities', createCommunity);
+router.post('/social/communities/join', toggleJoinCommunity);
+router.post('/social/friends/toggle', toggleFriend);
+router.get('/social/friends-and-dms', getFriendsAndDMs);
 
 export default router;

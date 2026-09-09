@@ -1,0 +1,214 @@
+[
+  {
+    "id": "usr_1788991520791_zfdvp",
+    "username": "TestUser_0558",
+    "email": "test1788991520558@yomori.app",
+    "avatar": "https://api.dicebear.com/7.x/bottts/svg?seed=TestUser_0558",
+    "salt": "a2cb1ca204c00777b0313d65d04e0d04",
+    "password": "7debf3ddce5c106b5c6a3b25ee453d7a52c61a906f6478bc3cb44f16f28a1f005e340adbcb2b55e34baca120af04f6c91e5c666daba997a41fb62ce0e9534d9b",
+    "token": "7a8470b43cfc5d9877e6941cf97b57746c714272f1f39afdcc4aad01bfd12d7f",
+    "createdAt": "2026-09-09T22:05:20.792Z",
+    "lastLogin": "2026-09-09T22:05:20.837Z"
+  },
+  {
+    "id": "usr_1788991964318_s09yt",
+    "username": "Rey_Palomo",
+    "email": "cristofer.apaza01@gmail.com",
+    "avatar": "https://api.dicebear.com/7.x/bottts/svg?seed=Rey_Palomo",
+    "salt": "6f7b1582b6daa22cfe6763519ff7b1a6",
+    "password": "e1ca2796eb5acc656f5ecf64e32f625452a93ff964b6f645190c969c0fdd50882cf233d392029e049faaaa68330bdf4c3138b82e05c0d6ba5a82d0cecc5a76c1",
+    "token": "555ccf316c5c8237e94ee085dfe709b85b2344bce54b39ab5246607df8d72e75",
+    "createdAt": "2026-09-09T22:12:44.319Z",
+    "banner": "linear-gradient(135deg, #b91c1c 0%, #ea580c 50%, #f59e0b 100%)",
+    "bio": "Leyendo en Yomori 📖✨",
+    "badge": "Lector Élite ⚡",
+    "isLibraryPublic": true,
+    "updatedAt": "2026-09-09T22:44:20.109Z"
+  },
+  {
+    "id": "usr_1788992187506_842dcdae",
+    "username": "Carlos_7482",
+    "email": "carlos1788992187482@gmail.com",
+    "avatar": "https://api.dicebear.com/7.x/bottts/svg?seed=Carlos_7482",
+    "role": "user",
+    "salt": "1a89810e3a228114fd75feccbbad9d1e",
+    "password": "d29802f337490a8c66ff9a2e7f0ad365a57b4014e4826c9164a5192ac628dcf91570f457659765c6c2d89d295bf5c339b5c102cd731cf820266e646ae5bb491c",
+    "token": "7f13429ffc9842df2c58f6e86db22816955c4241cabafd13a9ffdbccfc769e9e",
+    "library": [
+      {
+        "title": "Solo Leveling",
+        "url": "https://zonatmo.org/library/manhwa/1"
+      }
+    ],
+    "history": [
+      {
+        "mangaTitle": "Solo Leveling",
+        "chapterTitle": "Capítulo 1"
+      }
+    ],
+    "chapterProgress": {
+      "https://zonatmo.org/chapter/1": {
+        "page": 15,
+        "totalPages": 30
+      }
+    },
+    "settings": {},
+    "stats": {
+      "totalChaptersRead": 0,
+      "createdAt": "2026-09-09T22:16:27.507Z"
+    },
+    "createdAt": "2026-09-09T22:16:27.507Z",
+    "updatedAt": "2026-09-09T22:16:27.537Z",
+    "lastLogin": "2026-09-09T22:16:27.507Z"
+  },
+  {
+    "id": "usr_1788993347657_ff3b9ac2",
+    "username": "Usuario_Test_A",
+    "email": "test_a_1788993347494@yomori.app",
+    "avatar": "https://api.dicebear.com/7.x/bottts/svg?seed=Usuario_Test_A",
+    "banner": "linear-gradient(135deg, #b91c1c 0%, #ea580c 50%, #f59e0b 100%)",
+    "bio": "Leyendo manhwas legendarios 🗡️",
+    "badge": "Cazador Rango S ⚔️",
+    "isLibraryPublic": true,
+    "role": "user",
+    "salt": "6e17cdbb44164006f61503132440e24c",
+    "password": "6e141ce173b91f374882875e38dc0df68d69665eff2bc87f80ce860ab71ad53b5b2034d28e0d7b044cebf31ea0ad1cf8414d3dc4f897f812dc5ad53874dbea9b",
+    "token": "94a363a0f799e869c0cd696dbe54daca17f3b943539c801030bb3686a57724be",
+    "library": [],
+    "history": [],
+    "chapterProgress": {},
+    "settings": {},
+    "stats": {
+      "totalChaptersRead": 0,
+      "createdAt": "2026-09-09T22:35:47.658Z"
+    },
+    "createdAt": "2026-09-09T22:35:47.658Z",
+    "updatedAt": "2026-09-09T22:35:47.725Z",
+    "lastLogin": "2026-09-09T22:35:47.658Z"
+  },
+  {
+    "id": "usr_1788993347707_df122846",
+    "username": "Usuario_Test_B",
+    "email": "test_b_1788993347494@yomori.app",
+    "avatar": "https://api.dicebear.com/7.x/bottts/svg?seed=Usuario_Test_B",
+    "banner": "linear-gradient(135deg, #6366f1 0%, #a855f7 100%)",
+    "bio": "Leyendo en Yomori 📖✨",
+    "badge": "Lector Principiante",
+    "isLibraryPublic": true,
+    "role": "user",
+    "salt": "d640ca4deff3f804b2de4904b8868d4e",
+    "password": "23cf0cce74b9f8933f5b59bad9f2bf6279a645c888878af87bc8e16e0a636b9e9d4d32e9ed2cdfea158b3dc8cc5bfbf90794c7d510f25493d5fff77de09b10fb",
+    "token": "a00668a26f2a443c24e940d01654246517947b78b730a99576ebf4c63e156b10",
+    "library": [],
+    "history": [],
+    "chapterProgress": {},
+    "settings": {},
+    "stats": {
+      "totalChaptersRead": 0,
+      "createdAt": "2026-09-09T22:35:47.707Z"
+    },
+    "createdAt": "2026-09-09T22:35:47.707Z",
+    "updatedAt": "2026-09-09T22:35:47.707Z",
+    "lastLogin": "2026-09-09T22:35:47.707Z"
+  },
+  {
+    "id": "usr_1788993394249_1183cdcc",
+    "username": "UserA_1788993394151",
+    "email": "test_a_1788993394151@yomori.app",
+    "avatar": "https://api.dicebear.com/7.x/bottts/svg?seed=UserA_1788993394151",
+    "banner": "linear-gradient(135deg, #b91c1c 0%, #ea580c 50%, #f59e0b 100%)",
+    "bio": "Leyendo manhwas legendarios 🗡️",
+    "badge": "Cazador Rango S ⚔️",
+    "isLibraryPublic": true,
+    "role": "user",
+    "salt": "7ca5c1286e5f32ff01a687b6fd77705d",
+    "password": "e07dc6c375870e07c671283313f70ba392be5b8645dbabad1881e7abccc75dbd0da59bc38f64c87a35d7a599baf6cf5ea492f1974e0642ca2a767836ed33f066",
+    "token": "e00a49a264ee08dc3b4cf1ba0a93f66d492f9ae28b40ab2b087afbb7654aa14a",
+    "library": [],
+    "history": [],
+    "chapterProgress": {},
+    "settings": {},
+    "stats": {
+      "totalChaptersRead": 0,
+      "createdAt": "2026-09-09T22:36:34.250Z"
+    },
+    "createdAt": "2026-09-09T22:36:34.250Z",
+    "updatedAt": "2026-09-09T22:36:34.328Z",
+    "lastLogin": "2026-09-09T22:36:34.250Z"
+  },
+  {
+    "id": "usr_1788993394307_3fececf4",
+    "username": "UserB_1788993394151",
+    "email": "test_b_1788993394151@yomori.app",
+    "avatar": "https://api.dicebear.com/7.x/bottts/svg?seed=UserB_1788993394151",
+    "banner": "linear-gradient(135deg, #6366f1 0%, #a855f7 100%)",
+    "bio": "Leyendo en Yomori 📖✨",
+    "badge": "Lector Principiante",
+    "isLibraryPublic": true,
+    "role": "user",
+    "salt": "274c78ea5ef918346e42254281495901",
+    "password": "0f0aec268fa0666e1d0aafd30199001ab2df50d8f8977b0a4e302302007660ee8a4109b74d293f02584eda8b0f69d1198007e1f4328cebcd6e0f3f9d8487262b",
+    "token": "286fa05dc8a7863db5b89b00a981033448aef6364a2bd2fc5be1d1374278918a",
+    "library": [],
+    "history": [],
+    "chapterProgress": {},
+    "settings": {},
+    "stats": {
+      "totalChaptersRead": 0,
+      "createdAt": "2026-09-09T22:36:34.307Z"
+    },
+    "createdAt": "2026-09-09T22:36:34.307Z",
+    "updatedAt": "2026-09-09T22:36:34.307Z",
+    "lastLogin": "2026-09-09T22:36:34.307Z"
+  },
+  {
+    "id": "usr_1788994649741_5408120a",
+    "username": "UserA_1788994649585",
+    "email": "test_a_1788994649585@yomori.app",
+    "avatar": "https://api.dicebear.com/7.x/bottts/svg?seed=UserA_1788994649585",
+    "banner": "linear-gradient(135deg, #b91c1c 0%, #ea580c 50%, #f59e0b 100%)",
+    "bio": "Leyendo manhwas legendarios 🗡️",
+    "badge": "Cazador Rango S ⚔️",
+    "isLibraryPublic": true,
+    "role": "user",
+    "salt": "b656fd1ce0bf1f32a8436da501a2ce6a",
+    "password": "73853d10571b9ef27506d6f95835577d6cd041a58176040ab3de6183bf9a587af4d0ecf39a82c592873d70ff469fdda6570a031045d697cde70db012b08eee55",
+    "token": "8321a2c0c9501ab8c83545dc76ca0260d70c88627b064b73cd55f2a9a4c52efe",
+    "library": [],
+    "history": [],
+    "chapterProgress": {},
+    "settings": {},
+    "stats": {
+      "totalChaptersRead": 0,
+      "createdAt": "2026-09-09T22:57:29.743Z"
+    },
+    "createdAt": "2026-09-09T22:57:29.743Z",
+    "updatedAt": "2026-09-09T22:57:29.822Z",
+    "lastLogin": "2026-09-09T22:57:29.743Z"
+  },
+  {
+    "id": "usr_1788994649795_5bc3b66c",
+    "username": "UserB_1788994649585",
+    "email": "test_b_1788994649585@yomori.app",
+    "avatar": "https://api.dicebear.com/7.x/bottts/svg?seed=UserB_1788994649585",
+    "banner": "linear-gradient(135deg, #6366f1 0%, #a855f7 100%)",
+    "bio": "Leyendo en Yomori 📖✨",
+    "badge": "Lector Principiante",
+    "isLibraryPublic": true,
+    "role": "user",
+    "salt": "dcd3b47f073e2caee0e7bfa66442da98",
+    "password": "b9b3c537f0e0ef08b723e9e071e4b73fb4fbc7cc2da73b06dce0fc28a591c6ed8f107720b55da69403a464b8b8ebb58db957774b47bea61edcd464749981a69a",
+    "token": "58ce65a31022b9470926131191c9962059a87120e934de83f82d364d1874b2de",
+    "library": [],
+    "history": [],
+    "chapterProgress": {},
+    "settings": {},
+    "stats": {
+      "totalChaptersRead": 0,
+      "createdAt": "2026-09-09T22:57:29.795Z"
+    },
+    "createdAt": "2026-09-09T22:57:29.795Z",
+    "updatedAt": "2026-09-09T22:57:29.795Z",
+    "lastLogin": "2026-09-09T22:57:29.795Z"
+  }
+]

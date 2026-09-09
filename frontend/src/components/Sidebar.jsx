@@ -11,7 +11,9 @@ import {
   ChevronRight,
   LogIn,
   LogOut,
-  User
+  User,
+  MessageSquare,
+  Users
 } from 'lucide-react';
 
 export default function Sidebar({
@@ -22,6 +24,7 @@ export default function Sidebar({
   historyCount = 0,
   currentUser = null,
   onOpenAuth,
+  onOpenProfile,
   onLogout
 }) {
   const menuItems = [
@@ -36,6 +39,18 @@ export default function Sidebar({
       label: 'Biblioteca',
       icon: BookMarked,
       badge: libraryCount > 0 ? libraryCount : null
+    },
+    {
+      id: 'messages',
+      label: 'Mensajes',
+      icon: MessageSquare,
+      badge: null
+    },
+    {
+      id: 'communities',
+      label: 'Comunidades',
+      icon: Users,
+      badge: null
     },
     {
       id: 'updates',
@@ -125,24 +140,36 @@ export default function Sidebar({
         {/* Sección de Usuario / Autenticación */}
         <div className="p-3 border-t border-gray-800/60 bg-[#090c13]">
           {currentUser ? (
-            <div className="flex items-center justify-between p-2 rounded-xl bg-[#141824] border border-gray-700/60">
+            <div 
+              onClick={() => onOpenProfile && onOpenProfile()}
+              className="flex items-center justify-between p-2 rounded-xl bg-[#141824] hover:bg-[#181f30] border border-gray-700/60 hover:border-purple-600/60 transition cursor-pointer group"
+              title="Clic para ver y editar tu Perfil"
+            >
               <div className="flex items-center gap-2.5 min-w-0">
-                <img
-                  src={currentUser.avatar}
-                  alt={currentUser.name}
-                  className="w-8 h-8 rounded-full border border-purple-500/50 shrink-0"
-                />
+                <div className="relative">
+                  <img
+                    src={currentUser.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(currentUser.username || 'User')}`}
+                    alt={currentUser.username || currentUser.name}
+                    className="w-8 h-8 rounded-full border border-purple-500/50 group-hover:scale-105 transition shrink-0"
+                  />
+                  <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-400 border border-black" />
+                </div>
                 <div className="min-w-0">
-                  <span className="text-xs font-bold text-white block truncate">
-                    {currentUser.name}
-                  </span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs font-bold text-white group-hover:text-purple-300 transition block truncate">
+                      {currentUser.username || currentUser.name}
+                    </span>
+                  </div>
                   <span className="text-[10px] text-purple-400 font-mono block truncate">
-                    {currentUser.email}
+                    {currentUser.badge || 'Ver perfil'}
                   </span>
                 </div>
               </div>
               <button
-                onClick={onLogout}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onLogout();
+                }}
                 className="p-1.5 rounded-lg text-gray-400 hover:text-rose-400 hover:bg-rose-950/40 transition cursor-pointer shrink-0"
                 title="Cerrar sesión"
               >
@@ -152,10 +179,10 @@ export default function Sidebar({
           ) : (
             <button
               onClick={() => onOpenAuth && onOpenAuth('login')}
-              className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition transform active:scale-95 cursor-pointer"
+              className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-purple-600/30 transition transform active:scale-95 cursor-pointer"
             >
               <LogIn className="w-4 h-4" />
-              <span>Login / Registrar</span>
+              <span>Iniciar Sesión / Registro</span>
             </button>
           )}
         </div>

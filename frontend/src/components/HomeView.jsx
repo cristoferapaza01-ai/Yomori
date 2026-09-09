@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import LiveChatRoom from './LiveChatRoom.jsx';
 import { 
   Play, 
   ChevronLeft, 
@@ -357,6 +358,7 @@ export default function HomeView({
   onToggleLibrary,
   currentUser = null,
   onOpenAuth,
+  onOpenUserCard,
   installedExtensions = [],
   onInstallAllExtensions,
   onGoToExplore
@@ -1498,121 +1500,15 @@ export default function HomeView({
 
       </div>
 
-      {/* 4. COMENTARIOS (Comunidad) */}
-      <section className="bg-[#101420] border border-gray-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
-        
-        {/* Header de la comunidad */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-800">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-purple-600/20 text-purple-400 border border-purple-600/40 shadow-lg shadow-purple-950/50">
-              <MessageSquare className="w-6 h-6" />
-            </div>
-            <div>
-              <h2 className="text-lg sm:text-xl font-black text-white tracking-tight flex items-center gap-2">
-                <span>Comunidad</span>
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
-              </h2>
-              <p className="text-xs text-gray-400">
-                Opina, comparte teorías y reacciona a los últimos capítulos con la comunidad.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#161a28] border border-gray-700/80 text-xs text-gray-300 font-mono self-start sm:self-auto">
-            <Users className="w-3.5 h-3.5 text-emerald-400" />
-            <span>1 lector en vivo</span>
-          </div>
-        </div>
-
-        {/* Input para Escribir Comentario */}
-        <form onSubmit={handlePostComment} className="bg-[#141824] border border-gray-700/80 rounded-2xl p-3 sm:p-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              value={commentUserName}
-              onChange={(e) => setCommentUserName(e.target.value)}
-              placeholder="Tu apodo..."
-              maxLength={25}
-              className="bg-[#0b0e14] border border-gray-700 rounded-xl px-3 py-1.5 text-xs text-purple-300 font-semibold focus:outline-none focus:border-purple-500 w-44 select-text"
-            />
-            <span className="text-[11px] text-gray-500">Publicando en directo</span>
-          </div>
-
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={newCommentText}
-              onChange={(e) => setNewCommentText(e.target.value)}
-              placeholder="Escribe tu comentario sobre los capítulos o recomienda una serie..."
-              className="flex-1 bg-[#0b0e14] border border-gray-700 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 select-text"
-            />
-            <button
-              type="submit"
-              disabled={!newCommentText.trim()}
-              className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 transition shadow-lg shadow-purple-700/30 cursor-pointer"
-            >
-              <span>Enviar</span>
-              <Send className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </form>
-
-        {/* Lista de Comentarios en Vivo */}
-        <div className="space-y-3 max-h-[380px] overflow-y-auto pr-2 divide-y divide-gray-800/60">
-          {comments.map((comment) => (
-            <div key={comment.id} className="pt-3 first:pt-0 flex items-start gap-3 group">
-              
-              {/* Avatar */}
-              <div className="w-9 h-9 rounded-xl overflow-hidden bg-purple-950/60 border border-purple-800/40 shrink-0">
-                <img src={comment.avatar} alt={comment.user} className="w-full h-full object-cover" />
-              </div>
-
-              {/* Mensaje */}
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-2 mb-1">
-                  <span className="text-xs font-bold text-white">
-                    {comment.user}
-                  </span>
-                  {comment.badge && (
-                    <span className={`text-[10px] px-2 py-0.2 rounded-md font-semibold border ${comment.badgeColor || 'bg-gray-800 text-gray-300 border-gray-700'}`}>
-                      {comment.badge}
-                    </span>
-                  )}
-                  {comment.manga && comment.manga !== 'General' && (
-                    <span className="text-[10px] text-purple-400 font-medium">
-                      sobre <span className="underline">{comment.manga}</span>
-                    </span>
-                  )}
-                  <span className="text-[10px] text-gray-500 font-mono ml-auto">
-                    {comment.time}
-                  </span>
-                </div>
-
-                <p className="text-xs sm:text-sm text-gray-300 leading-relaxed select-text">
-                  {comment.text}
-                </p>
-
-                {/* Botón de Like */}
-                <div className="flex items-center gap-3 mt-2">
-                  <button
-                    onClick={() => handleToggleLikeComment(comment.id)}
-                    className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg transition cursor-pointer ${
-                      comment.isLiked
-                        ? 'bg-rose-950/60 text-rose-400 border border-rose-800/60'
-                        : 'text-gray-400 hover:text-rose-400 hover:bg-gray-800/60'
-                    }`}
-                  >
-                    <Heart className={`w-3.5 h-3.5 ${comment.isLiked ? 'fill-rose-500 text-rose-500' : ''}`} />
-                    <span>{comment.likes}</span>
-                  </button>
-                </div>
-              </div>
-
-            </div>
-          ))}
-        </div>
-
-      </section>
+      {/* 4. CHAT GLOBAL EN VIVO (Comunidad de Yomori) */}
+      <LiveChatRoom
+        roomId="global"
+        title="Chat de la Comunidad"
+        subtitle="Opina, comparte teorías y debate en directo con todos los lectores de Yomori."
+        currentUser={currentUser}
+        onOpenAuth={onOpenAuth}
+        onOpenUserCard={onOpenUserCard}
+      />
 
       {/* Modal de Advertencia y Confirmación +18 */}
       {showAdultWarningModal && (

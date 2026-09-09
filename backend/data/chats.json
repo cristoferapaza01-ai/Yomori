@@ -1,0 +1,23 @@
+{
+  "global": [
+    {
+      "id": "msg_1788994650322_df776e",
+      "roomId": "global",
+      "userId": "usr_1788994649741_5408120a",
+      "username": "UserA_1788994649585",
+      "userAvatar": "https://api.dicebear.com/7.x/bottts/svg?seed=UserA_1788994649585",
+      "userBanner": "linear-gradient(135deg, #b91c1c 0%, #ea580c 50%, #f59e0b 100%)",
+      "userBadge": "Cazador Rango S ⚔️",
+      "userStatus": "Leyendo manhwas legendarios 🗡️",
+      "text": "¡Hola desde Socket 1 en tiempo real!",
+      "page": null,
+      "mangaTitle": null,
+      "chapterTitle": null,
+      "likes": 1,
+      "likedBy": [
+        "usr_1788994649795_5bc3b66c"
+      ],
+      "createdAt": "2026-09-09T22:57:30.323Z"
+    }
+  ]
+}
