@@ -406,48 +406,54 @@ export default function App() {
     return fallbackId || selectedExtension || 'olympus-scanlation';
   };
 
-  // 4. Ficha de Manga
-  const handleSelectManga = async (mangaUrl, extId = selectedExtension) => {
+  // 4. Ficha de Manga (Navegación Instantánea 0ms estilo Mihon / Tachiyomi)
+  const handleSelectManga = (mangaOrUrl, extId = selectedExtension) => {
+    let mangaUrl = typeof mangaOrUrl === 'string' ? mangaOrUrl : mangaOrUrl?.url;
     if (!mangaUrl) return;
-    setLoadingManga(true);
-    try {
-      const activeExt = getExtensionFromUrlOrId(mangaUrl, extId);
-      const response = await axios.get(`/api/manga?url=${encodeURIComponent(mangaUrl)}&extensionId=${activeExt}`);
-      if (response.data?.success && response.data.data) {
-        setSelectedManga(response.data.data);
-        setView('manga');
-        window.scrollTo({ top: 0, behavior: 'instant' });
-      } else {
-        throw new Error(response.data?.message || 'No se pudieron obtener los detalles del manga');
-      }
-    } catch (err) {
-      console.warn('Error cargando ficha desde API:', err.message);
-      // Buscar si el manga ya estaba en la biblioteca o catálogo para usar sus datos legítimos
-      const existing = library.find(item => item.url === mangaUrl) || catalog.find(item => item.url === mangaUrl);
-      if (existing) {
-        setSelectedManga(existing);
-        setView('manga');
-        window.scrollTo({ top: 0, behavior: 'instant' });
-      } else {
-        // Fallback dinámico que navega a la ficha sin bloquear con alerts molestos
-        const slug = decodeURIComponent(mangaUrl).split('/').filter(Boolean).pop() || '';
-        const fallbackTitle = slug.replace(/^comic-|^manhua-|^manga-/, '').replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-        setSelectedManga({
-          title: fallbackTitle || 'Manga',
-          url: mangaUrl,
-          cover: '',
-          synopsis: 'Cargando información del manga...',
-          status: 'En emisión',
-          genres: ['Manga'],
-          chapters: [],
-          extensionId: extId || 'olympus-scanlation'
-        });
-        setView('manga');
-        window.scrollTo({ top: 0, behavior: 'instant' });
-      }
-    } finally {
-      setLoadingManga(false);
-    }
+
+    // Buscar si tenemos datos previos en memoria (catálogo, biblioteca o el objeto pasado)
+    const existing = (typeof mangaOrUrl === 'object' && mangaOrUrl.title) 
+      ? mangaOrUrl 
+      : library.find(item => item.url === mangaUrl) || catalog.find(item => item.url === mangaUrl);
+
+    const slug = decodeURIComponent(mangaUrl).split('/').filter(Boolean).pop() || '';
+    const fallbackTitle = slug.replace(/^comic-|^manhua-|^manga-/, '').replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+
+    // 1. Navegación Optimista Instantánea (0ms)
+    setSelectedManga({
+      title: existing?.title || fallbackTitle || 'Manga',
+      url: mangaUrl,
+      cover: existing?.cover || '',
+      coverProxy: existing?.coverProxy || '',
+      synopsis: existing?.synopsis || 'Cargando información y lista de capítulos...',
+      status: existing?.status || 'En emisión',
+      genres: existing?.genres || ['Manga'],
+      chapters: existing?.chapters || [],
+      extensionId: extId || existing?.extensionId || 'olympus-scanlation'
+    });
+    setView('manga');
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    setLoadingManga(!existing?.chapters || existing.chapters.length === 0);
+
+    // 2. Fetch en segundo plano (SWR) para refrescar capítulos y metadata fresca
+    const activeExt = getExtensionFromUrlOrId(mangaUrl, extId || existing?.extensionId);
+    axios.get(`/api/manga?url=${encodeURIComponent(mangaUrl)}&extensionId=${activeExt}`)
+      .then(response => {
+        if (response.data?.success && response.data.data) {
+          setSelectedManga(prev => {
+            if (prev?.url === mangaUrl) {
+              return { ...prev, ...response.data.data };
+            }
+            return prev;
+          });
+        }
+      })
+      .catch(err => {
+        console.warn('Error refrescando ficha en segundo plano:', err.message);
+      })
+      .finally(() => {
+        setLoadingManga(false);
+      });
   };
 
   // 5. Cargar y Leer Capítulo

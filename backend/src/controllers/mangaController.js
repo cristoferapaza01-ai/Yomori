@@ -457,11 +457,17 @@ export const extractChapter = async (req, res) => {
     const host = req.get('host');
     const baseUrl = `${req.protocol}://${host}`;
 
-    const enrichedPages = (chapterData.pages || []).map(p => {
-      if (typeof p === 'string') {
-        return `${baseUrl}/api/proxy-image?url=${encodeURIComponent(p)}&referer=${encodeURIComponent(extension.baseUrl)}`;
-      }
-      return p;
+    const enrichedPages = (chapterData.pages || []).map((p, idx) => {
+      const rawUrl = typeof p === 'string' ? p : (p.url || p.originalUrl || '');
+      const proxyUrl = `${baseUrl}/api/proxy-image?url=${encodeURIComponent(rawUrl)}&referer=${encodeURIComponent(extension.baseUrl)}`;
+      return {
+        index: (typeof p === 'object' && p.index) ? p.index : (idx + 1),
+        url: rawUrl,
+        originalUrl: rawUrl,
+        proxyUrl: proxyUrl,
+        isOffline: (typeof p === 'object' && p.isOffline) || false,
+        localUrl: (typeof p === 'object' && p.localUrl) || ''
+      };
     });
 
     const result = {

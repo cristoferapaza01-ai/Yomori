@@ -17,6 +17,76 @@
     "icon": "https://zonatmo.com/favicon.ico",
     "lang": "es",
     "scriptFile": "zonatmo.js",
-    "installedAt": "2026-09-09T20:22:11.452Z"
+    "installedAt": "2026-09-09T21:06:10.182Z"
+  },
+  {
+    "id": "mangadex",
+    "name": "MangaDex",
+    "version": "2.2.0",
+    "baseUrl": "https://mangadex.org",
+    "icon": "https://mangadex.org/favicon.ico",
+    "lang": "es",
+    "scriptFile": "mangadex.js",
+    "installedAt": "2026-09-09T21:06:10.215Z"
+  },
+  {
+    "id": "manhwalatino",
+    "name": "ManhwaLatino",
+    "version": "2.2.0",
+    "baseUrl": "https://manhwalatino.lat",
+    "icon": "https://manhwalatino.lat/favicon.ico",
+    "lang": "es",
+    "scriptFile": "manhwalatino.js",
+    "installedAt": "2026-09-09T21:06:10.241Z"
+  },
+  {
+    "id": "miauscan",
+    "name": "MiauScan",
+    "version": "3.0.0",
+    "baseUrl": "https://leemiau.com",
+    "icon": "https://leemiau.com/wp-content/uploads/2022/02/cropped-gatita.png",
+    "lang": "es",
+    "scriptFile": "miauscan.js",
+    "installedAt": "2026-09-09T21:06:10.273Z"
+  },
+  {
+    "id": "skymangas",
+    "name": "SkyMangas",
+    "version": "3.0.0",
+    "baseUrl": "https://skymangas.com",
+    "icon": "https://skymangas.com/favicon.ico",
+    "lang": "es",
+    "scriptFile": "skymangas.js",
+    "installedAt": "2026-09-09T21:06:10.302Z"
+  },
+  {
+    "id": "plot-twist-no-fansub",
+    "name": "Plot Twist No Fansub",
+    "version": "3.0.0",
+    "baseUrl": "https://plotnofansub.com",
+    "icon": "https://plotnofansub.com/wp-content/uploads/2021/04/cropped-logo-192x192.png",
+    "lang": "es",
+    "scriptFile": "plot-twist-no-fansub.js",
+    "installedAt": "2026-09-09T21:06:10.328Z"
+  },
+  {
+    "id": "ikigai-mnagas",
+    "name": "Ikigai Mnagas",
+    "version": "2.2.0",
+    "baseUrl": "https://manhwalatino.lat",
+    "icon": "https://ikigaimangas.com/favicon.ico",
+    "lang": "es",
+    "scriptFile": "ikigai-mnagas.js",
+    "installedAt": "2026-09-09T21:06:10.358Z"
+  },
+  {
+    "id": "rn-scanlation",
+    "name": "RN Scanlation",
+    "version": "3.0.0",
+    "baseUrl": "https://rncalation.online",
+    "icon": "https://rncalation.online/icons/icon-192.png",
+    "lang": "es",
+    "scriptFile": "rn-scanlation.js",
+    "installedAt": "2026-09-09T21:06:10.388Z"
   }
 ]
