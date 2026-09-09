@@ -55,7 +55,7 @@ export default function App() {
     }
     return [
       { name: 'Repositorio Oficial Yomori (GitHub)', url: 'https://raw.githubusercontent.com/cristoferapaza01-ai/yomori-extensions/main/index.json' },
-      { name: 'Repositorio Local Yomori', url: 'http://localhost:5000/index.json' }
+      { name: 'Repositorio Cloud Yomori (Oracle)', url: 'http://158.101.116.245/repo/index.json' }
     ];
   });
 

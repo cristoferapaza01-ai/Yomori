@@ -315,7 +315,7 @@ export default function ExploreView({
   const [installingId, setInstallingId] = useState(null);
   const [isBatchInstalling, setIsBatchInstalling] = useState(false);
 
-  const defaultRepoUrl = 'http://localhost:5000/index.json';
+  const defaultRepoUrl = 'https://raw.githubusercontent.com/cristoferapaza01-ai/yomori-extensions/main/index.json';
   const debounceRef = useRef(null);
 
   useEffect(() => {
