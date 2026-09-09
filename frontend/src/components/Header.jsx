@@ -122,7 +122,18 @@ export default function Header({
             </a>
           )}
 
-          {/* Botón de Extensiones Keiyoushi */}
+          {/* Botón de Descarga App PC */}
+          <a
+            href="/downloads/Yomori-Windows-x64.zip"
+            download="Yomori-Windows-x64.zip"
+            className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-purple-600/30 transition transform active:scale-95 cursor-pointer"
+            title="Descargar Yomori Desktop para Windows (100% Offline)"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Descargar PC</span>
+          </a>
+
+          {/* Botón de Extensiones */}
           <button
             onClick={onOpenExtensions}
             className="p-2 rounded-lg text-gray-400 hover:text-purple-300 hover:bg-purple-950/40 border border-transparent hover:border-purple-800/50 transition relative flex items-center gap-1"

@@ -17,7 +17,7 @@ function startBackend() {
   
   backendProcess = spawn(process.execPath, [backendPath], {
     cwd: path.join(__dirname, '../backend'),
-    env: { ...process.env, PORT: String(BACKEND_PORT), NODE_ENV: 'production' },
+    env: { ...process.env, PORT: String(BACKEND_PORT), NODE_ENV: 'production', ELECTRON_RUN_AS_NODE: '1' },
     windowsHide: true,
     stdio: 'ignore'
   });

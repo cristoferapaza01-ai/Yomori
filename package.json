@@ -13,6 +13,7 @@
     "test:extensions": "cd repositorio-extensiones && npm test"
   },
   "devDependencies": {
-    "electron": "^44.3.0"
+    "electron": "^44.3.0",
+    "electron-packager": "^17.1.2"
   }
 }

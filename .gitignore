@@ -27,3 +27,7 @@ scratch_*.mjs
 # OS files
 .DS_Store
 Thumbs.db
+
+build-desktop/
+frontend/public/downloads/
+*.zip
