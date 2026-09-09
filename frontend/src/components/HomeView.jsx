@@ -354,8 +354,39 @@ export default function HomeView({
   currentUser = null,
   onOpenAuth,
   installedExtensions = [],
-  onInstallAllExtensions
+  onInstallAllExtensions,
+  onGoToExplore
 }) {
+  // Si no hay extensiones instaladas, mostrar bienvenida limpia estilo Tachiyomi
+  if (!installedExtensions || installedExtensions.length === 0) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center p-6 animate-fadeIn">
+        <div className="max-w-md w-full text-center space-y-6 bg-[#0f131f] border border-gray-800 rounded-3xl p-8 sm:p-10 shadow-2xl">
+          <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center shadow-xl shadow-purple-600/40">
+            <Puzzle className="w-10 h-10 text-white" />
+          </div>
+          
+          <div className="space-y-2">
+            <h1 className="text-2xl font-black text-white tracking-tight">Bienvenido a Yomori</h1>
+            <p className="text-xs sm:text-sm text-gray-400 leading-relaxed">
+              Tu lector está listo. Para comenzar a leer, ve a la sección de extensiones e instala tus fuentes favoritas.
+            </p>
+          </div>
+
+          <div className="pt-2">
+            <button
+              onClick={onGoToExplore}
+              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2.5 shadow-xl shadow-purple-600/40 transition transform hover:scale-105 active:scale-95 cursor-pointer"
+            >
+              <Puzzle className="w-4 h-4" />
+              <span>Instalar Extensiones</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Filtros de contenido +18 (Adulto) y BL (Boys Love)
   const [allowAdult, setAllowAdult] = useState(() => {
     return localStorage.getItem('tachiyomi_allow_adult') === 'true';

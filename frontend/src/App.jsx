@@ -810,6 +810,10 @@ export default function App() {
               onOpenAuth={handleOpenAuth}
               installedExtensions={installedExtensions}
               onInstallAllExtensions={handleInstallAllExtensions}
+              onGoToExplore={() => {
+                setView('explore');
+                setExploreSubTab('extensions');
+              }}
             />
           </main>
         )}

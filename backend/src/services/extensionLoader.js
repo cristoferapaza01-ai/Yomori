@@ -3,10 +3,24 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import axios from 'axios';
 
+import os from 'os';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const backendRoot = path.resolve(__dirname, '..', '..');
-const extensionsDir = path.join(backendRoot, 'installed-extensions');
+
+function getExtensionsDir() {
+  if (process.env.YOMORI_EXTENSIONS_DIR) {
+    return process.env.YOMORI_EXTENSIONS_DIR;
+  }
+  if (!backendRoot.includes('app.asar')) {
+    return path.join(backendRoot, 'installed-extensions');
+  }
+  const appData = process.env.APPDATA || path.join(os.homedir(), '.yomori');
+  return path.join(appData, 'Yomori', 'installed-extensions');
+}
+
+const extensionsDir = getExtensionsDir();
 
 if (!fs.existsSync(extensionsDir)) {
   fs.mkdirSync(extensionsDir, { recursive: true });
