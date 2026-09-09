@@ -49,7 +49,8 @@ export default function App() {
       return parsed.map(r => r.name.includes('Keiyoushi') ? { ...r, name: 'Repositorio Oficial Yomori' } : r);
     }
     return [
-      { name: 'Repositorio Oficial Yomori', url: 'http://localhost:5000/index.json' }
+      { name: 'Repositorio Oficial Yomori (GitHub)', url: 'https://raw.githubusercontent.com/cristoferapaza01-ai/yomori-extensions/main/index.json' },
+      { name: 'Repositorio Local Yomori', url: 'http://localhost:5000/index.json' }
     ];
   });
 
