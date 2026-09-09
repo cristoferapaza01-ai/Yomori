@@ -222,7 +222,7 @@ export default function SettingsView({
               <Puzzle className="w-6 h-6" />
             </div>
             <div>
-              <h4 className="text-sm font-bold text-white">Repositorios & Extensiones Keiyoushi</h4>
+              <h4 className="text-sm font-bold text-white">Repositorios & Extensiones Yomori</h4>
               <p className="text-xs text-gray-400 mt-0.5">Gestiona las fuentes descargadas en disco local.</p>
             </div>
           </div>

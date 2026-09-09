@@ -74,17 +74,17 @@ export default function Sidebar({
       {/* SIDEBAR DE ESCRITORIO (Estilo Tachiyomi / Mihon) */}
       <aside className="hidden md:flex flex-col w-56 lg:w-64 bg-[#0a0d14] border-r border-gray-800/80 h-screen sticky top-0 z-30 shrink-0 select-none">
         
-        {/* Branding Tachiyomi Web */}
+        {/* Branding Yomori */}
         <div className="h-16 px-5 flex items-center gap-3 border-b border-gray-800/60">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-purple-600/30">
             <BookOpen className="w-5 h-5 text-white" />
           </div>
           <div className="min-w-0">
             <span className="font-black text-base tracking-tight text-white block leading-tight">
-              Tachiyomi
+              Yomori
             </span>
             <span className="text-[10px] font-semibold tracking-wider uppercase text-purple-400 font-mono">
-              Web Edition
+              Manga Reader
             </span>
           </div>
         </div>
@@ -164,7 +164,7 @@ export default function Sidebar({
         <div className="p-3 border-t border-gray-800/60 bg-[#080a10]">
           <div className="flex items-center gap-2 text-[11px] text-gray-500">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Servidor Keiyoushi Activo</span>
+            <span>Servidor Yomori Activo</span>
           </div>
         </div>
       </aside>

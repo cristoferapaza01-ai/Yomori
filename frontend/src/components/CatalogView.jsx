@@ -136,7 +136,7 @@ export default function CatalogView({
               <Puzzle className="w-14 h-14 text-purple-500/40 mb-3" />
               <h3 className="text-base font-bold text-gray-200">No tienes extensiones instaladas</h3>
               <p className="text-xs text-gray-400 mt-1 mb-5">
-                Conecta tu repositorio Keiyoushi e instala extensiones como Olympus Scanlation para explorar catálogos en tiempo real.
+                Conecta tu repositorio Yomori e instala extensiones para explorar catálogos en tiempo real.
               </p>
               <button
                 onClick={onOpenExtensionsModal}

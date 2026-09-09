@@ -43,9 +43,13 @@ export default function App() {
 
   // Repositorios y Extensiones
   const [repositories, setRepositories] = useState(() => {
-    const saved = localStorage.getItem('tachiyomi_repos');
-    return saved ? JSON.parse(saved) : [
-      { name: 'Keiyoushi Web Repository', url: 'http://localhost:5000/index.json' }
+    const saved = localStorage.getItem('yomori_repos') || localStorage.getItem('tachiyomi_repos');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return parsed.map(r => r.name.includes('Keiyoushi') ? { ...r, name: 'Repositorio Oficial Yomori' } : r);
+    }
+    return [
+      { name: 'Repositorio Oficial Yomori', url: 'http://localhost:5000/index.json' }
     ];
   });
 

@@ -1,7 +1,7 @@
-﻿module.exports = {
+module.exports = {
   apps: [
     {
-      name: 'keiyoushi-repo',
+      name: 'yomori-repo',
       cwd: './keiyoushi-repo-server',
       script: 'src/server.js',
       env: {
@@ -10,7 +10,7 @@
       }
     },
     {
-      name: 'tachiyomi-backend',
+      name: 'yomori-backend',
       cwd: './backend',
       script: 'src/server.js',
       env: {

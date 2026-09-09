@@ -1,7 +1,7 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 set -e
 
-echo "=== 🚀 Configurando Servidor Tachiyomi Web ==="
+echo "=== 🚀 Configurando Servidor Yomori ==="
 
 # Actualizar paquetes
 sudo apt update && sudo apt upgrade -y

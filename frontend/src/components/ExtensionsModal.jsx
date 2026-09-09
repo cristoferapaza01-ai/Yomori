@@ -105,7 +105,7 @@ export default function ExtensionsModal({
               <Puzzle className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white">Extensiones Keiyoushi (Scripts .js)</h3>
+              <h3 className="text-base font-bold text-white">Extensiones Yomori (Scripts .js)</h3>
               <p className="text-xs text-gray-400">Descarga y carga dinámica vía Node.js (fs + import)</p>
             </div>
           </div>
@@ -311,7 +311,7 @@ export default function ExtensionsModal({
                     className="p-3 rounded-xl bg-[#171b26] border border-gray-800 flex items-center justify-between gap-3"
                   >
                     <div className="min-w-0">
-                      <h4 className="text-xs font-semibold text-white truncate">{repo.name || 'Repositorio Keiyoushi'}</h4>
+                      <h4 className="text-xs font-semibold text-white truncate">{repo.name || 'Repositorio Yomori'}</h4>
                       <p className="text-[11px] text-gray-400 font-mono truncate">{repo.url}</p>
                     </div>
                     {repositories.length > 1 && (

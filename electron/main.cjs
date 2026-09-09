@@ -55,7 +55,7 @@ async function createWindow() {
     height: 900,
     minWidth: 950,
     minHeight: 650,
-    title: 'Tachiyomi Desktop Reader (Estilo Suwayomi)',
+    title: 'Yomori Desktop Reader',
     backgroundColor: '#07080b',
     show: false,
     autoHideMenuBar: true,

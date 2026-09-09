@@ -1,8 +1,8 @@
 {
-  "repositoryName": "Keiyoushi Web Repository",
+  "repositoryName": "Repositorio Oficial Yomori",
   "version": "1.0.0",
   "website": "http://localhost:5000",
-  "description": "Repositorio independiente de extensiones y scrapers para Tachiyomi Web",
+  "description": "Repositorio oficial de extensiones y scrapers para Yomori Manga",
   "extensions": [
     {
       "id": "olympus-scanlation",

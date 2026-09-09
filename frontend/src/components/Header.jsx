@@ -40,7 +40,7 @@ export default function Header({
                 <BookOpen className="w-4 h-4 text-white" />
               </div>
               <span className="font-bold text-base sm:text-lg tracking-tight bg-gradient-to-r from-purple-400 via-indigo-300 to-sky-400 bg-clip-text text-transparent hidden sm:inline">
-                Tachiyomi<span className="text-white font-light text-xs ml-1 px-1.5 py-0.5 rounded bg-purple-950/60 border border-purple-800/50">Web</span>
+                Yomori<span className="text-white font-light text-xs ml-1 px-1.5 py-0.5 rounded bg-purple-950/60 border border-purple-800/50">Reader</span>
               </span>
             </div>
           )}

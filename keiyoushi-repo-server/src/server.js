@@ -25,7 +25,7 @@ const getRegistry = () => {
   if (fs.existsSync(registryPath)) {
     return JSON.parse(fs.readFileSync(registryPath, 'utf-8'));
   }
-  return { repositoryName: 'Keiyoushi Web Repository', extensions: [] };
+  return { repositoryName: 'Repositorio Oficial Yomori', extensions: [] };
 };
 
 const saveRegistry = (registry) => {
@@ -178,7 +178,7 @@ const renderAdminPage = (req, res) => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Panel Administrador — Repositorio Keiyoushi</title>
+  <title>Panel Administrador — Repositorio Yomori</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -193,11 +193,11 @@ const renderAdminPage = (req, res) => {
     <header class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 bg-[#10141f] border border-gray-800 rounded-3xl shadow-2xl">
       <div class="flex items-center gap-3.5">
         <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center text-white font-black text-xl shadow-lg shadow-purple-600/30">
-          K
+          Y
         </div>
         <div>
-          <h1 class="text-xl sm:text-2xl font-black text-white tracking-tight">Panel Administrador Keiyoushi</h1>
-          <p class="text-xs text-purple-400 font-medium mt-0.5">Gestor de Extensiones y Scans para Tachiyomi Web</p>
+          <h1 class="text-xl sm:text-2xl font-black text-white tracking-tight">Panel Administrador Yomori</h1>
+          <p class="text-xs text-purple-400 font-medium mt-0.5">Gestor de Extensiones y Scans para Yomori Manga</p>
         </div>
       </div>
 
@@ -220,7 +220,7 @@ const renderAdminPage = (req, res) => {
             <span>Publicar Nuevo Scanlation / Página</span>
           </h2>
           <p class="text-xs text-gray-400 mt-1">
-            Pega la URL de la página. El repositorio generará el script y actualizará <code class="text-purple-300 font-mono">index.json</code> para que aparezca en Tachiyomi Web.
+            Pega la URL de la página. El repositorio generará el script y actualizará <code class="text-purple-300 font-mono">index.json</code> para que aparezca en Yomori.
           </p>
         </div>
 
@@ -262,7 +262,7 @@ const renderAdminPage = (req, res) => {
         <div class="flex items-center justify-between border-b border-gray-800 pb-3">
           <div>
             <h2 class="text-base font-bold text-white">Extensiones Activas en el Repositorio</h2>
-            <p class="text-xs text-gray-400">Estas extensiones se sincronizan automáticamente con Tachiyomi Web.</p>
+            <p class="text-xs text-gray-400">Estas extensiones se sincronizan automáticamente con Yomori.</p>
           </div>
           <span class="text-xs font-mono font-bold text-purple-400 px-2.5 py-1 rounded-full bg-purple-950/80 border border-purple-800/60">
             ${registry.extensions.length} publicadas
