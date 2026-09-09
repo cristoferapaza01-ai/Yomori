@@ -478,18 +478,17 @@ export default function HomeView({
         isBL: m.isBL
       }));
     }
-    if (onlyInstalledFilter && installedIds.length > 0) {
-      const filtered = list.filter(s => installedIds.includes(s.extensionId));
-      list = filtered.length > 0 ? filtered : list;
-    }
+    // SIEMPRE filtrar estrictamente por las extensiones que el usuario tiene instaladas
+    list = list.filter(s => installedIds.includes(s.extensionId));
+
     if (!allowAdult) {
       list = list.filter(m => !isAdultManga(m));
     }
     if (!allowBL) {
       list = list.filter(m => !isBLManga(m));
     }
-    return list.length > 0 ? list : DEFAULT_HERO_SLIDES;
-  }, [catalog, onlyInstalledFilter, installedIds, allowAdult, allowBL]);
+    return list;
+  }, [catalog, installedIds, allowAdult, allowBL]);
 
   // Estado del feed de estrenos y rankings en vivo con persistencia instantánea en localStorage
   const [liveFeed, setLiveFeed] = useState(() => {
@@ -543,13 +542,10 @@ export default function HomeView({
     };
   }, []);
 
-  // Lista de populares filtrada si se elige solo las instaladas y con filtros +18 / BL
+  // Lista de populares filtrada EXCLUSIVAMENTE por extensiones instaladas
   const popularMangas = React.useMemo(() => {
-    let list = INITIAL_POPULAR;
-    if (onlyInstalledFilter && installedIds.length > 0) {
-      const filtered = list.filter(m => installedIds.includes(m.extensionId));
-      list = filtered.length > 0 ? filtered : list;
-    }
+    let list = INITIAL_POPULAR.filter(m => installedIds.includes(m.extensionId));
+
     if (!allowAdult) {
       list = list.filter(m => !isAdultManga(m));
     }
@@ -557,18 +553,16 @@ export default function HomeView({
       list = list.filter(m => !isBLManga(m));
     }
     return list;
-  }, [onlyInstalledFilter, installedIds, allowAdult, allowBL]);
+  }, [installedIds, allowAdult, allowBL]);
 
-  // Lista de nuevos lanzamientos en vivo o iniciales filtrados
+  // Lista de nuevos lanzamientos en vivo o iniciales filtrados EXCLUSIVAMENTE por extensiones instaladas
   const recentReleases = React.useMemo(() => {
     let list = (liveFeed.latestReleases && liveFeed.latestReleases.length > 0)
       ? liveFeed.latestReleases
       : INITIAL_RELEASES;
 
-    if (onlyInstalledFilter && installedIds.length > 0) {
-      const filtered = list.filter(m => installedIds.includes(m.extensionId));
-      list = filtered.length > 0 ? filtered : list;
-    }
+    // Filtrar estrictamente por las extensiones instaladas
+    list = list.filter(m => installedIds.includes(m.extensionId));
 
     // Filtrar +18 si no está habilitado
     if (!allowAdult) {
@@ -581,7 +575,7 @@ export default function HomeView({
     }
 
     return list;
-  }, [liveFeed.latestReleases, onlyInstalledFilter, installedIds, allowAdult, allowBL]);
+  }, [liveFeed.latestReleases, installedIds, allowAdult, allowBL]);
 
   // Filtro activo de formato: 'all' | 'manga' | 'manhwa' | 'manhua'
   const [activeFormatTab, setActiveFormatTab] = useState('all');
@@ -783,10 +777,9 @@ export default function HomeView({
       ? liveFeed.topRankings
       : popularMangas;
 
-    if (onlyInstalledFilter && installedIds.length > 0) {
-      const filtered = list.filter(m => installedIds.includes(m.extensionId));
-      list = filtered.length > 0 ? filtered : list;
-    }
+    // Filtrar estrictamente por las extensiones instaladas
+    list = list.filter(m => installedIds.includes(m.extensionId));
+
     if (!allowAdult) {
       list = list.filter(m => !isAdultManga(m));
     }
@@ -794,7 +787,7 @@ export default function HomeView({
       list = list.filter(m => !isBLManga(m));
     }
     return list.slice(0, 5);
-  }, [liveFeed.topRankings, popularMangas, onlyInstalledFilter, installedIds, allowAdult, allowBL]);
+  }, [liveFeed.topRankings, popularMangas, installedIds, allowAdult, allowBL]);
 
   // Auto-play del Hero Banner cada 6 segundos hacia la izquierda
   useEffect(() => {

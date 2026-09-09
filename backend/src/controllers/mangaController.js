@@ -569,7 +569,21 @@ function formatReleaseTime(timestamp) {
 // Feed en vivo para la pantalla de Inicio (Nuevos Lanzamientos, Rankings y Tendencias de Scans)
 export const getHomeFeed = async (req, res) => {
   try {
-    const cacheKey = 'home_feed_data_v6';
+    const installedList = extensionLoader.getInstalledList();
+    const installedExtIds = new Set(installedList.map(e => e.id));
+
+    if (installedExtIds.size === 0) {
+      return res.json({
+        success: true,
+        data: {
+          latestReleases: [],
+          topRankings: [],
+          timestamp: Date.now()
+        }
+      });
+    }
+
+    const cacheKey = `home_feed_data_v7_${Array.from(installedExtIds).sort().join('_')}`;
     const isForcedRefresh = req.query.refresh === 'true';
     const cached = isForcedRefresh ? null : cacheService.get(cacheKey);
     if (cached) {
@@ -587,10 +601,11 @@ export const getHomeFeed = async (req, res) => {
     const rawReleases = [];
     const topRankings = [];
 
-    // Tareas paralelas de extracción en vivo para todos los scans instalados y compatibles
+    // Tareas paralelas de extracción en vivo EXCLUSIVAMENTE para los scans que el usuario tenga instalados
     const tasks = [
       // 1. OLYMPUS SCANLATION (🇰🇷 Manhwas en tiempo real + Rankings)
       (async () => {
+        if (!installedExtIds.has('olympus-scanlation')) return;
         try {
           const olyRes = await fetch('https://olympusxyz.com/', {
             headers: {
@@ -687,6 +702,7 @@ export const getHomeFeed = async (req, res) => {
 
       // 2. MIAUSCAN (🐱 Manhwas y Webtoons recién actualizados de https://leemiau.com/manga/?order=update)
       (async () => {
+        if (!installedExtIds.has('miauscan')) return;
         try {
           const miauRes = await fetch('https://leemiau.com/manga/?order=update', {
             headers: {
@@ -742,6 +758,7 @@ export const getHomeFeed = async (req, res) => {
 
       // 3. MANHWALATINO (🇰🇷 Manhwas/Webtoons desde https://manhwalatino.lat/manga/?order=update)
       (async () => {
+        if (!installedExtIds.has('manhwalatino')) return;
         try {
           const mlRes = await fetch('https://manhwalatino.lat/manga/?order=update', {
             headers: {
@@ -803,6 +820,7 @@ export const getHomeFeed = async (req, res) => {
 
       // 4. MANGADEX (🇯🇵 Mangas en español en tiempo real con fecha exacta)
       (async () => {
+        if (!installedExtIds.has('mangadex')) return;
         try {
           const mdUrl = 'https://api.mangadex.org/chapter?limit=50&translatedLanguage[]=es&translatedLanguage[]=es-la&order[readableAt]=desc&includes[]=manga&includes[]=scanlation_group&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic';
           const mdRes = await fetch(mdUrl, {
@@ -875,6 +893,7 @@ export const getHomeFeed = async (req, res) => {
 
       // 5. SKYMANGAS (🇨🇳 Manhuas & Mangas - Integrado cronológicamente según antigüedad real)
       (async () => {
+        if (!installedExtIds.has('skymangas')) return;
         try {
           const skyRes = await fetch('https://skymangas.com/', {
             headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
@@ -934,6 +953,7 @@ export const getHomeFeed = async (req, res) => {
 
       // 6. ZONATMO / LEERCAPITULO (Obras populares y lanzamientos)
       (async () => {
+        if (!installedExtIds.has('zonatmo')) return;
         try {
           const tmoRes = await fetch('https://leercapitulo.com/', {
             headers: { 'User-Agent': 'Mozilla/5.0' },
@@ -991,6 +1011,7 @@ export const getHomeFeed = async (req, res) => {
 
       // 7. RN SCANLATION (🇰🇷 Manhwas/Webtoons desde https://rncalation.online/library)
       (async () => {
+        if (!installedExtIds.has('rn-scanlation')) return;
         try {
           const rnRes = await fetch('https://rncalation.online/library', {
             headers: {
