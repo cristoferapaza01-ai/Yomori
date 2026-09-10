@@ -585,6 +585,8 @@ export default function App() {
     const currentManga = (selectedManga?.url === originMangaUrl) ? selectedManga : library.find(i => i.url === originMangaUrl);
     const persistedMangaTitle = selectedManga?.title || currentManga?.title || (chapterData?.mangaTitle !== 'Lector' ? chapterData?.mangaTitle : '') || '';
     const persistedMangaCover = selectedManga?.cover || currentManga?.cover || chapterData?.mangaCover || '';
+    const foundChapter = (selectedManga?.chapters || currentManga?.chapters || []).find(c => c.url === chapterUrl);
+    const initialChapterName = foundChapter?.name || `Capítulo ${startPage}`;
 
     // 1. Si el capítulo ya fue precargado en memoria, renderizar instantáneamente
     if (chapterExtractionCache.current[chapterUrl]) {
@@ -592,7 +594,8 @@ export default function App() {
       const mergedData = {
         ...cachedData,
         mangaTitle: persistedMangaTitle || cachedData.mangaTitle || 'Lector',
-        mangaCover: persistedMangaCover || cachedData.mangaCover || ''
+        mangaCover: persistedMangaCover || cachedData.mangaCover || '',
+        chapterTitle: foundChapter?.name || cachedData.chapterTitle || initialChapterName
       };
       setChapterData(mergedData);
       setLoadingChapter(false);
@@ -605,7 +608,7 @@ export default function App() {
     // 2. Si no estaba en caché, mostrar estado de carga limpio
     setChapterData({
       mangaTitle: persistedMangaTitle || 'Lector',
-      chapterTitle: '',
+      chapterTitle: initialChapterName,
       pages: [],
       totalPages: 0,
       currentUrl: chapterUrl,
@@ -647,8 +650,9 @@ export default function App() {
       const data = successData;
       const finalTitle = persistedMangaTitle || (data.mangaTitle && data.mangaTitle !== 'ManhwaLatino' ? data.mangaTitle : (selectedManga?.title || 'Manga'));
       const finalCover = persistedMangaCover || data.cover || '';
-      chapterExtractionCache.current[chapterUrl] = { ...data, mangaTitle: finalTitle, mangaCover: finalCover };
-      setChapterData({ ...data, mangaUrl: originMangaUrl, mangaTitle: finalTitle, mangaCover: finalCover, loading: false, error: null });
+      const finalChapterTitle = foundChapter?.name || (data.chapterTitle && !data.chapterTitle.includes('ManhwaLatino') && data.chapterTitle !== finalTitle ? data.chapterTitle : `Capítulo ${foundChapter?.chapterNumber || startPage}`);
+      chapterExtractionCache.current[chapterUrl] = { ...data, mangaTitle: finalTitle, mangaCover: finalCover, chapterTitle: finalChapterTitle };
+      setChapterData({ ...data, mangaUrl: originMangaUrl, mangaTitle: finalTitle, mangaCover: finalCover, chapterTitle: finalChapterTitle, loading: false, error: null });
 
       // Disparar precarga del siguiente capítulo en segundo plano
       triggerNextChapterPrefetch(data, originMangaUrl, extId);
@@ -1167,11 +1171,13 @@ export default function App() {
             <FloatingControls
               chapterData={chapterData}
               chapters={selectedManga?.chapters || []}
+              mangaTitle={selectedManga?.title || chapterData?.mangaTitle || 'Manga'}
               currentPage={currentPage}
               totalPages={chapterData?.pages?.length || 0}
               isVisible={controlsVisible}
               settings={settings}
-              onNavigateChapter={(url) => handleSelectChapter(url, selectedManga?.url)}
+              onBack={handleGoBack}
+              onNavigateChapter={(url) => handleSelectChapter(url, selectedManga?.url || chapterData?.mangaUrl)}
               onOpenSettings={() => setIsSettingsModalOpen(true)}
               isFullscreen={isFullscreen}
               onToggleFullscreen={toggleFullscreen}

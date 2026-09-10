@@ -968,9 +968,13 @@ export default function MessagesView({
                   >
                     <div className="w-12 h-16 rounded-lg overflow-hidden bg-gray-900 shrink-0 border border-gray-800">
                       <img 
-                        src={item.activity.cover || 'https://via.placeholder.com/150'} 
+                        src={item.activity.cover ? (item.activity.cover.startsWith('/api/proxy') ? item.activity.cover : `/api/proxy-image?url=${encodeURIComponent(item.activity.cover)}`) : 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=150'} 
                         alt={item.activity.mangaTitle} 
                         className="w-full h-full object-cover group-hover:scale-105 transition"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=150';
+                        }}
                       />
                     </div>
 
@@ -979,8 +983,15 @@ export default function MessagesView({
                         <h5 className="text-xs font-bold text-white truncate group-hover:text-purple-300 transition">
                           {item.activity.mangaTitle}
                         </h5>
-                        <p className="text-[10px] text-gray-400 truncate">
-                          {item.activity.chapterTitle}
+                        <p className="text-[10px] text-purple-400 font-medium truncate">
+                          {(() => {
+                            const rawCh = item.activity.chapterTitle || '';
+                            const mTitle = item.activity.mangaTitle || '';
+                            if (!rawCh || rawCh === mTitle) {
+                              return `Capítulo ${item.activity.page || 1}`;
+                            }
+                            return rawCh;
+                          })()}
                         </p>
                       </div>
 

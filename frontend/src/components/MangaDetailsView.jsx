@@ -79,8 +79,6 @@ export default function MangaDetailsView({
   // Extractor inteligente de número de capítulo que ignora números del título del manga
   const getChapterNum = (c) => {
     if (!c) return 0;
-    if (typeof c.chapterNumber === 'number' && !isNaN(c.chapterNumber)) return c.chapterNumber;
-    if (c.chapterNumber && !isNaN(parseFloat(c.chapterNumber))) return parseFloat(c.chapterNumber);
     
     let rawStr = String(c.name || c.title || '');
     if (manga?.title) {
@@ -88,12 +86,19 @@ export default function MangaDetailsView({
       const cleanTitle = manga.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       rawStr = rawStr.replace(new RegExp(cleanTitle, 'gi'), '');
     }
+    // Eliminar números mayores o iguales a 1000 que pertenezcan al título (ej. 10.000, 10000, etc.)
+    rawStr = rawStr.replace(/\b10[.,]?000\b/gi, '').replace(/\b\d{4,}\b/g, '');
 
     const capMatch = rawStr.match(/(?:cap[íi]tulo|cap\.?|ch\.?|episodio|ep\.?)\s*(\d+(?:\.\d+)?)/i);
     if (capMatch && capMatch[1]) return parseFloat(capMatch[1]);
 
     const anyNum = rawStr.match(/\b(\d+(?:\.\d+)?)\b/);
     if (anyNum && anyNum[1]) return parseFloat(anyNum[1]);
+
+    if (c.chapterNumber && !isNaN(parseFloat(c.chapterNumber))) {
+      const parsed = parseFloat(c.chapterNumber);
+      if (parsed < 1000) return parsed;
+    }
 
     return 0;
   };
