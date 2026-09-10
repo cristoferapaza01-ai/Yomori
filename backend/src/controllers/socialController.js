@@ -1,3 +1,28 @@
+
+export function getAuthenticatedUser(req, users) {
+  const authHeader = req.headers.authorization;
+  const token = authHeader ? authHeader.replace('Bearer ', '').trim() : (req.body?.token || req.query?.token);
+  const reqUserId = req.body?.currentUserId || req.body?.userId || req.headers['x-user-id'];
+  const reqUsername = req.body?.currentUsername || req.body?.fromUsername || req.headers['x-username'];
+
+  if (token) {
+    const u = users.find(user => user.token === token);
+    if (u) return u;
+  }
+
+  if (reqUserId) {
+    const u = users.find(user => user.id === reqUserId);
+    if (u) return u;
+  }
+
+  if (reqUsername) {
+    const u = users.find(user => (user.username || '').toLowerCase() === reqUsername.toLowerCase());
+    if (u) return u;
+  }
+
+  return null;
+}
+
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
@@ -234,8 +259,8 @@ export const toggleFriend = async (req, res) => {
 
     const token = authHeader.replace('Bearer ', '').trim();
     const users = loadUsers();
-    const me = users.find(u => u.token === token);
-    if (!me) return res.status(401).json({ success: false, message: 'Sesión no válida' });
+    const me = getAuthenticatedUser(req, users);
+    if (!me) return res.status(401).json({ success: false, message: 'Debes iniciar sesión para realizar esta acción.' });
 
     const { targetUserId } = req.body;
     if (!targetUserId || targetUserId === me.id) {
@@ -286,8 +311,8 @@ export const sendFriendRequest = async (req, res) => {
 
     const token = authHeader.replace('Bearer ', '').trim();
     const users = loadUsers();
-    const me = users.find(u => u.token === token);
-    if (!me) return res.status(401).json({ success: false, message: 'Sesión no válida' });
+    const me = getAuthenticatedUser(req, users);
+    if (!me) return res.status(401).json({ success: false, message: 'Debes iniciar sesión para realizar esta acción.' });
 
     const { username, targetUsername, targetUserId } = req.body;
     const searchVal = (username || targetUsername || '').trim().replace(/^@/, '');
@@ -380,8 +405,8 @@ export const respondFriendRequest = async (req, res) => {
 
     const token = authHeader.replace('Bearer ', '').trim();
     const users = loadUsers();
-    const me = users.find(u => u.token === token);
-    if (!me) return res.status(401).json({ success: false, message: 'Sesión no válida' });
+    const me = getAuthenticatedUser(req, users);
+    if (!me) return res.status(401).json({ success: false, message: 'Debes iniciar sesión para realizar esta acción.' });
 
     const { requestId, action } = req.body; // action: 'accept' | 'reject'
     const requests = loadFriendRequests();
@@ -422,8 +447,8 @@ export const updateReadingActivity = async (req, res) => {
 
     const token = authHeader.replace('Bearer ', '').trim();
     const users = loadUsers();
-    const me = users.find(u => u.token === token);
-    if (!me) return res.status(401).json({ success: false, message: 'Sesión no válida' });
+    const me = getAuthenticatedUser(req, users);
+    if (!me) return res.status(401).json({ success: false, message: 'Debes iniciar sesión para realizar esta acción.' });
 
     const { mangaTitle, chapterTitle, cover, url, extensionId, page, totalPages, isReading } = req.body;
     const activities = loadReadingActivities();

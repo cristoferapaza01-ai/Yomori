@@ -61,7 +61,11 @@ export default function MessagesView({
     if (!currentUser) return;
     try {
       const res = await axios.get('/api/social/friends-and-dms', {
-        headers: { Authorization: `Bearer ${currentUser.token}` }
+        headers: { 
+          Authorization: `Bearer ${currentUser?.token || ''}`,
+          'x-user-id': currentUser?.id,
+          'x-username': currentUser?.username
+        }
       });
       if (res.data?.success) {
         setFriends(res.data.friends || []);
@@ -208,9 +212,16 @@ export default function MessagesView({
 
     try {
       const res = await axios.post('/api/social/friends/request', {
-        username: addFriendInput.trim()
+        username: addFriendInput.trim(),
+        currentUserId: currentUser?.id,
+        currentUsername: currentUser?.username,
+        userId: currentUser?.id
       }, {
-        headers: { Authorization: `Bearer ${currentUser.token}` }
+        headers: { 
+          Authorization: `Bearer ${currentUser?.token || ''}`,
+          'x-user-id': currentUser?.id,
+          'x-username': currentUser?.username
+        }
       });
 
       if (res.data?.success) {

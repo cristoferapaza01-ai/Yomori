@@ -94,9 +94,16 @@ export default function UserCardPopover({
       const res = await axios.post('/api/social/friends/request', {
         targetUserId: profile.id,
         targetUsername: profile.username,
-        username: profile.username
+        username: profile.username,
+        currentUserId: currentUser.id,
+        currentUsername: currentUser.username,
+        userId: currentUser.id
       }, {
-        headers: { Authorization: `Bearer ${currentUser.token}` }
+        headers: { 
+          Authorization: `Bearer ${currentUser.token || ''}`,
+          'x-user-id': currentUser.id,
+          'x-username': currentUser.username
+        }
       });
       if (res.data?.success) {
         if (res.data.status === 'accepted') {
@@ -137,6 +144,8 @@ export default function UserCardPopover({
       token: currentUser.token,
       userId: currentUser.id,
       username: currentUser.username,
+      currentUserId: currentUser.id,
+      currentUsername: currentUser.username,
       text: quickMsg.trim()
     };
 
@@ -147,7 +156,11 @@ export default function UserCardPopover({
 
     try {
       await axios.post('/api/chat/send', payload, {
-        headers: { Authorization: `Bearer ${currentUser.token}` }
+        headers: { 
+          Authorization: `Bearer ${currentUser.token || ''}`,
+          'x-user-id': currentUser.id,
+          'x-username': currentUser.username
+        }
       });
     } catch (err) {
       console.warn('Error enviando DM:', err);
