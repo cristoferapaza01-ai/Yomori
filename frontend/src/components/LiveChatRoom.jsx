@@ -12,11 +12,19 @@ import {
   Flag,
   Trash2,
   ArrowUpDown,
+  ChevronDown,
+  Check,
   Loader2
 } from 'lucide-react';
 import { getSocket } from '../services/socket.js';
 import FormattedMessage from './FormattedMessage.jsx';
 import RichCommentEditor from './RichCommentEditor.jsx';
+
+const SORT_OPTIONS = [
+  { value: 'recientes', label: 'Más recientes' },
+  { value: 'populares', label: 'Más populares' },
+  { value: 'antiguos', label: 'Más antiguos' }
+];
 
 export default function LiveChatRoom({
   roomId = 'global',
@@ -37,8 +45,9 @@ export default function LiveChatRoom({
   const [isSending, setIsSending] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
   
-  // Ordenamiento: 'recientes' (default), 'populares', 'antiguos'
+  // Ordenamiento personalizado y estado del menú desplegable estilizado
   const [sortBy, setSortBy] = useState('recientes');
+  const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
   
   // Respuesta a un mensaje
   const [replyingTo, setReplyingTo] = useState(null);
@@ -49,11 +58,14 @@ export default function LiveChatRoom({
 
   const chatContainerRef = useRef(null);
 
-  // Cerrar menú flotante al hacer clic fuera
+  // Cerrar menús flotantes al hacer clic fuera
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (!e.target.closest('.yomori-chat-menu-trigger') && !e.target.closest('.yomori-chat-menu-popup')) {
         setActiveMenuId(null);
+      }
+      if (!e.target.closest('.yomori-sort-dropdown-trigger') && !e.target.closest('.yomori-sort-dropdown-menu')) {
+        setIsSortDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -274,14 +286,14 @@ export default function LiveChatRoom({
   const handleCopyLink = (msgId) => {
     const url = `${window.location.origin}${window.location.pathname}#comment-${msgId}`;
     navigator.clipboard?.writeText(url);
-    showToast('Enlace del comentario copiado al portapapeles');
+    showToast('Enlace del comentario copiado');
     setActiveMenuId(null);
   };
 
   // Copiar texto del comentario
   const handleCopyText = (text) => {
     navigator.clipboard?.writeText(text);
-    showToast('Texto copiado al portapapeles');
+    showToast('Texto copiado');
     setActiveMenuId(null);
   };
 
@@ -294,7 +306,7 @@ export default function LiveChatRoom({
     axios.post(`/api/chat/report/${msgId}`, { reason: 'Inapropiado' }, {
       headers: { Authorization: `Bearer ${currentUser.token}` }
     }).then(() => {
-      showToast('Comentario reportado. Gracias por avisar.');
+      showToast('Comentario reportado para moderación.');
     }).catch(() => {
       showToast('Comentario reportado para moderación.');
     });
@@ -351,21 +363,48 @@ export default function LiveChatRoom({
           </div>
         </div>
 
-        {/* Controles de Header: Ordenamiento y Lectores */}
+        {/* Controles de Header: Ordenamiento con Dropdown Personalizado y Lectores */}
         <div className="flex items-center gap-2.5">
           
-          {/* Selector de Ordenar Por */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-gray-900 border border-gray-800 text-[11px] text-gray-300">
-            <ArrowUpDown className="w-3 h-3 text-purple-400" />
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="bg-transparent text-gray-200 outline-none cursor-pointer text-[11px]"
+          {/* Menú Desplegable Personalizado Estilo Yomori */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsSortDropdownOpen(prev => !prev)}
+              className="yomori-sort-dropdown-trigger flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#111420] hover:bg-[#161a29] border border-gray-800 hover:border-gray-700 text-xs font-semibold text-gray-200 transition cursor-pointer shadow-sm"
+              title="Cambiar orden de los comentarios"
             >
-              <option value="recientes" className="bg-[#0f131d] text-gray-200">Más recientes</option>
-              <option value="populares" className="bg-[#0f131d] text-gray-200">Más populares</option>
-              <option value="antiguos" className="bg-[#0f131d] text-gray-200">Más antiguos</option>
-            </select>
+              <ArrowUpDown className="w-3.5 h-3.5 text-purple-400" />
+              <span>{SORT_OPTIONS.find(o => o.value === sortBy)?.label || 'Más recientes'}</span>
+              <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${isSortDropdownOpen ? 'rotate-180 text-purple-400' : ''}`} />
+            </button>
+
+            {/* Panel Desplegable Estilizado */}
+            {isSortDropdownOpen && (
+              <div className="yomori-sort-dropdown-menu absolute right-0 top-9 w-40 rounded-2xl bg-[#121622] border border-gray-700/80 shadow-2xl p-1.5 z-50 animate-fade-in backdrop-blur-md space-y-1">
+                {SORT_OPTIONS.map((opt) => {
+                  const isSelected = sortBy === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => {
+                        setSortBy(opt.value);
+                        setIsSortDropdownOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-medium transition cursor-pointer ${
+                        isSelected
+                          ? 'bg-purple-600/30 text-purple-300 font-bold border border-purple-500/40'
+                          : 'text-gray-300 hover:text-white hover:bg-gray-800/70'
+                      }`}
+                    >
+                      <span>{opt.label}</span>
+                      {isSelected && <Check className="w-3.5 h-3.5 text-purple-400" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-purple-950/60 border border-purple-800/40 text-[11px] text-purple-300 font-medium">

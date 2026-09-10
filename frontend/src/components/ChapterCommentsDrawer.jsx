@@ -5,6 +5,8 @@ import {
   X, 
   Heart, 
   ChevronLeft,
+  ChevronDown,
+  Check,
   Users,
   LogIn,
   Loader2,
@@ -19,6 +21,12 @@ import {
 import { getSocket } from '../services/socket.js';
 import FormattedMessage from './FormattedMessage.jsx';
 import RichCommentEditor from './RichCommentEditor.jsx';
+
+const SORT_OPTIONS = [
+  { value: 'recientes', label: 'Recientes' },
+  { value: 'populares', label: 'Populares' },
+  { value: 'antiguos', label: 'Antiguos' }
+];
 
 export default function ChapterCommentsDrawer({
   chapterUrl,
@@ -37,6 +45,7 @@ export default function ChapterCommentsDrawer({
   const [loadingHistory, setLoadingHistory] = useState(true);
   
   const [sortBy, setSortBy] = useState('recientes');
+  const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
   const [activeMenuId, setActiveMenuId] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
@@ -57,6 +66,9 @@ export default function ChapterCommentsDrawer({
     const handleClickOutside = (e) => {
       if (!e.target.closest('.yomori-chat-menu-trigger') && !e.target.closest('.yomori-chat-menu-popup')) {
         setActiveMenuId(null);
+      }
+      if (!e.target.closest('.yomori-sort-dropdown-trigger') && !e.target.closest('.yomori-sort-dropdown-menu')) {
+        setIsSortDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -365,18 +377,43 @@ export default function ChapterCommentsDrawer({
               </div>
 
               <div className="flex items-center gap-2">
-                {/* Selector de Ordenar Por */}
-                <div className="flex items-center gap-1 px-2 py-1 rounded-xl bg-gray-900 border border-gray-800 text-[10px] text-gray-300">
-                  <ArrowUpDown className="w-2.5 h-2.5 text-purple-400" />
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className="bg-transparent text-gray-200 outline-none cursor-pointer text-[10px]"
+                {/* Dropdown Estilizado de Ordenar Por */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsSortDropdownOpen(prev => !prev)}
+                    className="yomori-sort-dropdown-trigger flex items-center gap-1 px-2.5 py-1 rounded-xl bg-gray-900 hover:bg-gray-800 border border-gray-800 text-[10px] text-gray-300 font-semibold transition cursor-pointer"
                   >
-                    <option value="recientes" className="bg-[#0f131d]">Recientes</option>
-                    <option value="populares" className="bg-[#0f131d]">Populares</option>
-                    <option value="antiguos" className="bg-[#0f131d]">Antiguos</option>
-                  </select>
+                    <ArrowUpDown className="w-2.5 h-2.5 text-purple-400" />
+                    <span>{SORT_OPTIONS.find(o => o.value === sortBy)?.label || 'Recientes'}</span>
+                    <ChevronDown className={`w-2.5 h-2.5 text-gray-400 transition-transform duration-200 ${isSortDropdownOpen ? 'rotate-180 text-purple-400' : ''}`} />
+                  </button>
+
+                  {isSortDropdownOpen && (
+                    <div className="yomori-sort-dropdown-menu absolute right-0 top-7 w-32 rounded-xl bg-[#121622] border border-gray-700 shadow-2xl p-1 z-50 animate-fade-in backdrop-blur-md space-y-0.5">
+                      {SORT_OPTIONS.map((opt) => {
+                        const isSelected = sortBy === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => {
+                              setSortBy(opt.value);
+                              setIsSortDropdownOpen(false);
+                            }}
+                            className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-[10px] font-medium transition cursor-pointer ${
+                              isSelected
+                                ? 'bg-purple-600/30 text-purple-300 font-bold border border-purple-500/40'
+                                : 'text-gray-300 hover:text-white hover:bg-gray-800/70'
+                            }`}
+                          >
+                            <span>{opt.label}</span>
+                            {isSelected && <Check className="w-3 h-3 text-purple-400" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-purple-950/60 border border-purple-800/40 text-[10px] text-purple-300 font-medium">

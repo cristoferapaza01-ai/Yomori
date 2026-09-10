@@ -28,34 +28,49 @@ export default function RichCommentEditor({
   const [attachedImages, setAttachedImages] = useState([]);
   const [isEmpty, setIsEmpty] = useState(true);
   
-  // Estados activos de los botones de la barra
+  // Estados activos de los botones de la barra (B, I, U, S, Spoiler)
   const [activeStates, setActiveStates] = useState({
     bold: false,
     italic: false,
     underline: false,
-    strike: false
+    strike: false,
+    spoiler: false
   });
 
-  // Comprobar estado activo de negrita/cursiva según la posición del cursor
+  // Comprobar estado activo de formatos según la posición del cursor
   const checkActiveFormats = () => {
     try {
+      const selection = window.getSelection();
+      let isInsideSpoiler = false;
+      if (selection && selection.rangeCount > 0) {
+        let node = selection.getRangeAt(0).commonAncestorContainer;
+        while (node && node !== editorRef.current) {
+          if (node.nodeType === 1 && node.classList.contains('yomori-editor-spoiler')) {
+            isInsideSpoiler = true;
+            break;
+          }
+          node = node.parentNode;
+        }
+      }
+
       setActiveStates({
         bold: document.queryCommandState('bold'),
         italic: document.queryCommandState('italic'),
         underline: document.queryCommandState('underline'),
-        strike: document.queryCommandState('strikeThrough')
+        strike: document.queryCommandState('strikeThrough'),
+        spoiler: isInsideSpoiler
       });
     } catch (e) {}
 
     if (editorRef.current) {
-      const text = editorRef.current.innerText.trim();
+      const text = editorRef.current.innerText.replace(/\u200B/g, '').trim();
       setIsEmpty(text.length === 0 && attachedImages.length === 0);
     }
   };
 
   useEffect(() => {
     const handleSelection = () => {
-      if (document.activeElement === editorRef.current) {
+      if (document.activeElement === editorRef.current || editorRef.current?.contains(document.activeElement)) {
         checkActiveFormats();
       }
     };
@@ -70,17 +85,44 @@ export default function RichCommentEditor({
     checkActiveFormats();
   };
 
-  // Manejar el formato de SPOILER (👁️)
+  // Manejar el formato de SPOILER (👁️ Ojito interactivo)
   const handleSpoiler = () => {
     editorRef.current?.focus();
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) return;
 
     const range = selection.getRangeAt(0);
-    const selectedText = range.toString();
 
+    // 1. Comprobar si el cursor ya está DENTRO de un bloque de spoiler existente
+    let currentSpoilerNode = range.commonAncestorContainer;
+    while (currentSpoilerNode && currentSpoilerNode !== editorRef.current) {
+      if (currentSpoilerNode.nodeType === 1 && currentSpoilerNode.classList.contains('yomori-editor-spoiler')) {
+        break;
+      }
+      currentSpoilerNode = currentSpoilerNode.parentNode;
+    }
+
+    if (currentSpoilerNode && currentSpoilerNode.classList?.contains('yomori-editor-spoiler')) {
+      // SI YA ESTAMOS DENTRO DE UN SPOILER: Salir del spoiler para seguir escribiendo en modo normal
+      const afterText = document.createTextNode('\u200B');
+      if (currentSpoilerNode.nextSibling) {
+        currentSpoilerNode.parentNode.insertBefore(afterText, currentSpoilerNode.nextSibling);
+      } else {
+        currentSpoilerNode.parentNode.appendChild(afterText);
+      }
+
+      const newRange = document.createRange();
+      newRange.setStartAfter(afterText);
+      newRange.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(newRange);
+      checkActiveFormats();
+      return;
+    }
+
+    // 2. Si hay texto seleccionado: envolver ese texto específico en spoiler
+    const selectedText = range.toString();
     if (selectedText && selectedText.trim().length > 0) {
-      // Si hay texto seleccionado: envolver en un span de spoiler tapado
       const span = document.createElement('span');
       span.className = 'yomori-editor-spoiler';
       span.setAttribute('data-spoiler', 'true');
@@ -90,27 +132,38 @@ export default function RichCommentEditor({
       range.deleteContents();
       range.insertNode(span);
 
-      // Mover el cursor después del spoiler
+      // Mover el cursor después del spoiler en modo normal
+      const afterText = document.createTextNode('\u200B');
+      if (span.nextSibling) {
+        span.parentNode.insertBefore(afterText, span.nextSibling);
+      } else {
+        span.parentNode.appendChild(afterText);
+      }
+
       const newRange = document.createRange();
-      newRange.setStartAfter(span);
+      newRange.setStartAfter(afterText);
       newRange.collapse(true);
       selection.removeAllRanges();
       selection.addRange(newRange);
     } else {
-      // Si no hay texto seleccionado: insertar un bloque de spoiler editable
+      // 3. Si NO hay texto seleccionado: activar el modo spoiler insertando un span vacío para escribir directamente
       const span = document.createElement('span');
       span.className = 'yomori-editor-spoiler';
       span.setAttribute('data-spoiler', 'true');
       span.setAttribute('title', 'Spoiler: Pasa el cursor para ver');
-      span.innerText = 'spoiler';
+      
+      const zeroWidth = document.createTextNode('\u200B');
+      span.appendChild(zeroWidth);
 
       range.insertNode(span);
-      
+
       const newRange = document.createRange();
-      newRange.selectNodeContents(span);
+      newRange.setStart(span, 1);
+      newRange.collapse(true);
       selection.removeAllRanges();
       selection.addRange(newRange);
     }
+
     checkActiveFormats();
   };
 
@@ -143,35 +196,42 @@ export default function RichCommentEditor({
   const removeImage = (idx) => {
     setAttachedImages(prev => {
       const updated = prev.filter((_, i) => i !== idx);
-      if (updated.length === 0 && (!editorRef.current || editorRef.current.innerText.trim().length === 0)) {
+      if (updated.length === 0 && (!editorRef.current || editorRef.current.innerText.replace(/\u200B/g, '').trim().length === 0)) {
         setIsEmpty(true);
       }
       return updated;
     });
   };
 
-  // Convertir contenido HTML del contentEditable a texto limpio / markdown para el backend
+  // Convertir contenido HTML del contentEditable a texto / markdown limpio para el backend
   const serializeEditorContent = (node) => {
     if (!node) return '';
 
     let result = '';
     node.childNodes.forEach(child => {
       if (child.nodeType === Node.TEXT_NODE) {
-        result += child.textContent;
+        result += child.textContent.replace(/\u200B/g, '');
       } else if (child.nodeType === Node.ELEMENT_NODE) {
         const tag = child.tagName.toLowerCase();
         const isSpoiler = child.getAttribute('data-spoiler') === 'true' || child.classList.contains('yomori-editor-spoiler');
         
         if (isSpoiler) {
-          result += `||${child.innerText}||`;
+          const innerText = child.innerText.replace(/\u200B/g, '');
+          if (innerText.trim().length > 0) {
+            result += `||${innerText}||`;
+          }
         } else if (tag === 'b' || tag === 'strong') {
-          result += `**${serializeEditorContent(child)}**`;
+          const inner = serializeEditorContent(child);
+          if (inner.trim().length > 0) result += `**${inner}**`;
         } else if (tag === 'i' || tag === 'em') {
-          result += `*${serializeEditorContent(child)}*`;
+          const inner = serializeEditorContent(child);
+          if (inner.trim().length > 0) result += `*${inner}*`;
         } else if (tag === 'u') {
-          result += `<u>${serializeEditorContent(child)}</u>`;
+          const inner = serializeEditorContent(child);
+          if (inner.trim().length > 0) result += `<u>${inner}</u>`;
         } else if (tag === 's' || tag === 'strike' || tag === 'del') {
-          result += `~~${serializeEditorContent(child)}~~`;
+          const inner = serializeEditorContent(child);
+          if (inner.trim().length > 0) result += `~~${inner}~~`;
         } else if (tag === 'blockquote') {
           result += `> ${serializeEditorContent(child)}\n`;
         } else if (tag === 'div' || tag === 'p') {
@@ -203,7 +263,7 @@ export default function RichCommentEditor({
     editorRef.current.innerHTML = '';
     setAttachedImages([]);
     setIsEmpty(true);
-    setActiveStates({ bold: false, italic: false, underline: false, strike: false });
+    setActiveStates({ bold: false, italic: false, underline: false, strike: false, spoiler: false });
   };
 
   const handleKeyDown = (e) => {
@@ -372,12 +432,16 @@ export default function RichCommentEditor({
               <Quote className="w-3.5 h-3.5" />
             </button>
 
-            {/* SPOILER (👁️ Ojito) */}
+            {/* SPOILER (👁️ Ojito - Tapado y Revelado al Hover) */}
             <button
               type="button"
               onMouseDown={(e) => { e.preventDefault(); handleSpoiler(); }}
-              className="p-1.5 rounded-lg text-purple-400 hover:text-purple-200 hover:bg-purple-950/60 border border-purple-800/40 transition cursor-pointer text-xs"
-              title="Spoiler: Selecciona texto y pulsa el ojo para taparlo"
+              className={`p-1.5 rounded-lg transition cursor-pointer text-xs ${
+                activeStates.spoiler 
+                  ? 'bg-purple-600 text-white shadow-md border border-purple-400' 
+                  : 'text-purple-400 hover:text-purple-200 hover:bg-purple-950/60 border border-purple-800/40'
+              }`}
+              title={activeStates.spoiler ? "Salir de spoiler (Modo normal)" : "Spoiler: Selecciona o escribe texto tapado"}
             >
               <Eye className="w-3.5 h-3.5" />
             </button>
@@ -422,7 +486,7 @@ export default function RichCommentEditor({
           border-radius: 4px;
           padding: 1px 6px;
           margin: 0 2px;
-          user-select: none;
+          user-select: text;
           cursor: pointer;
           transition: all 0.2s ease;
           display: inline-block;
