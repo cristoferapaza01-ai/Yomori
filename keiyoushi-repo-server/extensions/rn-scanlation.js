@@ -163,16 +163,22 @@ export class RNScanlationExtension extends BaseExtension {
       
       let cover = $(`img[src*="/uploads/covers/${slug}"]`).first().attr('src') ||
                   $(`img[alt="${title}"]`).first().attr('src') ||
+                  $('meta[property="og:image"]').attr('content') ||
                   $('img[src*="/uploads/covers/"]').first().attr('src') || '';
       if (cover && !cover.startsWith('http')) cover = `${this.baseUrl}${cover.startsWith('/') ? '' : '/'}${cover}`;
 
-      let synopsis = $('p.text-sm, p.text-base, .synopsis, .description, [class*="desc"]').first().text().trim();
-      if (!synopsis || synopsis.length < 5) synopsis = 'Disfruta de esta serie en español en RN Scanlation.';
+      // Sinopsis inteligente: obtener de meta tags o selectores evitando avisos genéricos como "Próximamente"
+      let synopsis = $('meta[property="og:description"]').attr('content') || 
+                     $('meta[name="description"]').attr('content') || 
+                     $('.synopsis, .description, [class*="description"]').first().text().trim() || '';
+      if (!synopsis || synopsis.includes('Próximamente') || synopsis.length < 5) {
+        synopsis = 'Disfruta de esta serie en español en alta resolución en RN Scanlation.';
+      }
 
       const genres = [];
       $('a[href*="/library?genre="], a[href*="genre="], .genre, [class*="tag"]').each((_, el) => {
         const g = $(el).text().trim();
-        if (g && !genres.includes(g) && !['Manga', 'Capítulo', 'Admin', 'Inicio', 'Biblioteca'].includes(g)) {
+        if (g && !genres.includes(g) && !['Manga', 'Capítulo', 'Admin', 'Inicio', 'Biblioteca', 'Próximamente'].includes(g)) {
           genres.push(g);
         }
       });
@@ -182,34 +188,75 @@ export class RNScanlationExtension extends BaseExtension {
 
       const chapters = [];
       const seen = new Set();
-      $('a[data-chapter-id], a[data-chapter-num], a[href*="/leer/"]').each((_, a) => {
-        const href = $(a).attr('href');
-        if (!href || href === '/comics/random' || seen.has(href)) return;
 
-        const cNum = $(a).attr('data-chapter-num') || '';
-        const isStartReadingBtn = $(a).text().includes('Comenzar lectura') && !cNum;
-        if (isStartReadingBtn) return;
+      const parseChapterElement = (el, $) => {
+        const href = $(el).attr('href');
+        if (!href || href === '/comics/random' || seen.has(href)) return null;
+
+        const cNum = $(el).attr('data-chapter-num') || '';
+        const isStartReadingBtn = $(el).text().includes('Comenzar lectura') && !cNum;
+        if (isStartReadingBtn) return null;
 
         seen.add(href);
 
-        const parent = $(a).parent();
+        const parent = $(el).parent();
         const parentText = parent.text().trim();
-        const cTitle = $(a).attr('data-chapter-label') || $(a).find('[data-cl-title], .title, span').first().text().trim() || $(a).text().trim();
+        const cTitle = $(el).attr('data-chapter-label') || $(el).find('[data-cl-title], .title, span').first().text().trim() || $(el).text().trim();
         const date = parent.find('.uppercase, [class*="text-text3"], .date').first().text().trim() || 'Reciente';
 
-        // Detección precisa de capítulos bloqueados / de pago / VIP por parte del scan
-        const isFree = parentText.includes('GRATIS') || $(a).text().includes('GRATIS');
+        const isFree = parentText.includes('GRATIS') || $(el).text().includes('GRATIS');
         const isLocked = !isFree || parent.find('.fa-lock, svg.lucide-lock, [class*="lock"], [class*="coin"], [class*="vip"]').length > 0;
 
-        chapters.push({
+        return {
           name: cTitle || `Capítulo ${cNum || href.split('/').pop()}`,
           chapterNumber: String(cNum || href.split('/').pop()),
           url: href.startsWith('http') ? href : `${this.baseUrl}${href}`,
           date,
           isLocked,
-          lockedReason: isLocked ? 'Capítulo bloqueado por el scan original (RN Scanlation). Requiere acceso VIP o pago en su web oficial.' : undefined
-        });
+          lockedReason: isLocked ? 'Capítulo bloqueado por el scan original (RN Scanlation).' : undefined
+        };
+      };
+
+      // 1. Obtener primera página de capítulos desde HTML principal
+      $('a[data-chapter-id], a[data-chapter-num], a[href*="/leer/"]').each((_, a) => {
+        const parsed = parseChapterElement(a, $);
+        if (parsed) chapters.push(parsed);
       });
+
+      // 2. Comprobar si hay paginación de capítulos vía endpoint AJAX de RN Scanlation
+      try {
+        const initialAjaxRes = await axios.get(`${this.baseUrl}/comics/${slug}/chapters?page=1`, {
+          headers: this.headers,
+          timeout: 8000
+        });
+        const totalPages = parseInt(initialAjaxRes.headers['x-pages'] || '1', 10);
+        
+        if (totalPages > 1) {
+          const fetchPagePromises = [];
+          for (let p = 2; p <= Math.min(totalPages, 30); p++) {
+            fetchPagePromises.push(
+              axios.get(`${this.baseUrl}/comics/${slug}/chapters?page=${p}`, {
+                headers: this.headers,
+                timeout: 10000
+              }).then(r => r.data).catch(() => '')
+            );
+          }
+
+          const additionalPagesHtml = await Promise.all(fetchPagePromises);
+          for (const html of additionalPagesHtml) {
+            if (!html) continue;
+            const $page = cheerio.load(html);
+            $page('a[data-chapter-id], a[data-chapter-num], a[href*="/leer/"]').each((_, a) => {
+              const parsed = parseChapterElement(a, $page);
+              if (parsed) chapters.push(parsed);
+            });
+          }
+        }
+      } catch (ajaxErr) {
+        console.warn('[RN Scanlation] Paginación AJAX fallback:', ajaxErr.message);
+      }
+
+      console.log(`[RN Scanlation] Total capítulos completos extraídos para ${title}: ${chapters.length}`);
 
       return {
         id: slug,
