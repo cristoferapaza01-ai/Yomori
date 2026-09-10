@@ -21,6 +21,7 @@ import CommunitiesView from './components/CommunitiesView.jsx';
 import UserCardPopover from './components/UserCardPopover.jsx';
 import OfficialLandingPage from './components/OfficialLandingPage.jsx';
 import NotificationBell from './components/NotificationBell.jsx';
+import { getSocket } from './services/socket.js';
 import { ArrowLeft, ExternalLink, Maximize2, Minimize2, Settings as SettingsIcon, LogIn, User, BookOpen } from 'lucide-react';
 
 export default function App() {
@@ -33,6 +34,7 @@ export default function App() {
   // En Electron/Desktop: 'home' (lector). En Web: 'landing' (descarga de la app)
   const [view, setView] = useState(() => isElectron ? 'home' : 'landing');
   const [exploreSubTab, setExploreSubTab] = useState('sources'); // 'sources' | 'extensions' | 'migration'
+  const [unreadDMsCount, setUnreadDMsCount] = useState(0);
 
   // Autenticación y Perfil de Usuario
   const [currentUser, setCurrentUser] = useState(() => {
@@ -85,6 +87,34 @@ export default function App() {
     setCurrentUser(updatedUser);
     localStorage.setItem('tachiyomi_user', JSON.stringify(updatedUser));
   };
+
+  // Escuchar notificaciones en tiempo real de Mensajes Directos para el badge
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    const socket = getSocket();
+    socket.emit('user_online', { userId: currentUser.id, username: currentUser.username });
+
+    const handleDmNotification = (data) => {
+      // Si el usuario no está actualmente en la pestaña de mensajes, aumentar contador
+      setView(currentView => {
+        if (currentView !== 'messages') {
+          setUnreadDMsCount(prev => prev + 1);
+        }
+        return currentView;
+      });
+    };
+
+    socket.on('dm_notification', handleDmNotification);
+    return () => {
+      socket.off('dm_notification', handleDmNotification);
+    };
+  }, [currentUser?.id]);
+
+  useEffect(() => {
+    if (view === 'messages') {
+      setUnreadDMsCount(0);
+    }
+  }, [view]);
 
   // Repositorios y Extensiones
   const [repositories, setRepositories] = useState(() => {
@@ -536,7 +566,7 @@ export default function App() {
     }
   };
 
-  const handleSelectChapter = async (chapterUrl, originMangaUrl = selectedManga?.url, targetPage = null) => {
+  const handleSelectChapter = async (chapterUrl, originMangaUrl = selectedManga?.url || chapterData?.mangaUrl, targetPage = null) => {
     setLoadingChapter(true);
     setView('reader');
     window.scrollTo({ top: 0, behavior: 'instant' });
@@ -552,25 +582,35 @@ export default function App() {
     const targetUrl = chapterUrl || originMangaUrl || '';
     const extId = getExtensionFromUrlOrId(targetUrl, selectedManga?.extensionId || selectedExtension);
 
+    const currentManga = (selectedManga?.url === originMangaUrl) ? selectedManga : library.find(i => i.url === originMangaUrl);
+    const persistedMangaTitle = selectedManga?.title || currentManga?.title || (chapterData?.mangaTitle !== 'Lector' ? chapterData?.mangaTitle : '') || '';
+    const persistedMangaCover = selectedManga?.cover || currentManga?.cover || chapterData?.mangaCover || '';
+
     // 1. Si el capítulo ya fue precargado en memoria, renderizar instantáneamente
     if (chapterExtractionCache.current[chapterUrl]) {
       const cachedData = chapterExtractionCache.current[chapterUrl];
-      setChapterData(cachedData);
+      const mergedData = {
+        ...cachedData,
+        mangaTitle: persistedMangaTitle || cachedData.mangaTitle || 'Lector',
+        mangaCover: persistedMangaCover || cachedData.mangaCover || ''
+      };
+      setChapterData(mergedData);
       setLoadingChapter(false);
 
       // Precargar el que sigue en segundo plano
-      triggerNextChapterPrefetch(cachedData, originMangaUrl, extId);
+      triggerNextChapterPrefetch(mergedData, originMangaUrl, extId);
       return;
     }
 
     // 2. Si no estaba en caché, mostrar estado de carga limpio
     setChapterData({
-      mangaTitle: selectedManga?.title || 'Lector',
+      mangaTitle: persistedMangaTitle || 'Lector',
       chapterTitle: '',
       pages: [],
       totalPages: 0,
       currentUrl: chapterUrl,
       mangaUrl: originMangaUrl,
+      mangaCover: persistedMangaCover,
       loading: true,
       error: null
     });
@@ -605,9 +645,10 @@ export default function App() {
 
     if (successData) {
       const data = successData;
-      const currentManga = (selectedManga?.url === originMangaUrl) ? selectedManga : library.find(i => i.url === originMangaUrl);
-      chapterExtractionCache.current[chapterUrl] = { ...data, mangaCover: currentManga?.cover || selectedManga?.cover };
-      setChapterData({ ...data, mangaUrl: originMangaUrl, mangaCover: currentManga?.cover || selectedManga?.cover, loading: false, error: null });
+      const finalTitle = persistedMangaTitle || (data.mangaTitle && data.mangaTitle !== 'ManhwaLatino' ? data.mangaTitle : (selectedManga?.title || 'Manga'));
+      const finalCover = persistedMangaCover || data.cover || '';
+      chapterExtractionCache.current[chapterUrl] = { ...data, mangaTitle: finalTitle, mangaCover: finalCover };
+      setChapterData({ ...data, mangaUrl: originMangaUrl, mangaTitle: finalTitle, mangaCover: finalCover, loading: false, error: null });
 
       // Disparar precarga del siguiente capítulo en segundo plano
       triggerNextChapterPrefetch(data, originMangaUrl, extId);
@@ -810,6 +851,7 @@ export default function App() {
           libraryCount={library.length}
           installedExtCount={installedExtensions.length}
           historyCount={history.length}
+          unreadDMsCount={unreadDMsCount}
           currentUser={currentUser}
           onOpenAuth={handleOpenAuth}
           onOpenProfile={() => handleViewProfile(null)}

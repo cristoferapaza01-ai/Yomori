@@ -22,6 +22,7 @@ export default function Sidebar({
   libraryCount = 0,
   installedExtCount = 0,
   historyCount = 0,
+  unreadDMsCount = 0,
   currentUser = null,
   onOpenAuth,
   onOpenProfile,
@@ -62,7 +63,8 @@ export default function Sidebar({
       id: 'messages',
       label: 'Mensajes',
       icon: MessageSquare,
-      badge: null
+      badge: unreadDMsCount > 0 ? unreadDMsCount : null,
+      isDMBadge: true
     },
     {
       id: 'explore',
@@ -127,7 +129,9 @@ export default function Sidebar({
 
                 {item.badge !== null && (
                   <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${
-                    isActive ? 'bg-black/30 text-white' : 'bg-purple-950/80 text-purple-300 border border-purple-800/50'
+                    item.isDMBadge 
+                      ? 'bg-gradient-to-r from-rose-600 to-pink-600 text-white font-extrabold shadow-md shadow-rose-600/40 animate-pulse'
+                      : isActive ? 'bg-black/30 text-white' : 'bg-purple-950/80 text-purple-300 border border-purple-800/50'
                   }`}>
                     {item.badge}
                   </span>
@@ -206,11 +210,18 @@ export default function Sidebar({
             <button
               key={item.id}
               onClick={() => onSelectView(item.id)}
-              className={`flex flex-col items-center gap-1 p-1.5 rounded-xl transition ${
+              className={`relative flex flex-col items-center gap-1 p-1.5 rounded-xl transition ${
                 isActive ? 'text-purple-400' : 'text-gray-500 hover:text-gray-300'
               }`}
             >
-              <Icon className="w-5 h-5" />
+              <div className="relative">
+                <Icon className="w-5 h-5" />
+                {item.badge !== null && (
+                  <span className="absolute -top-1.5 -right-2 min-w-[15px] h-[15px] px-0.5 rounded-full bg-rose-600 text-white font-bold text-[9px] flex items-center justify-center animate-pulse">
+                    {item.badge}
+                  </span>
+                )}
+              </div>
               <span className="text-[10px] font-medium">{item.label}</span>
             </button>
           );

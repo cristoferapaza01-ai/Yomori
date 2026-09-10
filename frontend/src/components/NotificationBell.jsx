@@ -155,7 +155,8 @@ export default function NotificationBell({
     }
   };
 
-  const totalUnread = pendingRequests.length + systemAlerts.length;
+  const unreadAlerts = systemAlerts.filter(a => !a.read);
+  const totalUnread = pendingRequests.length + unreadAlerts.length;
 
   return (
     <div className="relative select-none" ref={dropdownRef}>
@@ -166,8 +167,12 @@ export default function NotificationBell({
             if (onOpenAuth) onOpenAuth('login');
             return;
           }
-          setIsOpen(prev => !prev);
-          if (!isOpen) fetchNotifications();
+          const nextState = !isOpen;
+          setIsOpen(nextState);
+          if (nextState) {
+            fetchNotifications();
+            setSystemAlerts(prev => prev.map(a => ({ ...a, read: true })));
+          }
         }}
         className={`relative p-2.5 rounded-2xl border transition-all duration-200 flex items-center justify-center cursor-pointer ${
           isOpen 

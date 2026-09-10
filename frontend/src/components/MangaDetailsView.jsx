@@ -76,10 +76,32 @@ export default function MangaDetailsView({
     return name.includes(filter) || num.includes(filter);
   });
 
+  // Extractor inteligente de número de capítulo que ignora números del título del manga
+  const getChapterNum = (c) => {
+    if (!c) return 0;
+    if (typeof c.chapterNumber === 'number' && !isNaN(c.chapterNumber)) return c.chapterNumber;
+    if (c.chapterNumber && !isNaN(parseFloat(c.chapterNumber))) return parseFloat(c.chapterNumber);
+    
+    let rawStr = String(c.name || c.title || '');
+    if (manga?.title) {
+      // Eliminar el título del manga para no capturar números que pertenezcan al nombre (ej. 10.000 Años)
+      const cleanTitle = manga.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      rawStr = rawStr.replace(new RegExp(cleanTitle, 'gi'), '');
+    }
+
+    const capMatch = rawStr.match(/(?:cap[íi]tulo|cap\.?|ch\.?|episodio|ep\.?)\s*(\d+(?:\.\d+)?)/i);
+    if (capMatch && capMatch[1]) return parseFloat(capMatch[1]);
+
+    const anyNum = rawStr.match(/\b(\d+(?:\.\d+)?)\b/);
+    if (anyNum && anyNum[1]) return parseFloat(anyNum[1]);
+
+    return 0;
+  };
+
   // Ordenar
   const sortedChapters = [...filteredChapters].sort((a, b) => {
-    const numA = parseFloat(a.chapterNumber || (a.name ? a.name.match(/\d+(\.\d+)?/)?.[0] : 0)) || 0;
-    const numB = parseFloat(b.chapterNumber || (b.name ? b.name.match(/\d+(\.\d+)?/)?.[0] : 0)) || 0;
+    const numA = getChapterNum(a);
+    const numB = getChapterNum(b);
     return sortAsc ? numA - numB : numB - numA;
   });
 
