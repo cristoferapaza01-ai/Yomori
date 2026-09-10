@@ -15,7 +15,8 @@ import {
   Layers,
   Flame,
   ArrowDown,
-  Code2
+  Code2,
+  Globe
 } from 'lucide-react';
 
 export default function OfficialLandingPage({ onOpenWebReader }) {
@@ -143,10 +144,17 @@ export default function OfficialLandingPage({ onOpenWebReader }) {
 
           {/* Botón CTA Superior */}
           <div className="flex items-center gap-3">
+            <button
+              onClick={onOpenWebReader}
+              className="px-4 py-2.5 rounded-xl bg-purple-900/60 hover:bg-purple-800/70 border border-purple-500/40 text-purple-200 hover:text-white font-bold text-xs flex items-center gap-2 shadow-md transition transform hover:scale-105 active:scale-95 cursor-pointer"
+            >
+              <Globe className="w-4 h-4 text-purple-400" />
+              <span>Abrir en Web / Móvil</span>
+            </button>
             <a
               href="/downloads/Yomori-Windows-x64.zip"
               download="Yomori-Windows-x64.zip"
-              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-purple-600/30 transition transform hover:scale-105 active:scale-95 cursor-pointer"
+              className="hidden sm:flex px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs items-center gap-2 shadow-lg shadow-purple-600/30 transition transform hover:scale-105 active:scale-95 cursor-pointer"
             >
               <Download className="w-4 h-4" />
               <span>Descargar para PC</span>
@@ -180,12 +188,12 @@ export default function OfficialLandingPage({ onOpenWebReader }) {
           Conecta más de 9 scans oficiales en español, disfruta de lectura continua en cascada y olvídate de la publicidad molesta.
         </p>
 
-        {/* Botonera de Descarga Principal */}
-        <div id="descargar" className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4 max-w-lg mx-auto">
+        {/* Botonera de Descarga y Acceso Web Principal */}
+        <div id="descargar" className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4 max-w-2xl mx-auto">
           <a
             href="/downloads/Yomori-Windows-x64.zip"
             download="Yomori-Windows-x64.zip"
-            className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-700 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-base flex items-center justify-center gap-3 shadow-2xl shadow-purple-600/50 hover:shadow-purple-600/80 transition transform hover:-translate-y-1 active:scale-95 cursor-pointer"
+            className="w-full sm:w-auto px-7 py-4 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-700 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-base flex items-center justify-center gap-3 shadow-2xl shadow-purple-600/50 hover:shadow-purple-600/80 transition transform hover:-translate-y-1 active:scale-95 cursor-pointer"
           >
             <Download className="w-5 h-5 animate-bounce" />
             <div className="text-left">
@@ -194,18 +202,16 @@ export default function OfficialLandingPage({ onOpenWebReader }) {
             </div>
           </a>
 
-          <div className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-[#121524] border border-gray-800 flex items-center justify-center gap-3 text-left">
-            <Smartphone className="w-6 h-6 text-gray-400" />
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-gray-300">App para Android</span>
-                <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                  En Desarrollo
-                </span>
-              </div>
-              <span className="text-[10px] text-gray-500 font-mono">Archivo .apk próximamente</span>
+          <button
+            onClick={onOpenWebReader}
+            className="w-full sm:w-auto px-7 py-4 rounded-2xl bg-gray-900/90 hover:bg-gray-800 border border-purple-500/50 hover:border-purple-400 text-purple-200 hover:text-white font-black text-base flex items-center justify-center gap-3 shadow-xl transition transform hover:-translate-y-1 active:scale-95 cursor-pointer"
+          >
+            <Globe className="w-5 h-5 text-purple-400" />
+            <div className="text-left">
+              <span className="block text-[10px] font-semibold text-purple-400 uppercase tracking-widest">Móvil y Navegador Web</span>
+              <span>Abrir App en el Navegador</span>
             </div>
-          </div>
+          </button>
         </div>
 
         {/* Garantías Rápidas */}

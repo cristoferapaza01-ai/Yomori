@@ -126,8 +126,6 @@ export const postMessage = async (req, res) => {
       }
     }
 
-    const { roomId = 'global', text, page = null, mangaTitle = null, chapterTitle = null } = req.body;
-
     if (!text || !text.trim()) {
       return res.status(400).json({ success: false, message: 'El mensaje no puede estar vacío.' });
     }
