@@ -64,10 +64,10 @@ const DEFAULT_GLOBAL_MESSAGES = [
   }
 ];
 
-// Obtener mensajes de una sala
 export const getRoomMessages = async (req, res) => {
   try {
-    const { roomId = 'global', limit = 100 } = req.query;
+    const roomId = req.params.roomId || req.query.roomId || 'global';
+    const limit = req.query.limit || 100;
     const chats = loadChats();
     let roomMessages = chats[roomId];
 

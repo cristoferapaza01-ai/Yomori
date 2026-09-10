@@ -96,10 +96,16 @@ router.post('/auth/sync', syncUserData);
 router.get('/users/:userId', getPublicProfile);
 
 // Chat en vivo y salas de comentarios persistentes
+router.get('/chat/history/:roomId', getRoomMessages);
+router.get('/chat/history', getRoomMessages);
+router.get('/chat/messages/:roomId', getRoomMessages);
 router.get('/chat/messages', getRoomMessages);
 router.post('/chat/send', postMessage);
+router.post('/chat/like/:messageId', toggleLikeMessage);
 router.post('/chat/like', toggleLikeMessage);
+router.delete('/chat/message/:messageId', deleteMessage);
 router.post('/chat/delete', deleteMessage);
+router.post('/chat/report/:messageId', reportMessage);
 router.post('/chat/report', reportMessage);
 
 

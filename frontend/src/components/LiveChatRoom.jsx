@@ -11,7 +11,8 @@ import {
   Link2,
   Flag,
   Trash2,
-  ArrowUpDown
+  ArrowUpDown,
+  Loader2
 } from 'lucide-react';
 import { getSocket } from '../services/socket.js';
 import FormattedMessage from './FormattedMessage.jsx';

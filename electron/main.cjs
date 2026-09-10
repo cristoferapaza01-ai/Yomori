@@ -43,7 +43,7 @@ async function waitForServer(url, maxRetries = 25) {
   for (let i = 0; i < maxRetries; i++) {
     const isReady = await checkServer(url);
     if (isReady) return true;
-    await new Promise(r => setTimeout(r, 400));
+    await new Promise(r => setTimeout(r, 300));
   }
   return false;
 }
@@ -57,7 +57,7 @@ async function createWindow() {
     minHeight: 650,
     title: 'Yomori Desktop Reader',
     backgroundColor: '#07080b',
-    show: false,
+    show: true,
     autoHideMenuBar: true,
     webPreferences: {
       nodeIntegration: false,
@@ -66,14 +66,8 @@ async function createWindow() {
     }
   });
 
-  // Ocultar menú superior por defecto (pulsando Alt o F11 se puede ver o poner pantalla completa)
+  // Ocultar menú superior por defecto
   Menu.setApplicationMenu(null);
-
-  // Mostrar ventana cuando esté lista para evitar parpadeos blancos
-  mainWindow.once('ready-to-show', () => {
-    mainWindow.show();
-    mainWindow.focus();
-  });
 
   // Abrir enlaces externos en el navegador predeterminado del sistema
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -84,12 +78,18 @@ async function createWindow() {
     return { action: 'allow' };
   });
 
-  // Comprobar si el frontend de desarrollo está corriendo o usar el servidor backend local
-  const isDevRunning = await checkServer(FRONTEND_DEV_URL, 800);
-  const targetUrl = isDevRunning ? FRONTEND_DEV_URL : BACKEND_URL;
+  const isDevRunning = process.env.ELECTRON_DEV === '1' && await checkServer(FRONTEND_DEV_URL, 800);
+  const targetUrl = (isDevRunning ? FRONTEND_DEV_URL : BACKEND_URL) + '?mode=app';
 
   console.log('[Electron] Cargando aplicación de escritorio desde:', targetUrl);
   mainWindow.loadURL(targetUrl);
+
+  mainWindow.webContents.on('did-fail-load', (e, errorCode, errorDescription) => {
+    console.error('[Electron] Error cargando URL, reintentando con backend local...', errorCode, errorDescription);
+    setTimeout(() => {
+      if (mainWindow) mainWindow.loadURL(BACKEND_URL + '?mode=app');
+    }, 500);
+  });
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -98,7 +98,6 @@ async function createWindow() {
 
 // Ciclo de vida de la aplicación
 app.whenReady().then(async () => {
-  // Comprobar si el backend ya estaba corriendo, o iniciarlo
   const isBackendRunning = await checkServer(BACKEND_URL + '/api/health', 800);
   if (!isBackendRunning) {
     console.log('[Electron] Iniciando backend local en segundo plano...');
