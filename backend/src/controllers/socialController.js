@@ -306,10 +306,6 @@ export const toggleFriend = async (req, res) => {
 // 5. ENVIAR SOLICITUD DE AMISTAD
 export const sendFriendRequest = async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).json({ success: false, message: 'No autenticado' });
-
-    const token = authHeader.replace('Bearer ', '').trim();
     const users = loadUsers();
     const me = getAuthenticatedUser(req, users);
     if (!me) return res.status(401).json({ success: false, message: 'Debes iniciar sesión para realizar esta acción.' });
@@ -346,20 +342,21 @@ export const sendFriendRequest = async (req, res) => {
 
     const requests = loadFriendRequests();
     const existing = requests.find(r => 
-      ((r.fromUserId === me.id && r.toUserId === targetUser.id) || (r.fromUserId === targetUser.id && r.toUserId === me.id)) &&
+      ((r.fromUserId === me.id && r.toUserId === targetUser.id) || (r.fromUserId === targetUser.id && r.toUserId === me.id) ||
+       (r.fromUsername?.toLowerCase() === me.username?.toLowerCase() && r.toUsername?.toLowerCase() === targetUser.username?.toLowerCase())) &&
       r.status === 'pending'
     );
 
     if (existing) {
-      if (existing.fromUserId === targetUser.id) {
+      if (existing.fromUserId === targetUser.id || existing.fromUsername?.toLowerCase() === targetUser.username?.toLowerCase()) {
         // Aceptación automática si la otra persona ya te había enviado solicitud
         existing.status = 'accepted';
         saveFriendRequests(requests);
 
         if (!Array.isArray(allFriends[me.id])) allFriends[me.id] = [];
         if (!Array.isArray(allFriends[targetUser.id])) allFriends[targetUser.id] = [];
-        allFriends[me.id].push(targetUser.id);
-        allFriends[targetUser.id].push(me.id);
+        if (!allFriends[me.id].includes(targetUser.id)) allFriends[me.id].push(targetUser.id);
+        if (!allFriends[targetUser.id].includes(me.id)) allFriends[targetUser.id].push(me.id);
         saveFriends(allFriends);
 
         return res.json({ success: true, message: `¡Genial! Ahora tú y @${targetUser.username} son amigos.`, status: 'accepted', targetUser });
@@ -400,17 +397,22 @@ export const sendFriendRequest = async (req, res) => {
 // 6. RESPONDER A UNA SOLICITUD DE AMISTAD (ACEPTAR / RECHAZAR)
 export const respondFriendRequest = async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).json({ success: false, message: 'No autenticado' });
-
-    const token = authHeader.replace('Bearer ', '').trim();
     const users = loadUsers();
     const me = getAuthenticatedUser(req, users);
     if (!me) return res.status(401).json({ success: false, message: 'Debes iniciar sesión para realizar esta acción.' });
 
-    const { requestId, action } = req.body; // action: 'accept' | 'reject'
+    const { requestId, action, fromUserId } = req.body; // action: 'accept' | 'reject'
     const requests = loadFriendRequests();
-    const reqIndex = requests.findIndex(r => r.id === requestId && (r.toUserId === me.id || r.fromUserId === me.id));
+    let reqIndex = requests.findIndex(r => r.id === requestId);
+
+    if (reqIndex === -1 && fromUserId) {
+      reqIndex = requests.findIndex(r => 
+        ((r.toUserId === me.id && r.fromUserId === fromUserId) || 
+         (r.fromUserId === me.id && r.toUserId === fromUserId) ||
+         (r.toUsername?.toLowerCase() === me.username?.toLowerCase() && r.fromUserId === fromUserId)) &&
+        r.status === 'pending'
+      );
+    }
 
     if (reqIndex === -1) {
       return res.status(404).json({ success: false, message: 'Solicitud no encontrada.' });
@@ -433,7 +435,13 @@ export const respondFriendRequest = async (req, res) => {
     }
 
     saveFriendRequests(requests);
-    return res.json({ success: true, action, message: action === 'accept' ? 'Solicitud aceptada' : 'Solicitud rechazada' });
+    return res.json({ 
+      success: true, 
+      action, 
+      message: action === 'accept' ? 'Solicitud aceptada' : 'Solicitud rechazada',
+      request,
+      otherUserId
+    });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -442,10 +450,6 @@ export const respondFriendRequest = async (req, res) => {
 // 7. ACTUALIZAR ACTIVIDAD DE LECTURA EN TIEMPO REAL ("Activo ahora")
 export const updateReadingActivity = async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).json({ success: false, message: 'No autenticado' });
-
-    const token = authHeader.replace('Bearer ', '').trim();
     const users = loadUsers();
     const me = getAuthenticatedUser(req, users);
     if (!me) return res.status(401).json({ success: false, message: 'Debes iniciar sesión para realizar esta acción.' });
@@ -482,10 +486,6 @@ export const updateReadingActivity = async (req, res) => {
 // 8. OBTENER LISTA DE AMIGOS, DMs, SOLICITUDES Y ACTIVIDADES EN VIVO
 export const getFriendsAndDMs = async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).json({ success: false, message: 'No autenticado' });
-
-    const token = authHeader.replace('Bearer ', '').trim();
     const users = loadUsers();
     const me = getAuthenticatedUser(req, users);
     if (!me) return res.status(401).json({ success: false, message: 'Sesión no válida' });

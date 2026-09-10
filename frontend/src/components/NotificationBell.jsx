@@ -123,9 +123,17 @@ export default function NotificationBell({
     try {
       const res = await axios.post('/api/social/friends/respond', {
         requestId,
-        action
+        action,
+        fromUserId,
+        currentUserId: currentUser?.id,
+        currentUsername: currentUser?.username,
+        userId: currentUser?.id
       }, {
-        headers: { Authorization: `Bearer ${currentUser.token}` }
+        headers: { 
+          Authorization: `Bearer ${currentUser?.token || ''}`,
+          'x-user-id': currentUser?.id,
+          'x-username': currentUser?.username
+        }
       });
 
       if (res.data?.success) {
