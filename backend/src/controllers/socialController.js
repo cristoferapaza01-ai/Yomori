@@ -10,6 +10,8 @@ const __dirname = path.dirname(__filename);
 const dataDir = path.resolve(__dirname, '../../data');
 const communitiesFile = path.join(dataDir, 'communities.json');
 const friendsFile = path.join(dataDir, 'friends.json');
+const friendRequestsFile = path.join(dataDir, 'friend_requests.json');
+const activitiesFile = path.join(dataDir, 'reading_activities.json');
 
 // Comunidades por defecto iniciales
 const DEFAULT_COMMUNITIES = [
@@ -103,6 +105,44 @@ export function saveFriends(friends) {
   }
 }
 
+export function loadFriendRequests() {
+  try {
+    if (fs.existsSync(friendRequestsFile)) {
+      return JSON.parse(fs.readFileSync(friendRequestsFile, 'utf8'));
+    }
+  } catch (e) {}
+  return [];
+}
+
+export function saveFriendRequests(requests) {
+  try {
+    const tempFile = `${friendRequestsFile}.tmp_${Date.now()}`;
+    fs.writeFileSync(tempFile, JSON.stringify(requests, null, 2), 'utf8');
+    fs.renameSync(tempFile, friendRequestsFile);
+  } catch (e) {
+    console.error('[Social Error] Guardando friend_requests.json:', e.message);
+  }
+}
+
+export function loadReadingActivities() {
+  try {
+    if (fs.existsSync(activitiesFile)) {
+      return JSON.parse(fs.readFileSync(activitiesFile, 'utf8'));
+    }
+  } catch (e) {}
+  return {};
+}
+
+export function saveReadingActivities(activities) {
+  try {
+    const tempFile = `${activitiesFile}.tmp_${Date.now()}`;
+    fs.writeFileSync(tempFile, JSON.stringify(activities, null, 2), 'utf8');
+    fs.renameSync(tempFile, activitiesFile);
+  } catch (e) {
+    console.error('[Social Error] Guardando reading_activities.json:', e.message);
+  }
+}
+
 // 1. OBTENER LISTA DE COMUNIDADES
 export const getCommunities = async (req, res) => {
   try {
@@ -186,7 +226,7 @@ export const toggleJoinCommunity = async (req, res) => {
   }
 };
 
-// 4. AÑADIR O ELIMINAR AMIGO
+// 4. AÑADIR O ELIMINAR AMIGO DIRECTAMENTE
 export const toggleFriend = async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
@@ -207,12 +247,17 @@ export const toggleFriend = async (req, res) => {
 
     const allFriends = loadFriends();
     if (!Array.isArray(allFriends[me.id])) allFriends[me.id] = [];
+    if (!Array.isArray(allFriends[targetUser.id])) allFriends[targetUser.id] = [];
 
     const isFriend = allFriends[me.id].includes(targetUser.id);
     if (isFriend) {
       allFriends[me.id] = allFriends[me.id].filter(id => id !== targetUser.id);
+      allFriends[targetUser.id] = allFriends[targetUser.id].filter(id => id !== me.id);
     } else {
       allFriends[me.id].push(targetUser.id);
+      if (!allFriends[targetUser.id].includes(me.id)) {
+        allFriends[targetUser.id].push(me.id);
+      }
     }
 
     saveFriends(allFriends);
@@ -233,7 +278,164 @@ export const toggleFriend = async (req, res) => {
   }
 };
 
-// 5. OBTENER LISTA DE AMIGOS Y CONVERSACIONES DIRECTAS
+// 5. ENVIAR SOLICITUD DE AMISTAD
+export const sendFriendRequest = async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ success: false, message: 'No autenticado' });
+
+    const token = authHeader.replace('Bearer ', '').trim();
+    const users = loadUsers();
+    const me = users.find(u => u.token === token);
+    if (!me) return res.status(401).json({ success: false, message: 'Sesión no válida' });
+
+    const { username } = req.body;
+    if (!username || !username.trim()) {
+      return res.status(400).json({ success: false, message: 'Debes indicar el nombre de usuario.' });
+    }
+
+    const cleanUsername = username.trim().replace(/^@/, '');
+    if (cleanUsername.toLowerCase() === me.username.toLowerCase()) {
+      return res.status(400).json({ success: false, message: 'No puedes enviarte una solicitud a ti mismo.' });
+    }
+
+    const targetUser = users.find(u => u.username.toLowerCase() === cleanUsername.toLowerCase());
+    if (!targetUser) {
+      return res.status(404).json({ success: false, message: `No se encontró ningún usuario con el nombre "@${cleanUsername}".` });
+    }
+
+    const allFriends = loadFriends();
+    if (allFriends[me.id]?.includes(targetUser.id)) {
+      return res.status(400).json({ success: false, message: `Ya eres amigo de @${targetUser.username}.` });
+    }
+
+    const requests = loadFriendRequests();
+    const existing = requests.find(r => 
+      ((r.fromUserId === me.id && r.toUserId === targetUser.id) || (r.fromUserId === targetUser.id && r.toUserId === me.id)) &&
+      r.status === 'pending'
+    );
+
+    if (existing) {
+      if (existing.fromUserId === targetUser.id) {
+        // Aceptación automática si la otra persona ya te había enviado solicitud
+        existing.status = 'accepted';
+        saveFriendRequests(requests);
+
+        if (!Array.isArray(allFriends[me.id])) allFriends[me.id] = [];
+        if (!Array.isArray(allFriends[targetUser.id])) allFriends[targetUser.id] = [];
+        allFriends[me.id].push(targetUser.id);
+        allFriends[targetUser.id].push(me.id);
+        saveFriends(allFriends);
+
+        return res.json({ success: true, message: `¡Genial! Ahora tú y @${targetUser.username} son amigos.`, status: 'accepted' });
+      }
+      return res.status(400).json({ success: false, message: 'Ya tienes una solicitud de amistad pendiente con este usuario.' });
+    }
+
+    const newRequest = {
+      id: 'req_' + Date.now() + '_' + crypto.randomBytes(3).toString('hex'),
+      fromUserId: me.id,
+      fromUsername: me.username,
+      fromAvatar: me.avatar,
+      toUserId: targetUser.id,
+      toUsername: targetUser.username,
+      toAvatar: targetUser.avatar,
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    };
+
+    requests.unshift(newRequest);
+    saveFriendRequests(requests);
+
+    return res.json({ success: true, message: `Solicitud de amistad enviada a @${targetUser.username}.`, request: newRequest });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// 6. RESPONDER A UNA SOLICITUD DE AMISTAD (ACEPTAR / RECHAZAR)
+export const respondFriendRequest = async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ success: false, message: 'No autenticado' });
+
+    const token = authHeader.replace('Bearer ', '').trim();
+    const users = loadUsers();
+    const me = users.find(u => u.token === token);
+    if (!me) return res.status(401).json({ success: false, message: 'Sesión no válida' });
+
+    const { requestId, action } = req.body; // action: 'accept' | 'reject'
+    const requests = loadFriendRequests();
+    const reqIndex = requests.findIndex(r => r.id === requestId && (r.toUserId === me.id || r.fromUserId === me.id));
+
+    if (reqIndex === -1) {
+      return res.status(404).json({ success: false, message: 'Solicitud no encontrada.' });
+    }
+
+    const request = requests[reqIndex];
+    const otherUserId = request.fromUserId === me.id ? request.toUserId : request.fromUserId;
+
+    if (action === 'accept') {
+      request.status = 'accepted';
+      const allFriends = loadFriends();
+      if (!Array.isArray(allFriends[me.id])) allFriends[me.id] = [];
+      if (!Array.isArray(allFriends[otherUserId])) allFriends[otherUserId] = [];
+
+      if (!allFriends[me.id].includes(otherUserId)) allFriends[me.id].push(otherUserId);
+      if (!allFriends[otherUserId].includes(me.id)) allFriends[otherUserId].push(me.id);
+      saveFriends(allFriends);
+    } else {
+      request.status = 'rejected';
+    }
+
+    saveFriendRequests(requests);
+    return res.json({ success: true, action, message: action === 'accept' ? 'Solicitud aceptada' : 'Solicitud rechazada' });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// 7. ACTUALIZAR ACTIVIDAD DE LECTURA EN TIEMPO REAL ("Activo ahora")
+export const updateReadingActivity = async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ success: false, message: 'No autenticado' });
+
+    const token = authHeader.replace('Bearer ', '').trim();
+    const users = loadUsers();
+    const me = users.find(u => u.token === token);
+    if (!me) return res.status(401).json({ success: false, message: 'Sesión no válida' });
+
+    const { mangaTitle, chapterTitle, cover, url, extensionId, page, totalPages, isReading } = req.body;
+    const activities = loadReadingActivities();
+
+    if (isReading === false || !mangaTitle) {
+      delete activities[me.id];
+    } else {
+      activities[me.id] = {
+        userId: me.id,
+        username: me.username,
+        avatar: me.avatar,
+        mangaTitle,
+        chapterTitle: chapterTitle || 'Capítulo actual',
+        cover: cover || '',
+        url: url || '',
+        extensionId: extensionId || '',
+        page: page || 1,
+        totalPages: totalPages || 1,
+        startedAt: activities[me.id]?.startedAt || Date.now(),
+        updatedAt: Date.now()
+      };
+    }
+
+    saveReadingActivities(activities);
+    return res.json({ success: true, activity: activities[me.id] || null });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// 8. OBTENER LISTA DE AMIGOS, DMs, SOLICITUDES Y ACTIVIDADES EN VIVO
 export const getFriendsAndDMs = async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
@@ -246,23 +448,40 @@ export const getFriendsAndDMs = async (req, res) => {
 
     const allFriends = loadFriends();
     const myFriendIds = allFriends[me.id] || [];
+    const activities = loadReadingActivities();
+
+    // 1. Amigos confirmados con su actividad en vivo
     const friends = users
       .filter(u => myFriendIds.includes(u.id))
-      .map(u => ({
-        id: u.id,
-        username: u.username,
-        avatar: u.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(u.username)}`,
-        banner: u.banner || 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
-        bio: u.bio || 'Leyendo en Yomori',
-        badge: u.badge || 'Lector',
-        online: true
-      }));
+      .map(u => {
+        const act = activities[u.id];
+        // Verificar si la actividad es reciente (últimos 45 minutos)
+        const isRecent = act && (Date.now() - act.updatedAt < 45 * 60 * 1000);
+        return {
+          id: u.id,
+          username: u.username,
+          avatar: u.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(u.username)}`,
+          banner: u.banner || 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
+          bio: u.bio || 'Leyendo en Yomori',
+          badge: u.badge || 'Lector',
+          online: true,
+          readingActivity: (isRecent && u.shareReadingActivity !== false) ? act : null
+        };
+      });
 
-    // Cargar todas las conversaciones directas que involucran al usuario
+    // 2. Solicitudes de amistad (Recibidas y Enviadas)
+    const allRequests = loadFriendRequests();
+    const pendingIncoming = allRequests.filter(r => r.toUserId === me.id && r.status === 'pending');
+    const pendingOutgoing = allRequests.filter(r => r.fromUserId === me.id && r.status === 'pending');
+
+    // 3. Conversaciones directas y Solicitudes de mensajes (DMs de no-amigos)
     const chats = loadChats();
     const dmRooms = Object.keys(chats).filter(roomId => roomId.startsWith('dm:') && roomId.includes(me.id));
     
-    const conversations = dmRooms.map(roomId => {
+    const conversations = [];
+    const messageRequests = [];
+
+    dmRooms.forEach(roomId => {
       const otherUserId = roomId.replace('dm:', '').split('_').find(id => id !== me.id);
       const otherUser = users.find(u => u.id === otherUserId) || {
         id: otherUserId,
@@ -273,18 +492,45 @@ export const getFriendsAndDMs = async (req, res) => {
 
       const roomMessages = chats[roomId] || [];
       const lastMessage = roomMessages[roomMessages.length - 1] || null;
+      const isFriend = myFriendIds.includes(otherUser.id);
 
-      return {
+      const convObj = {
         roomId,
         user: otherUser,
         lastMessage,
+        isFriend,
         unreadCount: 0
       };
+
+      conversations.push(convObj);
+
+      // Si no son amigos y el último mensaje lo envió la otra persona, cuenta como solicitud de mensaje
+      if (!isFriend && lastMessage && lastMessage.userId !== me.id) {
+        messageRequests.push(convObj);
+      }
     });
+
+    // 4. Actividades en vivo de amigos para el panel "Activo ahora"
+    const activeReadingFriends = friends
+      .filter(f => f.readingActivity)
+      .map(f => ({
+        user: {
+          id: f.id,
+          username: f.username,
+          avatar: f.avatar
+        },
+        activity: f.readingActivity
+      }));
 
     return res.json({
       success: true,
       friends,
+      pendingRequests: {
+        incoming: pendingIncoming,
+        outgoing: pendingOutgoing
+      },
+      messageRequests,
+      activeReadingFriends,
       conversations
     });
   } catch (err) {

@@ -271,6 +271,7 @@ export const login = async (req, res) => {
       bio: user.bio,
       badge: user.badge || userStats.levelTitle,
       isLibraryPublic: user.isLibraryPublic,
+      shareReadingActivity: user.shareReadingActivity !== false,
       role: user.role || 'user',
       token: user.token,
       library: user.library || [],
@@ -306,7 +307,7 @@ export const updateProfile = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Sesión no válida o expirada' });
     }
 
-    const { username, avatar, banner, bio, badge, isLibraryPublic } = req.body;
+    const { username, avatar, banner, bio, badge, isLibraryPublic, shareReadingActivity } = req.body;
 
     if (username && username.trim()) {
       const cleanUsername = username.trim();
@@ -341,6 +342,10 @@ export const updateProfile = async (req, res) => {
       user.isLibraryPublic = isLibraryPublic;
     }
 
+    if (typeof shareReadingActivity === 'boolean') {
+      user.shareReadingActivity = shareReadingActivity;
+    }
+
     user.updatedAt = new Date().toISOString();
     saveUsers(users);
 
@@ -355,6 +360,7 @@ export const updateProfile = async (req, res) => {
       bio: user.bio,
       badge: user.badge || userStats.levelTitle,
       isLibraryPublic: user.isLibraryPublic,
+      shareReadingActivity: user.shareReadingActivity !== false,
       role: user.role || 'user',
       token: user.token,
       library: user.library || [],
@@ -482,6 +488,7 @@ export const getProfile = async (req, res) => {
         bio: user.bio || 'Leyendo en Yomori 📖✨',
         badge: user.badge || userStats.levelTitle,
         isLibraryPublic: user.isLibraryPublic !== false,
+        shareReadingActivity: user.shareReadingActivity !== false,
         role: user.role || 'user',
         library: user.library || [],
         history: user.history || [],

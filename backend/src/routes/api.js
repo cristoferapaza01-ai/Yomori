@@ -42,6 +42,9 @@ import {
   createCommunity,
   toggleJoinCommunity,
   toggleFriend,
+  sendFriendRequest,
+  respondFriendRequest,
+  updateReadingActivity,
   getFriendsAndDMs
 } from '../controllers/socialController.js';
 
@@ -114,6 +117,9 @@ router.get('/social/communities', getCommunities);
 router.post('/social/communities', createCommunity);
 router.post('/social/communities/join', toggleJoinCommunity);
 router.post('/social/friends/toggle', toggleFriend);
+router.post('/social/friends/request', sendFriendRequest);
+router.post('/social/friends/respond', respondFriendRequest);
+router.post('/social/activity', updateReadingActivity);
 router.get('/social/friends-and-dms', getFriendsAndDMs);
 
 export default router;

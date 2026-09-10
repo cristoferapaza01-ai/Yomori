@@ -604,13 +604,12 @@ export default function App() {
 
     if (successData) {
       const data = successData;
-      chapterExtractionCache.current[chapterUrl] = data;
-      setChapterData({ ...data, mangaUrl: originMangaUrl, loading: false, error: null });
+      const currentManga = (selectedManga?.url === originMangaUrl) ? selectedManga : library.find(i => i.url === originMangaUrl);
+      chapterExtractionCache.current[chapterUrl] = { ...data, mangaCover: currentManga?.cover || selectedManga?.cover };
+      setChapterData({ ...data, mangaUrl: originMangaUrl, mangaCover: currentManga?.cover || selectedManga?.cover, loading: false, error: null });
 
       // Disparar precarga del siguiente capítulo en segundo plano
       triggerNextChapterPrefetch(data, originMangaUrl, extId);
-
-      const currentManga = (selectedManga?.url === originMangaUrl) ? selectedManga : library.find(i => i.url === originMangaUrl);
 
       const historyItem = {
         mangaTitle: data.mangaTitle || currentManga?.title || selectedManga?.title || 'Manga',
@@ -1035,6 +1034,8 @@ export default function App() {
               categories={categories}
               onAddCategory={handleAddCategory}
               onRemoveCategory={handleRemoveCategory}
+              currentUser={currentUser}
+              onUpdateCurrentUser={setCurrentUser}
             />
           </main>
         )}

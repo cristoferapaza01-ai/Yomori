@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, RefreshCw, AlertTriangle, CheckCircle, ArrowUp, Sun, Moon, Loader2, Lock } from 'lucide-react';
+import { getSocket } from '../services/socket.js';
 
 function ChapterImage({ page, index, totalPages, useProxy, gap, filterStyle }) {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -247,6 +248,38 @@ export default function Reader({
   const readingMode = settings.readingMode || 'webtoon'; // 'webtoon' | 'paginated-rtl' | 'paginated-ltr'
   const bgColor = settings.backgroundColor || '#07080b';
   const isLightBg = bgColor === '#ffffff' || bgColor === '#f4ede2';
+
+  // Emitir presencia en tiempo real ("Activo ahora" / Rich Presence de Yomori)
+  useEffect(() => {
+    if (!chapterData?.mangaTitle && !chapterData?.title) return;
+    const socket = getSocket();
+    const token = localStorage.getItem('yomori_token');
+    if (!token) return;
+
+    const payload = {
+      token,
+      isReading: true,
+      mangaTitle: chapterData.mangaTitle || chapterData.title || 'Manga',
+      chapterTitle: chapterData.chapterTitle || `Capítulo ${currentPage}`,
+      cover: chapterData.mangaCover || chapterData.cover || '',
+      url: chapterData.mangaUrl || chapterData.currentUrl || '',
+      extensionId: chapterData.extension || '',
+      page: currentPage,
+      totalPages: totalPages
+    };
+
+    socket.emit('reading_activity', payload);
+
+    return () => {
+      const currentToken = localStorage.getItem('yomori_token');
+      if (currentToken) {
+        socket.emit('reading_activity', {
+          token: currentToken,
+          isReading: false
+        });
+      }
+    };
+  }, [chapterData?.currentUrl, chapterData?.mangaTitle, chapterData?.chapterTitle, currentPage, totalPages]);
 
   // Desplazar automáticamente a la página donde se quedó el usuario (initialPage)
   useEffect(() => {

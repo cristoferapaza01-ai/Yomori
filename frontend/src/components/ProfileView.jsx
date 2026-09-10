@@ -79,6 +79,7 @@ export default function ProfileView({
   const [bio, setBio] = useState('');
   const [badge, setBadge] = useState('');
   const [isLibraryPublic, setIsLibraryPublic] = useState(true);
+  const [shareReadingActivity, setShareReadingActivity] = useState(true);
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -95,6 +96,7 @@ export default function ProfileView({
         setBio(currentUser.bio || 'Leyendo en Yomori 📖✨');
         setBadge(currentUser.badge || 'Lector Élite ⚡');
         setIsLibraryPublic(currentUser.isLibraryPublic !== false);
+        setShareReadingActivity(currentUser.shareReadingActivity !== false);
       }
       setLoading(false);
     } else {
@@ -157,7 +159,8 @@ export default function ProfileView({
         banner: banner.trim(),
         bio: bio.trim(),
         badge: badge.trim(),
-        isLibraryPublic
+        isLibraryPublic,
+        shareReadingActivity
       };
 
       const res = await axios.put('/api/auth/profile', payload, {
@@ -640,6 +643,22 @@ export default function ProfileView({
                   type="checkbox"
                   checked={isLibraryPublic}
                   onChange={(e) => setIsLibraryPublic(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+              </label>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-[#131826] border border-gray-800 flex items-center justify-between gap-4">
+              <div>
+                <span className="text-xs font-bold text-white block">Compartir actividad en tiempo real ("Activo ahora")</span>
+                <p className="text-[11px] text-gray-400 mt-0.5">Permitir que tus amigos vean lo que estás leyendo y tu progreso en vivo.</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                <input
+                  type="checkbox"
+                  checked={shareReadingActivity}
+                  onChange={(e) => setShareReadingActivity(e.target.checked)}
                   className="sr-only peer"
                 />
                 <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>

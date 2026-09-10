@@ -23,7 +23,9 @@ export default function SettingsView({
   onOpenExtensions,
   categories = ['Todos'],
   onAddCategory,
-  onRemoveCategory
+  onRemoveCategory,
+  currentUser,
+  onUpdateCurrentUser
 }) {
   const [newCatName, setNewCatName] = useState('');
 
@@ -233,6 +235,44 @@ export default function SettingsView({
             Gestionar
           </button>
         </div>
+
+        {/* 4. SOCIAL & PRIVACIDAD */}
+        {currentUser && (
+          <div className="p-6 rounded-3xl bg-[#121622] border border-gray-800 space-y-4">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-purple-400 flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4" />
+              <span>Social & Privacidad</span>
+            </h3>
+
+            <div className="flex items-center justify-between gap-4 pt-1">
+              <div>
+                <p className="text-xs font-bold text-white">Compartir actividad en tiempo real ("Activo ahora")</p>
+                <p className="text-[11px] text-gray-400 mt-0.5">Muestra a tus amigos en tiempo real qué manga y capítulo estás leyendo.</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                <input
+                  type="checkbox"
+                  checked={currentUser.shareReadingActivity !== false}
+                  onChange={async (e) => {
+                    const newVal = e.target.checked;
+                    try {
+                      const res = await axios.put('/api/auth/profile', { shareReadingActivity: newVal }, {
+                        headers: { Authorization: `Bearer ${currentUser.token}` }
+                      });
+                      if (res.data?.success && onUpdateCurrentUser) {
+                        onUpdateCurrentUser(res.data.user);
+                      }
+                    } catch (err) {
+                      console.error('Error actualizando privacidad:', err);
+                    }
+                  }}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+              </label>
+            </div>
+          </div>
+        )}
 
         {/* 3. ALMACENAMIENTO & COPIAS DE SEGURIDAD */}
         <div className="p-6 rounded-3xl bg-[#121622] border border-gray-800 space-y-4">

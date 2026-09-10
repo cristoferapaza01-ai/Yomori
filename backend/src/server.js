@@ -12,6 +12,7 @@ import crypto from 'crypto';
 import apiRoutes from './routes/api.js';
 import { loadUsers } from './controllers/authController.js';
 import { loadChats, saveChats } from './controllers/chatController.js';
+import { loadReadingActivities, saveReadingActivities } from './controllers/socialController.js';
 
 dotenv.config();
 
@@ -256,6 +257,49 @@ io.on('connection', (socket) => {
       io.to(roomId).emit('message_deleted', { roomId, messageId });
       if (typeof callback === 'function') callback({ success: true, messageId });
     } catch (e) {}
+  });
+
+  // 6. Actividad de lectura en vivo ("Activo ahora")
+  socket.on('reading_activity', async (data) => {
+    try {
+      const { token, isReading, mangaTitle, chapterTitle, cover, url, extensionId, page, totalPages } = data || {};
+      if (!token) return;
+      const users = loadUsers();
+      const user = users.find(u => u.token === token);
+      if (!user) return;
+
+      const activities = loadReadingActivities();
+      if (isReading === false || !mangaTitle) {
+        delete activities[user.id];
+        io.emit('activity_update', {
+          userId: user.id,
+          activity: null
+        });
+      } else {
+        const act = {
+          userId: user.id,
+          username: user.username,
+          avatar: user.avatar,
+          mangaTitle,
+          chapterTitle: chapterTitle || 'Capítulo actual',
+          cover: cover || '',
+          url: url || '',
+          extensionId: extensionId || '',
+          page: page || 1,
+          totalPages: totalPages || 1,
+          startedAt: activities[user.id]?.startedAt || Date.now(),
+          updatedAt: Date.now()
+        };
+        activities[user.id] = act;
+        io.emit('activity_update', {
+          userId: user.id,
+          activity: user.shareReadingActivity !== false ? act : null
+        });
+      }
+      saveReadingActivities(activities);
+    } catch (e) {
+      console.error('[Socket Reading Activity Error]:', e);
+    }
   });
 
   // Desconexión
