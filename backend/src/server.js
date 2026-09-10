@@ -85,6 +85,14 @@ const roomUsersCount = new Map();
 io.on('connection', (socket) => {
   console.log(`[Socket] Cliente conectado: ${socket.id}`);
 
+  // 0. Registrar canal personal de notificaciones por usuario
+  socket.on('register_user', (userId) => {
+    if (userId) {
+      socket.join(`user:${userId}`);
+      console.log(`[Socket] Usuario registrado en canal personal user:${userId}`);
+    }
+  });
+
   // 1. Unirse a una sala específica (global, manga:..., chapter:...)
   socket.on('join_room', (roomId) => {
     if (!roomId) return;
@@ -186,6 +194,22 @@ io.on('connection', (socket) => {
       // Retransmitir en tiempo real a todos en la sala
       io.to(roomId).emit('new_message', message);
 
+      // Si es un mensaje directo (DM), emitir notificación instantánea al receptor y emisor
+      if (roomId.startsWith('dm:')) {
+        const parts = roomId.replace('dm:', '').split('_');
+        parts.forEach(targetId => {
+          io.to(`user:${targetId}`).emit('dm_notification', {
+            message,
+            roomId,
+            fromUser: {
+              id: user.id,
+              username: user.username,
+              avatar: user.avatar
+            }
+          });
+        });
+      }
+
       if (typeof callback === 'function') {
         callback({ success: true, message });
       }
@@ -193,6 +217,27 @@ io.on('connection', (socket) => {
       console.error('[Socket Message Error]:', err);
       if (typeof callback === 'function') callback({ success: false, message: err.message });
     }
+  });
+
+  // 3.1 Eventos en tiempo real para Solicitudes de Amistad
+  socket.on('send_friend_request', (data) => {
+    try {
+      const { toUserId, request } = data || {};
+      if (toUserId) {
+        io.to(`user:${toUserId}`).emit('friend_request_received', { request });
+        console.log(`[Socket] Solicitud de amistad enviada a canal user:${toUserId}`);
+      }
+    } catch (e) {}
+  });
+
+  socket.on('respond_friend_request', (data) => {
+    try {
+      const { toUserId, action, request } = data || {};
+      if (toUserId) {
+        io.to(`user:${toUserId}`).emit('friend_request_result', { action, request });
+        console.log(`[Socket] Respuesta de amistad enviada a canal user:${toUserId}`);
+      }
+    } catch (e) {}
   });
 
   // 4. Like / Reacción a mensaje en tiempo real

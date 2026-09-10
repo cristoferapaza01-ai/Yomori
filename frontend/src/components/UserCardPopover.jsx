@@ -86,16 +86,38 @@ export default function UserCardPopover({
     };
   }, [userId, usernameFallback, userAvatarFallback, currentUser]);
 
+  const [requestSent, setRequestSent] = useState(false);
+
   const handleToggleFriend = async () => {
     if (!currentUser || isMe || !profile) return;
     try {
-      const res = await axios.post('/api/social/friends/toggle', {
-        targetUserId: profile.id
+      const res = await axios.post('/api/social/friends/request', {
+        targetUserId: profile.id,
+        targetUsername: profile.username,
+        username: profile.username
       }, {
         headers: { Authorization: `Bearer ${currentUser.token}` }
       });
       if (res.data?.success) {
-        setIsFriend(res.data.isFriend);
+        if (res.data.status === 'accepted') {
+          setIsFriend(true);
+        } else {
+          setRequestSent(true);
+        }
+        const socket = getSocket();
+        if (socket) {
+          socket.emit('send_friend_request', {
+            toUserId: profile.id,
+            request: res.data.request || {
+              id: 'req_' + Date.now(),
+              fromUserId: currentUser.id,
+              fromUsername: currentUser.username,
+              fromAvatar: currentUser.avatar,
+              toUserId: profile.id,
+              toUsername: profile.username
+            }
+          });
+        }
       }
     } catch (e) {}
   };
@@ -186,12 +208,17 @@ export default function UserCardPopover({
 
               <button
                 onClick={handleToggleFriend}
+                disabled={requestSent}
                 className={`p-1.5 rounded-xl transition active:scale-90 cursor-pointer ${
-                  isFriend ? 'bg-emerald-600 text-white' : 'hover:bg-white/20 text-gray-200 hover:text-white'
+                  isFriend 
+                    ? 'bg-emerald-600 text-white' 
+                    : requestSent 
+                      ? 'bg-amber-600/80 text-white' 
+                      : 'hover:bg-white/20 text-gray-200 hover:text-white'
                 }`}
-                title={isFriend ? 'Amigos (Clic para quitar)' : 'Añadir a mis amigos'}
+                title={isFriend ? 'Amigos' : requestSent ? 'Solicitud enviada' : 'Añadir a mis amigos'}
               >
-                {isFriend ? <UserCheck className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5 text-emerald-300" />}
+                {isFriend ? <UserCheck className="w-3.5 h-3.5" /> : requestSent ? <Clock className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5 text-emerald-300" />}
               </button>
 
               <button

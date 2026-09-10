@@ -20,7 +20,8 @@ import MessagesView from './components/MessagesView.jsx';
 import CommunitiesView from './components/CommunitiesView.jsx';
 import UserCardPopover from './components/UserCardPopover.jsx';
 import OfficialLandingPage from './components/OfficialLandingPage.jsx';
-import { ArrowLeft, ExternalLink, Maximize2, Minimize2, Settings as SettingsIcon, LogIn, User } from 'lucide-react';
+import NotificationBell from './components/NotificationBell.jsx';
+import { ArrowLeft, ExternalLink, Maximize2, Minimize2, Settings as SettingsIcon, LogIn, User, BookOpen } from 'lucide-react';
 
 export default function App() {
   const isElectron = typeof window !== 'undefined' && (
@@ -819,40 +820,75 @@ export default function App() {
       {/* 2. ÁREA DE CONTENIDO PRINCIPAL */}
       <div className="flex-1 flex flex-col min-w-0 min-h-screen">
         
-        {/* Cabecera cuando se está en Ficha o Lector */}
-        {(view === 'manga' || view === 'reader') && (
-          <header className={`fixed top-0 left-0 right-0 z-40 bg-[#0c0f17]/95 backdrop-blur-md border-b border-gray-800/80 px-4 h-14 flex items-center justify-between transition-transform duration-300 ${
-            view === 'reader' && !controlsVisible ? '-translate-y-full' : 'translate-y-0'
-          }`}>
-            <button
-              onClick={handleGoBack}
-              className="p-1.5 rounded-lg bg-gray-800/80 hover:bg-gray-700 text-gray-300 hover:text-white transition flex items-center gap-1.5 text-xs font-semibold"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Volver</span>
-            </button>
+        {/* Cabecera persistente con Notificaciones en todos los apartados (Inicio a Explorar) */}
+        {view !== 'reader' && (
+          <header className="sticky top-0 z-30 bg-[#090c14]/95 backdrop-blur-md border-b border-gray-800/80 px-4 sm:px-6 h-14 flex items-center justify-between shrink-0 select-none">
+            {/* Lado Izquierdo: Título de sección o Botón Volver */}
+            <div className="flex items-center gap-3 min-w-0">
+              {view === 'manga' ? (
+                <button
+                  onClick={handleGoBack}
+                  className="p-1.5 rounded-xl bg-gray-800/80 hover:bg-gray-700 text-gray-300 hover:text-white transition flex items-center gap-1.5 text-xs font-semibold cursor-pointer"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Volver</span>
+                </button>
+              ) : (
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center shadow-md shadow-purple-500/20 md:hidden">
+                    <BookOpen className="w-3.5 h-3.5 text-white" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-black text-white uppercase tracking-wider">
+                    {view === 'home' && 'Inicio'}
+                    {view === 'library' && 'Mi Biblioteca'}
+                    {view === 'updates' && 'Actualizaciones'}
+                    {view === 'history' && 'Historial'}
+                    {view === 'communities' && 'Comunidades'}
+                    {view === 'messages' && 'Amigos & Mensajes'}
+                    {view === 'explore' && 'Explorar Fuentes'}
+                    {view === 'downloads' && 'Descargas'}
+                    {view === 'settings' && 'Ajustes'}
+                    {view === 'profile' && 'Perfil de Usuario'}
+                  </span>
+                </div>
+              )}
+            </div>
 
-            {view === 'reader' && chapterData && (
-              <div className="min-w-0 text-center truncate px-4">
-                <h2 className="text-xs sm:text-sm font-bold text-white truncate">{chapterData.mangaTitle}</h2>
-                <p className="text-[11px] text-gray-400 truncate">{chapterData.chapterTitle}</p>
-              </div>
-            )}
+            {/* Lado Derecho: Campana de Notificaciones + Perfil Rápido */}
+            <div className="flex items-center gap-2 sm:gap-3">
+              <NotificationBell
+                currentUser={currentUser}
+                onOpenMessages={() => {
+                  setView('messages');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                onOpenDirectChat={(userId) => {
+                  handleOpenDirectChat(userId);
+                }}
+                onOpenAuth={handleOpenAuth}
+              />
 
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setIsSettingsModalOpen(true)}
-                className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition"
-                title="Ajustes"
-              >
-                <SettingsIcon className="w-4 h-4" />
-              </button>
-              <button
-                onClick={toggleFullscreen}
-                className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition"
-              >
-                {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-              </button>
+              {currentUser ? (
+                <button
+                  onClick={() => handleViewProfile(currentUser.id)}
+                  className="flex items-center gap-2 p-1.5 pl-2.5 rounded-2xl bg-[#121624] hover:bg-[#181d2e] border border-gray-800 hover:border-purple-500/60 transition cursor-pointer"
+                  title="Mi Perfil"
+                >
+                  <span className="text-xs font-bold text-white hidden sm:inline truncate max-w-[120px]">
+                    @{currentUser.username}
+                  </span>
+                  <div className="w-7 h-7 rounded-xl overflow-hidden bg-gray-900 border border-purple-500/40 shrink-0">
+                    <img src={currentUser.avatar} alt={currentUser.username} className="w-full h-full object-cover" />
+                  </div>
+                </button>
+              ) : (
+                <button
+                  onClick={() => handleOpenAuth('login')}
+                  className="px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md shadow-purple-600/30 transition cursor-pointer"
+                >
+                  Ingresar
+                </button>
+              )}
             </div>
           </header>
         )}

@@ -289,19 +289,29 @@ export const sendFriendRequest = async (req, res) => {
     const me = users.find(u => u.token === token);
     if (!me) return res.status(401).json({ success: false, message: 'Sesión no válida' });
 
-    const { username } = req.body;
-    if (!username || !username.trim()) {
-      return res.status(400).json({ success: false, message: 'Debes indicar el nombre de usuario.' });
+    const { username, targetUsername, targetUserId } = req.body;
+    const searchVal = (username || targetUsername || '').trim().replace(/^@/, '');
+
+    let targetUser = null;
+    if (targetUserId) {
+      targetUser = users.find(u => u.id === targetUserId);
+    }
+    if (!targetUser && searchVal) {
+      const normSearch = searchVal.toLowerCase().replace(/[@_\s-]/g, '');
+      targetUser = users.find(u => {
+        const normU = (u.username || '').toLowerCase().replace(/[@_\s-]/g, '');
+        return u.username.toLowerCase() === searchVal.toLowerCase() ||
+               normU === normSearch ||
+               (normSearch.length >= 3 && (normU.includes(normSearch) || normSearch.includes(normU)));
+      });
     }
 
-    const cleanUsername = username.trim().replace(/^@/, '');
-    if (cleanUsername.toLowerCase() === me.username.toLowerCase()) {
-      return res.status(400).json({ success: false, message: 'No puedes enviarte una solicitud a ti mismo.' });
-    }
-
-    const targetUser = users.find(u => u.username.toLowerCase() === cleanUsername.toLowerCase());
     if (!targetUser) {
-      return res.status(404).json({ success: false, message: `No se encontró ningún usuario con el nombre "@${cleanUsername}".` });
+      return res.status(404).json({ success: false, message: `No se encontró ningún usuario con el nombre "@${searchVal || targetUserId}".` });
+    }
+
+    if (targetUser.id === me.id) {
+      return res.status(400).json({ success: false, message: 'No puedes enviarte una solicitud a ti mismo.' });
     }
 
     const allFriends = loadFriends();
@@ -327,7 +337,7 @@ export const sendFriendRequest = async (req, res) => {
         allFriends[targetUser.id].push(me.id);
         saveFriends(allFriends);
 
-        return res.json({ success: true, message: `¡Genial! Ahora tú y @${targetUser.username} son amigos.`, status: 'accepted' });
+        return res.json({ success: true, message: `¡Genial! Ahora tú y @${targetUser.username} son amigos.`, status: 'accepted', targetUser });
       }
       return res.status(400).json({ success: false, message: 'Ya tienes una solicitud de amistad pendiente con este usuario.' });
     }
@@ -347,7 +357,16 @@ export const sendFriendRequest = async (req, res) => {
     requests.unshift(newRequest);
     saveFriendRequests(requests);
 
-    return res.json({ success: true, message: `Solicitud de amistad enviada a @${targetUser.username}.`, request: newRequest });
+    return res.json({ 
+      success: true, 
+      message: `Solicitud de amistad enviada a @${targetUser.username}.`, 
+      request: newRequest,
+      targetUser: {
+        id: targetUser.id,
+        username: targetUser.username,
+        avatar: targetUser.avatar
+      }
+    });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }

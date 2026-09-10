@@ -217,6 +217,18 @@ export default function MessagesView({
         setAddFriendFeedback({ type: 'success', text: res.data.message });
         setAddFriendInput('');
         fetchSocialData();
+
+        const socket = getSocket();
+        if (socket && res.data.targetUser?.id) {
+          socket.emit('send_friend_request', {
+            toUserId: res.data.targetUser.id,
+            request: res.data.request || {
+              fromUserId: currentUser.id,
+              fromUsername: currentUser.username,
+              fromAvatar: currentUser.avatar
+            }
+          });
+        }
       }
     } catch (err) {
       setAddFriendFeedback({ type: 'error', text: err.response?.data?.message || 'Error al enviar solicitud.' });
@@ -225,7 +237,7 @@ export default function MessagesView({
     }
   };
 
-  const handleRespondRequest = async (requestId, action) => {
+  const handleRespondRequest = async (requestId, action, fromUserId) => {
     try {
       const res = await axios.post('/api/social/friends/respond', {
         requestId,
@@ -237,6 +249,15 @@ export default function MessagesView({
       if (res.data?.success) {
         showToast(action === 'accept' ? '¡Solicitud aceptada!' : 'Solicitud rechazada');
         fetchSocialData();
+
+        const socket = getSocket();
+        if (socket && fromUserId) {
+          socket.emit('respond_friend_request', {
+            toUserId: fromUserId,
+            action,
+            request: { id: requestId, toUsername: currentUser.username }
+          });
+        }
       }
     } catch (err) {
       console.warn('Error respondiendo solicitud:', err);
@@ -619,14 +640,14 @@ export default function MessagesView({
                             </div>
                             <div className="flex items-center gap-2">
                               <button
-                                onClick={() => handleRespondRequest(req.id, 'accept')}
+                                onClick={() => handleRespondRequest(req.id, 'accept', req.fromUserId)}
                                 className="p-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer shadow-sm"
                                 title="Aceptar solicitud"
                               >
                                 <Check className="w-4 h-4" />
                               </button>
                               <button
-                                onClick={() => handleRespondRequest(req.id, 'reject')}
+                                onClick={() => handleRespondRequest(req.id, 'reject', req.fromUserId)}
                                 className="p-2 rounded-xl bg-gray-800 hover:bg-rose-900 text-gray-300 hover:text-white transition cursor-pointer"
                                 title="Rechazar solicitud"
                               >
