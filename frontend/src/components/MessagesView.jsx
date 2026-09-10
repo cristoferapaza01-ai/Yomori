@@ -108,6 +108,76 @@ export default function MessagesView({
     activeUser && friends.some(f => f.id === activeUser.id || f.username?.toLowerCase() === activeUser.username?.toLowerCase())
   );
 
+  const isPendingOutgoing = Boolean(
+    activeUser && pendingRequests.outgoing?.some(r => r.toUserId === activeUser.id || r.toUsername?.toLowerCase() === activeUser.username?.toLowerCase())
+  );
+
+  const incomingRequest = activeUser 
+    ? pendingRequests.incoming?.find(r => r.fromUserId === activeUser.id || r.fromUsername?.toLowerCase() === activeUser.username?.toLowerCase()) 
+    : null;
+
+  // Socket global para registro de usuario, DMs en tiempo real y solicitudes
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const socket = getSocket();
+    if (!socket) return;
+
+    socket.emit('register_user', currentUser.id);
+
+    const handleDmNotification = (data) => {
+      const { message, roomId, fromUser } = data || {};
+      if (message) {
+        if (dmRoomId && roomId === dmRoomId) {
+          setMessages(prev => prev.some(m => m.id === message.id) ? prev : [...prev, message]);
+          setTimeout(() => {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+          }, 50);
+        }
+
+        setConversations(prev => {
+          const other = fromUser?.id === currentUser.id ? null : fromUser;
+          const exists = prev.some(c => c.roomId === roomId);
+          if (exists) {
+            return prev.map(c => c.roomId === roomId ? { ...c, lastMessage: message } : c);
+          } else if (other) {
+            return [{ roomId, user: other, lastMessage: message, isFriend: friends.some(f => f.id === other.id) }, ...prev];
+          }
+          return prev;
+        });
+
+        fetchSocialData();
+      }
+    };
+
+    const handleFriendRequest = () => {
+      fetchSocialData();
+    };
+
+    const handleFriendResult = (data) => {
+      if (data?.action === 'accept') {
+        showToast('¡Solicitud de amistad aceptada! 🎉');
+      }
+      fetchSocialData();
+    };
+
+    const handleActivity = () => {
+      fetchSocialData();
+    };
+
+    socket.on('dm_notification', handleDmNotification);
+    socket.on('friend_request_received', handleFriendRequest);
+    socket.on('friend_request_result', handleFriendResult);
+    socket.on('activity_update', handleActivity);
+
+    return () => {
+      socket.off('dm_notification', handleDmNotification);
+      socket.off('friend_request_received', handleFriendRequest);
+      socket.off('friend_request_result', handleFriendResult);
+      socket.off('activity_update', handleActivity);
+    };
+  }, [currentUser, dmRoomId, friends]);
+
   useEffect(() => {
     if (!dmRoomId || activeTab !== 'chat') return;
 
@@ -141,17 +211,11 @@ export default function MessagesView({
         }
       };
 
-      const handleActivityUpdate = () => {
-        fetchSocialData();
-      };
-
       socket.on('new_message', handleNewMessage);
-      socket.on('activity_update', handleActivityUpdate);
 
       return () => {
         socket.emit('leave_room', dmRoomId);
         socket.off('new_message', handleNewMessage);
-        socket.off('activity_update', handleActivityUpdate);
       };
     }
   }, [dmRoomId, activeTab]);
@@ -200,6 +264,50 @@ export default function MessagesView({
           setIsSending(false);
         }
       }).catch(() => setIsSending(false));
+    }
+  };
+
+  const handleSendFriendRequestDirect = async (target) => {
+    if (!currentUser || !target) return;
+    try {
+      setPendingRequests(prev => ({
+        ...prev,
+        outgoing: [...(prev.outgoing || []), { toUserId: target.id, toUsername: target.username, status: 'pending' }]
+      }));
+
+      const res = await axios.post('/api/social/friends/request', {
+        username: target.username,
+        targetUserId: target.id,
+        currentUserId: currentUser.id,
+        currentUsername: currentUser.username,
+        userId: currentUser.id
+      }, {
+        headers: { 
+          Authorization: `Bearer ${currentUser?.token || ''}`,
+          'x-user-id': currentUser.id,
+          'x-username': currentUser.username
+        }
+      });
+
+      if (res.data?.success) {
+        showToast(res.data.message || 'Solicitud de amistad enviada');
+        fetchSocialData();
+
+        const socket = getSocket();
+        if (socket && (res.data.targetUser?.id || target.id)) {
+          socket.emit('send_friend_request', {
+            toUserId: res.data.targetUser?.id || target.id,
+            request: res.data.request || {
+              fromUserId: currentUser.id,
+              fromUsername: currentUser.username,
+              fromAvatar: currentUser.avatar
+            }
+          });
+        }
+      }
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Error al enviar solicitud');
+      fetchSocialData();
     }
   };
 
@@ -522,18 +630,48 @@ export default function MessagesView({
               <div className="flex-1 flex flex-col h-full overflow-hidden">
                 
                 {!isActiveUserFriend && (
-                  <div className="px-4 py-2.5 bg-amber-950/40 border-b border-amber-800/50 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-amber-200 animate-fade-in shrink-0">
+                  <div className="px-4 py-2.5 bg-[#161224] border-b border-purple-900/60 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-purple-200 animate-fade-in shrink-0">
                     <div className="flex items-center gap-2">
-                      <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />
-                      <span><strong>@{activeUser.username}</strong> no está en tu lista de amigos.</span>
+                      <ShieldAlert className="w-4 h-4 text-purple-400 shrink-0" />
+                      {incomingRequest ? (
+                        <span><strong>@{activeUser.username}</strong> te ha enviado una solicitud de amistad.</span>
+                      ) : isPendingOutgoing ? (
+                        <span>Solicitud de amistad enviada a <strong>@{activeUser.username}</strong>. Esperando respuesta.</span>
+                      ) : (
+                        <span><strong>@{activeUser.username}</strong> no está en tu lista de amigos.</span>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        onClick={() => handleAddFriendDirectly(activeUser.id)}
-                        className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition cursor-pointer"
-                      >
-                        Añadir a amigos
-                      </button>
+                      {incomingRequest ? (
+                        <>
+                          <button
+                            onClick={() => handleRespondRequest(incomingRequest.id, 'accept', activeUser.id)}
+                            className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1 transition cursor-pointer shadow-md"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Aceptar solicitud</span>
+                          </button>
+                          <button
+                            onClick={() => handleRespondRequest(incomingRequest.id, 'reject', activeUser.id)}
+                            className="px-2.5 py-1 rounded-lg bg-gray-800 hover:bg-rose-900 text-gray-300 hover:text-white text-xs transition cursor-pointer"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      ) : isPendingOutgoing ? (
+                        <div className="px-3 py-1 rounded-lg bg-gray-800/90 border border-gray-700 text-gray-300 font-bold text-xs flex items-center gap-1.5 cursor-default">
+                          <Clock className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+                          <span>Solicitud enviada</span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleSendFriendRequestDirect(activeUser)}
+                          className="px-3 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-md active:scale-95"
+                        >
+                          <UserPlus className="w-3.5 h-3.5" />
+                          <span>Añadir a amigos</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}

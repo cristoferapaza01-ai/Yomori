@@ -24,7 +24,6 @@ export default function NotificationBell({
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [pendingRequests, setPendingRequests] = useState([]);
-  const [unreadDMs, setUnreadDMs] = useState([]);
   const [systemAlerts, setSystemAlerts] = useState([]);
   const [processingId, setProcessingId] = useState(null);
 
@@ -49,22 +48,19 @@ export default function NotificationBell({
   const fetchNotifications = async () => {
     if (!currentUser) {
       setPendingRequests([]);
-      setUnreadDMs([]);
       return;
     }
 
     try {
       const res = await axios.get('/api/social/friends-and-dms', {
-        headers: { Authorization: `Bearer ${currentUser.token}` }
+        headers: { 
+          Authorization: `Bearer ${currentUser.token || ''}`,
+          'x-user-id': currentUser.id,
+          'x-username': currentUser.username
+        }
       });
       if (res.data?.success) {
         setPendingRequests(res.data.pendingRequests?.incoming || []);
-        
-        // DMs recibidos donde el último remitente no soy yo
-        const dms = (res.data.conversations || []).filter(c => {
-          return c.lastMessage && c.lastMessage.userId !== currentUser.id;
-        });
-        setUnreadDMs(dms);
       }
     } catch (err) {
       console.warn('[NotificationBell] Error fetching alerts:', err.message);
@@ -73,7 +69,7 @@ export default function NotificationBell({
 
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 12000);
+    const interval = setInterval(fetchNotifications, 10000);
     return () => clearInterval(interval);
   }, [currentUser]);
 
@@ -110,32 +106,12 @@ export default function NotificationBell({
       fetchNotifications();
     };
 
-    const handleDMNotification = (data) => {
-      const { message, fromUser, roomId } = data || {};
-      if (message && message.userId !== currentUser.id) {
-        setUnreadDMs(prev => {
-          const filtered = prev.filter(c => c.roomId !== roomId);
-          return [
-            {
-              roomId,
-              user: fromUser,
-              lastMessage: message,
-              isFriend: true
-            },
-            ...filtered
-          ];
-        });
-      }
-    };
-
     socket.on('friend_request_received', handleFriendRequest);
     socket.on('friend_request_result', handleFriendResult);
-    socket.on('dm_notification', handleDMNotification);
 
     return () => {
       socket.off('friend_request_received', handleFriendRequest);
       socket.off('friend_request_result', handleFriendResult);
-      socket.off('dm_notification', handleDMNotification);
     };
   }, [currentUser]);
 
@@ -171,7 +147,7 @@ export default function NotificationBell({
     }
   };
 
-  const totalUnread = pendingRequests.length + unreadDMs.length + systemAlerts.length;
+  const totalUnread = pendingRequests.length + systemAlerts.length;
 
   return (
     <div className="relative select-none" ref={dropdownRef}>
@@ -282,55 +258,7 @@ export default function NotificationBell({
               </div>
             )}
 
-            {/* 2. Mensajes Directos Recibidos */}
-            {unreadDMs.length > 0 && (
-              <div className="p-3">
-                <p className="px-2 pb-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <MessageSquare className="w-3 h-3 text-purple-400" />
-                  <span>Mensajes Directos</span>
-                </p>
-                <div className="space-y-2">
-                  {unreadDMs.map((dm, idx) => (
-                    <div
-                      key={idx}
-                      onClick={() => {
-                        setIsOpen(false);
-                        if (onOpenDirectChat && dm.user) {
-                          onOpenDirectChat(dm.user.id, dm.user.username);
-                        } else if (onOpenMessages) {
-                          onOpenMessages();
-                        }
-                      }}
-                      className="p-2.5 bg-[#121622] hover:bg-[#171c2b] border border-gray-800/80 hover:border-purple-500/50 rounded-2xl flex items-center justify-between gap-3 transition cursor-pointer group"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-9 h-9 rounded-xl overflow-hidden bg-gray-900 shrink-0 border border-gray-700 group-hover:border-purple-500 transition">
-                          <img 
-                            src={dm.user?.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(dm.user?.username || 'User')}`} 
-                            alt={dm.user?.username} 
-                            className="w-full h-full object-cover" 
-                          />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-bold text-white truncate group-hover:text-purple-300 transition">
-                            @{dm.user?.username}
-                          </p>
-                          <p className="text-[11px] text-gray-400 truncate">
-                            {dm.lastMessage?.text || '📷 Imagen adjunta'}
-                          </p>
-                        </div>
-                      </div>
-
-                      <span className="text-[10px] text-purple-400 font-bold shrink-0 bg-purple-950/60 px-2 py-1 rounded-xl border border-purple-800/40">
-                        Ver
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* 3. Alertas del Sistema */}
+            {/* 2. Alertas del Sistema */}
             {systemAlerts.length > 0 && (
               <div className="p-3">
                 <p className="px-2 pb-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
@@ -357,7 +285,7 @@ export default function NotificationBell({
                   Todo al día
                 </p>
                 <p className="text-[11px] text-gray-500 max-w-[200px]">
-                  No tienes solicitudes de amistad ni mensajes nuevos sin leer.
+                  No tienes solicitudes de amistad pendientes.
                 </p>
               </div>
             )}

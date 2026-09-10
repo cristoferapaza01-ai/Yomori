@@ -123,7 +123,7 @@ io.on('connection', (socket) => {
   // 3. Enviar mensaje en vivo a una sala
   socket.on('send_message', async (data, callback) => {
     try {
-      const { roomId = 'global', token, userId, username, text, page = null, mangaTitle = null, chapterTitle = null, replyTo = null } = data || {};
+      const { roomId = 'global', token, userId, username, text, images, page = null, mangaTitle = null, chapterTitle = null, replyTo = null } = data || {};
 
       const users = loadUsers();
       let user = null;
@@ -150,12 +150,13 @@ io.on('connection', (socket) => {
         }
       }
 
-      if (!text || !text.trim()) {
+      const hasImages = Array.isArray(images) && images.length > 0;
+      if ((!text || !text.trim()) && !hasImages) {
         if (typeof callback === 'function') callback({ success: false, message: 'El mensaje no puede estar vacío.' });
         return;
       }
 
-      const cleanText = text.trim();
+      const cleanText = (text || '').trim();
       if (cleanText.length > 500) {
         if (typeof callback === 'function') callback({ success: false, message: 'El mensaje no puede exceder los 500 caracteres.' });
         return;
@@ -171,6 +172,7 @@ io.on('connection', (socket) => {
         userBadge: user.badge || (user.role === 'admin' ? 'Administrador' : 'Lector Élite'),
         userStatus: user.bio || user.status || 'Leyendo en Yomori 📖',
         text: cleanText,
+        images: hasImages ? images : [],
         page: page ? parseInt(page, 10) : null,
         mangaTitle: mangaTitle || null,
         chapterTitle: chapterTitle || null,
@@ -309,10 +311,12 @@ io.on('connection', (socket) => {
   // 6. Actividad de lectura en vivo ("Activo ahora")
   socket.on('reading_activity', async (data) => {
     try {
-      const { token, isReading, mangaTitle, chapterTitle, cover, url, extensionId, page, totalPages } = data || {};
-      if (!token) return;
+      const { token, userId, username, isReading, mangaTitle, chapterTitle, cover, url, extensionId, page, totalPages } = data || {};
       const users = loadUsers();
-      const user = users.find(u => u.token === token);
+      let user = null;
+      if (token) user = users.find(u => u.token === token);
+      if (!user && userId) user = users.find(u => u.id === userId);
+      if (!user && username) user = users.find(u => u.username.toLowerCase() === username.toLowerCase());
       if (!user) return;
 
       const activities = loadReadingActivities();

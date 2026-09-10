@@ -253,11 +253,19 @@ export default function Reader({
   useEffect(() => {
     if (!chapterData?.mangaTitle && !chapterData?.title) return;
     const socket = getSocket();
-    const token = localStorage.getItem('yomori_token');
-    if (!token) return;
+    
+    let userObj = null;
+    try {
+      const rawUser = localStorage.getItem('tachiyomi_user');
+      if (rawUser) userObj = JSON.parse(rawUser);
+    } catch (e) {}
+    const token = userObj?.token || localStorage.getItem('yomori_token') || '';
+    if (!userObj && !token) return;
 
     const payload = {
       token,
+      userId: userObj?.id,
+      username: userObj?.username,
       isReading: true,
       mangaTitle: chapterData.mangaTitle || chapterData.title || 'Manga',
       chapterTitle: chapterData.chapterTitle || `Capítulo ${currentPage}`,
@@ -271,13 +279,12 @@ export default function Reader({
     socket.emit('reading_activity', payload);
 
     return () => {
-      const currentToken = localStorage.getItem('yomori_token');
-      if (currentToken) {
-        socket.emit('reading_activity', {
-          token: currentToken,
-          isReading: false
-        });
-      }
+      socket.emit('reading_activity', {
+        token,
+        userId: userObj?.id,
+        username: userObj?.username,
+        isReading: false
+      });
     };
   }, [chapterData?.currentUrl, chapterData?.mangaTitle, chapterData?.chapterTitle, currentPage, totalPages]);
 

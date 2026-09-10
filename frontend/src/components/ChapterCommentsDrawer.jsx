@@ -329,10 +329,10 @@ export default function ChapterCommentsDrawer({
 
   return (
     <>
-      {/* Botón flotante para abrir comentarios del capítulo */}
+      {/* Botón flotante para abrir comentarios del capítulo (lado izquierdo) */}
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 px-4 py-3 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-2xl shadow-purple-600/50 border border-purple-400/30 font-bold text-xs transition transform hover:scale-105 active:scale-95 cursor-pointer backdrop-blur-md"
+        className="fixed bottom-6 left-6 z-40 flex items-center gap-2.5 px-4 py-3 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-2xl shadow-purple-600/50 border border-purple-400/30 font-bold text-xs transition transform hover:scale-105 active:scale-95 cursor-pointer backdrop-blur-md"
         title="Ver comentarios del capítulo en directo"
       >
         <MessageSquare className="w-4 h-4" />
@@ -344,37 +344,36 @@ export default function ChapterCommentsDrawer({
         )}
       </button>
 
-      {/* Drawer Lateral Deslizante */}
+      {/* Drawer Lateral Deslizante SIN desenfocar/bloquear el manga */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm transition-opacity animate-fade-in">
-          
-          <div 
-            className="w-full max-w-md h-full bg-[#0b0e14] border-l border-gray-800 flex flex-col shadow-2xl transform transition-transform animate-slide-in-right relative"
-          >
-            {toastMessage && (
-              <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-purple-600 text-white text-xs font-semibold shadow-lg shadow-purple-600/40">
-                {toastMessage}
-              </div>
-            )}
+        <div 
+          className="fixed top-0 right-0 bottom-0 w-full sm:w-[420px] md:w-[460px] h-full z-50 flex flex-col bg-[#0b0e14] border-l border-gray-800 shadow-2xl transform transition-transform animate-slide-in-right relative"
+        >
+          {toastMessage && (
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-purple-600 text-white text-xs font-semibold shadow-lg shadow-purple-600/40">
+              {toastMessage}
+            </div>
+          )}
 
-            {/* Cabecera del Drawer */}
-            <div className="flex items-center justify-between px-4 py-3.5 bg-[#0f131d] border-b border-gray-800 shrink-0">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <button
-                  onClick={() => setIsOpen(false)}
-                  className="p-1.5 rounded-xl text-gray-400 hover:text-white hover:bg-gray-800 transition"
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-                <div className="min-w-0">
-                  <h3 className="text-xs font-bold text-white truncate">
-                    {chapterTitle}
-                  </h3>
-                  <p className="text-[10px] text-gray-400 truncate">
-                    {mangaTitle}
-                  </p>
-                </div>
+          {/* Cabecera del Drawer */}
+          <div className="flex items-center justify-between px-4 py-3.5 bg-[#0f131d] border-b border-gray-800 shrink-0">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <button
+                onClick={() => setIsOpen(false)}
+                className="p-1.5 rounded-xl text-gray-400 hover:text-white hover:bg-gray-800 transition"
+                title="Cerrar panel"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <div className="min-w-0">
+                <h3 className="text-xs font-bold text-white truncate">
+                  {chapterTitle}
+                </h3>
+                <p className="text-[10px] text-gray-400 truncate">
+                  {mangaTitle}
+                </p>
               </div>
+            </div>
 
               <div className="flex items-center gap-2">
                 {/* Dropdown Estilizado de Ordenar Por */}
@@ -601,7 +600,6 @@ export default function ChapterCommentsDrawer({
             </div>
 
           </div>
-        </div>
       )}
     </>
   );

@@ -487,7 +487,7 @@ export const getFriendsAndDMs = async (req, res) => {
 
     const token = authHeader.replace('Bearer ', '').trim();
     const users = loadUsers();
-    const me = users.find(u => u.token === token);
+    const me = getAuthenticatedUser(req, users);
     if (!me) return res.status(401).json({ success: false, message: 'Sesión no válida' });
 
     const allFriends = loadFriends();
@@ -524,16 +524,16 @@ export const getFriendsAndDMs = async (req, res) => {
     
     const conversations = [];
     const messageRequests = [];
+    const sortedUsers = [...users].sort((a, b) => b.id.length - a.id.length);
 
     dmRooms.forEach(roomId => {
       const raw = roomId.replace(/^dm:/, '');
-      let otherUser = users.find(u => u.id !== me.id && raw.includes(u.id));
+      let otherUser = sortedUsers.find(u => u.id !== me.id && raw.includes(u.id));
       if (!otherUser) {
-        const parts = raw.split(/_(?=usr_)/);
-        const otherId = parts.find(id => id !== me.id) || raw.replace(me.id, '').replace(/^_|_$/g, '');
+        const otherId = raw.replace(me.id, '').replace(/^_+|_+$/g, '');
         otherUser = users.find(u => u.id === otherId) || {
           id: otherId,
-          username: 'Usuario',
+          username: otherId.startsWith('usr_') ? otherId.slice(4) : otherId,
           avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(otherId || 'User')}`,
           badge: 'Lector'
         };
