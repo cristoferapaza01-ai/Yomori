@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye } from 'lucide-react';
+import { Eye, ExternalLink } from 'lucide-react';
 
 export function SpoilerBlock({ text }) {
   const [revealed, setRevealed] = useState(false);
@@ -29,8 +29,8 @@ export function SpoilerBlock({ text }) {
   );
 }
 
-export default function FormattedMessage({ text }) {
-  if (!text) return null;
+export default function FormattedMessage({ text, images = [], image = null }) {
+  const allImages = [...(Array.isArray(images) ? images : []), ...(image ? [image] : [])];
 
   const parseFormatting = (input) => {
     if (!input || typeof input !== 'string') return input;
@@ -123,9 +123,10 @@ export default function FormattedMessage({ text }) {
             href={raw} 
             target="_blank" 
             rel="noopener noreferrer" 
-            className="text-purple-400 hover:text-purple-300 underline break-all"
+            className="text-purple-400 hover:text-purple-300 underline break-all inline-flex items-center gap-0.5"
           >
-            {raw}
+            <span>{raw}</span>
+            <ExternalLink className="w-2.5 h-2.5 inline shrink-0 opacity-70" />
           </a>
         );
       }
@@ -139,5 +140,29 @@ export default function FormattedMessage({ text }) {
     return tokens.length > 0 ? tokens : lineStr;
   };
 
-  return <>{parseFormatting(text)}</>;
+  return (
+    <div className="space-y-2">
+      {text && <div>{parseFormatting(text)}</div>}
+      
+      {/* Galería de imágenes adjuntas en el mensaje */}
+      {allImages.length > 0 && (
+        <div className="flex flex-wrap gap-2 pt-1">
+          {allImages.map((imgSrc, imgIdx) => (
+            <div 
+              key={imgIdx}
+              className="relative rounded-2xl overflow-hidden border border-gray-700/80 bg-black/50 max-w-sm max-h-72 group cursor-pointer shadow-lg"
+              onClick={() => window.open(imgSrc, '_blank')}
+              title="Clic para ver imagen completa"
+            >
+              <img 
+                src={imgSrc} 
+                alt="Imagen adjunta" 
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+              />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }

@@ -16,6 +16,7 @@ import {
   Underline,
   Strikethrough,
   Quote,
+  Image as ImageIcon,
   MoreVertical,
   Reply,
   Copy,
@@ -44,14 +45,23 @@ export default function ChapterCommentsDrawer({
   const [activeReaders, setActiveReaders] = useState(1);
   const [loadingHistory, setLoadingHistory] = useState(true);
   
-  // Ordenamiento: 'recientes' (default), 'populares', 'antiguos'
   const [sortBy, setSortBy] = useState('recientes');
   const [replyingTo, setReplyingTo] = useState(null);
+  const [attachedImages, setAttachedImages] = useState([]);
+  const [activeFormats, setActiveFormats] = useState({
+    bold: false,
+    italic: false,
+    underline: false,
+    strike: false,
+    quote: false,
+    spoiler: false
+  });
+
   const [activeMenuId, setActiveMenuId] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
 
   const textareaRef = useRef(null);
-  const commentsEndRef = useRef(null);
+  const fileInputRef = useRef(null);
   const scrollContainerRef = useRef(null);
 
   const roomId = chapterUrl ? `chapter:${btoa(encodeURIComponent(chapterUrl)).slice(0, 32)}` : 'chapter:default';
@@ -62,7 +72,7 @@ export default function ChapterCommentsDrawer({
     return () => window.removeEventListener('click', handleClickOutside);
   }, []);
 
-  // 1. Cargar historial persistente desde el backend
+  // 1. Cargar historial
   useEffect(() => {
     if (!chapterUrl) return;
     let isMounted = true;
@@ -93,7 +103,7 @@ export default function ChapterCommentsDrawer({
     };
   }, [chapterUrl, roomId]);
 
-  // 2. Conexión Socket.IO a la sala del capítulo
+  // 2. Conexión Socket.IO
   useEffect(() => {
     if (!chapterUrl) return;
     const socket = getSocket();
@@ -160,8 +170,8 @@ export default function ChapterCommentsDrawer({
     };
   }, [chapterUrl, roomId]);
 
-  // Aplicar formato de texto
-  const handleFormat = (tagType) => {
+  // Formato interactivo
+  const handleFormat = (type) => {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
@@ -169,27 +179,65 @@ export default function ChapterCommentsDrawer({
     const end = textarea.selectionEnd || 0;
     const selected = inputText.substring(start, end);
 
-    let prefix = '', suffix = '', placeholder = 'texto';
-    switch (tagType) {
-      case 'bold': prefix = '**'; suffix = '**'; placeholder = 'negrita'; break;
-      case 'italic': prefix = '*'; suffix = '*'; placeholder = 'cursiva'; break;
-      case 'underline': prefix = '<u>'; suffix = '</u>'; placeholder = 'subrayado'; break;
-      case 'strike': prefix = '~~'; suffix = '~~'; placeholder = 'tachado'; break;
-      case 'quote': prefix = '> '; suffix = ''; placeholder = 'cita'; break;
-      case 'spoiler': prefix = '||'; suffix = '||'; placeholder = 'spoiler'; break;
+    let prefix = '', suffix = '';
+    switch (type) {
+      case 'bold': prefix = '**'; suffix = '**'; break;
+      case 'italic': prefix = '*'; suffix = '*'; break;
+      case 'underline': prefix = '<u>'; suffix = '</u>'; break;
+      case 'strike': prefix = '~~'; suffix = '~~'; break;
+      case 'quote': prefix = '> '; suffix = ''; break;
+      case 'spoiler': prefix = '||'; suffix = '||'; break;
       default: break;
     }
 
-    const replacement = prefix + (selected || placeholder) + suffix;
-    const newText = inputText.substring(0, start) + replacement + inputText.substring(end);
-    setInputText(newText);
+    if (selected && selected.length > 0) {
+      const replacement = `${prefix}${selected}${suffix}`;
+      const newText = inputText.substring(0, start) + replacement + inputText.substring(end);
+      setInputText(newText);
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + prefix.length, start + prefix.length + selected.length);
+      }, 30);
+    } else {
+      const isCurrentlyActive = activeFormats[type];
+      setActiveFormats(prev => ({ ...prev, [type]: !isCurrentlyActive }));
 
-    setTimeout(() => {
-      textarea.focus();
-      const selectionStart = start + prefix.length;
-      const selectionEnd = selected ? selectionStart + selected.length : selectionStart + placeholder.length;
-      textarea.setSelectionRange(selectionStart, selectionEnd);
-    }, 50);
+      if (!isCurrentlyActive) {
+        const newText = inputText.substring(0, start) + prefix + suffix + inputText.substring(end);
+        setInputText(newText);
+        setTimeout(() => {
+          textarea.focus();
+          textarea.setSelectionRange(start + prefix.length, start + prefix.length);
+        }, 30);
+      } else {
+        setTimeout(() => {
+          textarea.focus();
+          const nextPos = Math.min(inputText.length, start + suffix.length);
+          textarea.setSelectionRange(nextPos, nextPos);
+        }, 30);
+      }
+    }
+  };
+
+  const handleImageFileChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    files.forEach(file => {
+      if (!file.type.startsWith('image/')) return;
+      const reader = new FileReader();
+      reader.onload = (loadEvt) => {
+        const base64 = loadEvt.target.result;
+        setAttachedImages(prev => [...prev, base64].slice(0, 4));
+      };
+      reader.readAsDataURL(file);
+    });
+
+    e.target.value = '';
+  };
+
+  const removeAttachedImage = (idx) => {
+    setAttachedImages(prev => prev.filter((_, i) => i !== idx));
   };
 
   // Enviar comentario
@@ -201,7 +249,7 @@ export default function ChapterCommentsDrawer({
     }
 
     const cleanText = inputText.trim();
-    if (!cleanText || isSending) return;
+    if ((!cleanText && attachedImages.length === 0) || isSending) return;
 
     setIsSending(true);
     const socket = getSocket();
@@ -212,6 +260,7 @@ export default function ChapterCommentsDrawer({
       userId: currentUser.id,
       username: currentUser.username,
       text: cleanText,
+      images: attachedImages,
       page: includePageTag ? currentPage : null,
       mangaTitle,
       chapterTitle,
@@ -225,7 +274,10 @@ export default function ChapterCommentsDrawer({
     const finishSend = (createdMsg) => {
       setIsSending(false);
       setInputText('');
+      setAttachedImages([]);
       setReplyingTo(null);
+      setActiveFormats({ bold: false, italic: false, underline: false, strike: false, quote: false, spoiler: false });
+
       if (createdMsg) {
         setComments(prev => prev.some(m => m.id === createdMsg.id) ? prev : [...prev, createdMsg]);
       }
@@ -262,7 +314,6 @@ export default function ChapterCommentsDrawer({
     }
   };
 
-  // Toggle Like
   const handleToggleLike = (commentId) => {
     if (!currentUser) {
       if (onOpenAuth) onOpenAuth('login');
@@ -287,7 +338,6 @@ export default function ChapterCommentsDrawer({
     }
   };
 
-  // Copiar y Opciones
   const handleCopyComment = (msg) => {
     navigator.clipboard.writeText(msg.text);
     setCopiedId(msg.id);
@@ -305,7 +355,7 @@ export default function ChapterCommentsDrawer({
 
   const handleReport = (msg) => {
     axios.post('/api/chat/report', { roomId, messageId: msg.id, username: msg.username }).catch(() => {});
-    alert('Comentario reportado para revisión.');
+    alert('Comentario reportado para moderación.');
     setActiveMenuId(null);
   };
 
@@ -319,7 +369,6 @@ export default function ChapterCommentsDrawer({
     setActiveMenuId(null);
   };
 
-  // Ordenar lista de comentarios
   const sortedComments = useMemo(() => {
     const list = [...comments];
     if (sortBy === 'populares') {
@@ -332,7 +381,6 @@ export default function ChapterCommentsDrawer({
 
   return (
     <>
-      {/* Botón flotante para abrir comentarios del capítulo */}
       <button
         onClick={() => setIsOpen(true)}
         className="fixed bottom-6 right-6 z-40 px-4 py-3 rounded-full bg-[#181a28]/95 hover:bg-[#202438] border border-purple-500/50 hover:border-purple-400 text-white shadow-2xl backdrop-blur-xl flex items-center gap-2.5 transition transform hover:scale-105 active:scale-95 cursor-pointer font-bold text-xs"
@@ -343,16 +391,13 @@ export default function ChapterCommentsDrawer({
         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse ml-0.5" />
       </button>
 
-      {/* Drawer lateral de comentarios */}
       {isOpen && (
         <div className="fixed inset-0 z-50 flex justify-end animate-fade-in">
-          {/* Fondo oscuro traslúcido para cerrar */}
           <div 
             className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
             onClick={() => setIsOpen(false)}
           />
 
-          {/* Panel Principal */}
           <div className="relative w-full max-w-md h-full bg-[#0a0d14]/95 border-l border-gray-800/80 shadow-2xl flex flex-col z-10 backdrop-blur-xl animate-slide-left">
             
             {/* Cabecera */}
@@ -385,7 +430,7 @@ export default function ChapterCommentsDrawer({
               </div>
             </div>
 
-            {/* Selector de Ordenar Por */}
+            {/* Ordenar Por */}
             <div className="px-4 py-2 bg-[#0d101a] border-b border-gray-800/60 flex items-center justify-between text-xs">
               <div className="flex items-center gap-1.5 text-gray-400">
                 <ArrowUpDown className="w-3.5 h-3.5 text-purple-400" />
@@ -421,13 +466,12 @@ export default function ChapterCommentsDrawer({
                   return (
                     <div 
                       key={msg.id} 
-                      className={`p-3 rounded-2xl border transition flex flex-col gap-1.5 relative ${
+                      className={`p-3.5 rounded-2xl border transition flex flex-col gap-1.5 relative ${
                         isMe 
                           ? 'bg-[#151828] border-purple-900/40' 
                           : 'bg-[#10131e] border-gray-800/70'
                       }`}
                     >
-                      {/* Referencia de Respuesta */}
                       {msg.replyTo && (
                         <div className="flex items-center gap-1.5 text-[10px] text-purple-300/80 bg-purple-950/30 border-l-2 border-purple-500 px-2 py-0.5 rounded-r-md mb-0.5 truncate">
                           <Reply className="w-2.5 h-2.5 text-purple-400 shrink-0" />
@@ -436,7 +480,6 @@ export default function ChapterCommentsDrawer({
                         </div>
                       )}
 
-                      {/* Cabecera del Comentario */}
                       <div className="flex items-center justify-between gap-2">
                         <div 
                           onClick={() => onOpenUserCard && onOpenUserCard(msg.userId, msg.username, msg.userAvatar)}
@@ -523,12 +566,10 @@ export default function ChapterCommentsDrawer({
                         </div>
                       </div>
 
-                      {/* Contenido con Spoiler y Formato */}
                       <div className="text-xs text-gray-200 leading-relaxed select-text pl-8 break-words">
-                        <FormattedMessage text={msg.text} />
+                        <FormattedMessage text={msg.text} images={msg.images} image={msg.image} />
                       </div>
 
-                      {/* Acciones */}
                       <div className="flex items-center gap-3 pl-8 pt-0.5 text-xs">
                         <button
                           onClick={() => handleToggleLike(msg.id)}
@@ -579,6 +620,23 @@ export default function ChapterCommentsDrawer({
                     </div>
                   )}
 
+                  {attachedImages.length > 0 && (
+                    <div className="flex items-center gap-2 p-1.5 rounded-lg bg-[#0d101a] border border-gray-800 overflow-x-auto">
+                      {attachedImages.map((imgData, i) => (
+                        <div key={i} className="relative w-12 h-12 rounded-lg overflow-hidden border border-purple-500/50 shrink-0">
+                          <img src={imgData} alt="Adjunto" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => removeAttachedImage(i)}
+                            className="absolute top-0.5 right-0.5 p-0.5 rounded-full bg-black/80 text-rose-400"
+                          >
+                            <X className="w-2.5 h-2.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   <label className="flex items-center gap-1.5 text-[11px] text-gray-400 cursor-pointer">
                     <input
                       type="checkbox"
@@ -588,6 +646,15 @@ export default function ChapterCommentsDrawer({
                     />
                     <span>Etiquetar página actual ({currentPage})</span>
                   </label>
+
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={handleImageFileChange}
+                  />
 
                   <div className="rounded-xl bg-[#131622] border border-gray-800 focus-within:border-purple-500 transition overflow-hidden">
                     <textarea
@@ -612,56 +679,82 @@ export default function ChapterCommentsDrawer({
                         <button
                           type="button"
                           onClick={() => handleFormat('bold')}
-                          className="p-1 rounded text-gray-400 hover:text-white hover:bg-gray-800 text-xs font-bold"
+                          className={`p-1 rounded text-xs font-bold transition ${
+                            activeFormats.bold ? 'bg-purple-600 text-white border border-purple-400' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                          }`}
                           title="Negrita"
                         >
                           <Bold className="w-3 h-3" />
                         </button>
+
                         <button
                           type="button"
                           onClick={() => handleFormat('italic')}
-                          className="p-1 rounded text-gray-400 hover:text-white hover:bg-gray-800 text-xs italic"
+                          className={`p-1 rounded text-xs italic transition ${
+                            activeFormats.italic ? 'bg-purple-600 text-white border border-purple-400' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                          }`}
                           title="Cursiva"
                         >
                           <Italic className="w-3 h-3" />
                         </button>
+
                         <button
                           type="button"
                           onClick={() => handleFormat('underline')}
-                          className="p-1 rounded text-gray-400 hover:text-white hover:bg-gray-800 text-xs"
+                          className={`p-1 rounded text-xs transition ${
+                            activeFormats.underline ? 'bg-purple-600 text-white border border-purple-400' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                          }`}
                           title="Subrayado"
                         >
                           <Underline className="w-3 h-3" />
                         </button>
+
                         <button
                           type="button"
                           onClick={() => handleFormat('strike')}
-                          className="p-1 rounded text-gray-400 hover:text-white hover:bg-gray-800 text-xs"
+                          className={`p-1 rounded text-xs transition ${
+                            activeFormats.strike ? 'bg-purple-600 text-white border border-purple-400' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                          }`}
                           title="Tachado"
                         >
                           <Strikethrough className="w-3 h-3" />
                         </button>
+
                         <button
                           type="button"
                           onClick={() => handleFormat('quote')}
-                          className="p-1 rounded text-gray-400 hover:text-white hover:bg-gray-800 text-xs"
+                          className={`p-1 rounded text-xs transition ${
+                            activeFormats.quote ? 'bg-purple-600 text-white border border-purple-400' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                          }`}
                           title="Cita"
                         >
                           <Quote className="w-3 h-3" />
                         </button>
+
                         <button
                           type="button"
                           onClick={() => handleFormat('spoiler')}
-                          className="p-1 rounded text-purple-400 hover:text-purple-200 hover:bg-purple-950/60 text-xs border border-purple-800/40"
+                          className={`p-1 rounded text-xs transition ${
+                            activeFormats.spoiler ? 'bg-purple-600 text-white border border-purple-400' : 'text-purple-400 hover:text-purple-200 hover:bg-purple-950/60 border border-purple-800/40'
+                          }`}
                           title="Spoiler (||texto||)"
                         >
                           <Eye className="w-3 h-3" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="p-1 rounded text-gray-400 hover:text-purple-300 hover:bg-gray-800 text-xs"
+                          title="Subir foto"
+                        >
+                          <ImageIcon className="w-3 h-3" />
                         </button>
                       </div>
 
                       <button
                         type="submit"
-                        disabled={!inputText.trim() || isSending}
+                        disabled={(!inputText.trim() && attachedImages.length === 0) || isSending}
                         className="px-3 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-30 text-white font-bold text-xs flex items-center gap-1 transition cursor-pointer"
                       >
                         {isSending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}

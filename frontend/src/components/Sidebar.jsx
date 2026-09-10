@@ -41,18 +41,6 @@ export default function Sidebar({
       badge: libraryCount > 0 ? libraryCount : null
     },
     {
-      id: 'messages',
-      label: 'Mensajes',
-      icon: MessageSquare,
-      badge: null
-    },
-    {
-      id: 'communities',
-      label: 'Comunidades',
-      icon: Users,
-      badge: null
-    },
-    {
       id: 'updates',
       label: 'Actualizaciones',
       icon: Sparkles,
@@ -63,6 +51,18 @@ export default function Sidebar({
       label: 'Historial',
       icon: History,
       badge: historyCount > 0 ? historyCount : null
+    },
+    {
+      id: 'communities',
+      label: 'Comunidad',
+      icon: Users,
+      badge: null
+    },
+    {
+      id: 'messages',
+      label: 'Mensajes',
+      icon: MessageSquare,
+      badge: null
     },
     {
       id: 'explore',

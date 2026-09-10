@@ -802,6 +802,10 @@ export default function App() {
         <Sidebar
           currentView={view}
           onSelectView={(v) => {
+            if (v === 'explore') {
+              setExploreSubTab('sources');
+              setSelectedManga(null);
+            }
             setView(v);
             window.scrollTo({ top: 0, behavior: 'instant' });
           }}

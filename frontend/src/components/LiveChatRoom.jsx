@@ -21,10 +21,7 @@ import {
   Flag,
   Trash2,
   X,
-  Sparkles,
-  ChevronDown,
-  ArrowUpDown,
-  Check
+  ArrowUpDown
 } from 'lucide-react';
 import { getSocket } from '../services/socket.js';
 import FormattedMessage from './FormattedMessage.jsx';
@@ -55,13 +52,25 @@ export default function LiveChatRoom({
   // Respuesta a un mensaje
   const [replyingTo, setReplyingTo] = useState(null);
   
+  // Imágenes adjuntas antes de enviar
+  const [attachedImages, setAttachedImages] = useState([]);
+  
+  // Estado activo de botones de formato (B, I, U, S, Quote, Spoiler)
+  const [activeFormats, setActiveFormats] = useState({
+    bold: false,
+    italic: false,
+    underline: false,
+    strike: false,
+    quote: false,
+    spoiler: false
+  });
+
   // Menú flotante de 3 puntos activo: messageId o null
   const [activeMenuId, setActiveMenuId] = useState(null);
-  
-  // Feedback temporal de copiado
   const [copiedId, setCopiedId] = useState(null);
 
   const textareaRef = useRef(null);
+  const fileInputRef = useRef(null);
   const chatContainerRef = useRef(null);
 
   // Cerrar menús al hacer clic fuera
@@ -88,7 +97,6 @@ export default function LiveChatRoom({
       .finally(() => {
         if (isMounted) {
           setLoadingHistory(false);
-          // Scroll suave interno sin saltar la ventana principal
           setTimeout(() => {
             if (chatContainerRef.current) {
               chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
@@ -116,7 +124,6 @@ export default function LiveChatRoom({
           return [...prev, newMsg];
         });
 
-        // Scroll interno solo dentro de la caja de mensajes
         setTimeout(() => {
           if (chatContainerRef.current) {
             chatContainerRef.current.scrollTo({
@@ -169,8 +176,8 @@ export default function LiveChatRoom({
     };
   }, [roomId]);
 
-  // Aplicar formato de texto (Negrita, Cursiva, Spoiler, Cita, etc.)
-  const handleFormat = (tagType) => {
+  // Aplicar formato de texto interactivo / dinámico
+  const handleFormat = (type) => {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
@@ -178,27 +185,70 @@ export default function LiveChatRoom({
     const end = textarea.selectionEnd || 0;
     const selected = inputText.substring(start, end);
 
-    let prefix = '', suffix = '', placeholder = 'texto';
-    switch (tagType) {
-      case 'bold': prefix = '**'; suffix = '**'; placeholder = 'negrita'; break;
-      case 'italic': prefix = '*'; suffix = '*'; placeholder = 'cursiva'; break;
-      case 'underline': prefix = '<u>'; suffix = '</u>'; placeholder = 'subrayado'; break;
-      case 'strike': prefix = '~~'; suffix = '~~'; placeholder = 'tachado'; break;
-      case 'quote': prefix = '> '; suffix = ''; placeholder = 'cita'; break;
-      case 'spoiler': prefix = '||'; suffix = '||'; placeholder = 'spoiler'; break;
+    let prefix = '', suffix = '';
+    switch (type) {
+      case 'bold': prefix = '**'; suffix = '**'; break;
+      case 'italic': prefix = '*'; suffix = '*'; break;
+      case 'underline': prefix = '<u>'; suffix = '</u>'; break;
+      case 'strike': prefix = '~~'; suffix = '~~'; break;
+      case 'quote': prefix = '> '; suffix = ''; break;
+      case 'spoiler': prefix = '||'; suffix = '||'; break;
       default: break;
     }
 
-    const replacement = prefix + (selected || placeholder) + suffix;
-    const newText = inputText.substring(0, start) + replacement + inputText.substring(end);
-    setInputText(newText);
+    if (selected && selected.length > 0) {
+      // Si hay texto seleccionado: envolver directamente la selección
+      const replacement = `${prefix}${selected}${suffix}`;
+      const newText = inputText.substring(0, start) + replacement + inputText.substring(end);
+      setInputText(newText);
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + prefix.length, start + prefix.length + selected.length);
+      }, 30);
+    } else {
+      // Si no hay texto seleccionado: alternar modo de escritura
+      const isCurrentlyActive = activeFormats[type];
+      setActiveFormats(prev => ({ ...prev, [type]: !isCurrentlyActive }));
 
-    setTimeout(() => {
-      textarea.focus();
-      const selectionStart = start + prefix.length;
-      const selectionEnd = selected ? selectionStart + selected.length : selectionStart + placeholder.length;
-      textarea.setSelectionRange(selectionStart, selectionEnd);
-    }, 50);
+      if (!isCurrentlyActive) {
+        // Activar: insertar etiquetas y colocar el cursor en el centro para escribir
+        const newText = inputText.substring(0, start) + prefix + suffix + inputText.substring(end);
+        setInputText(newText);
+        setTimeout(() => {
+          textarea.focus();
+          textarea.setSelectionRange(start + prefix.length, start + prefix.length);
+        }, 30);
+      } else {
+        // Desactivar: mover cursor fuera de las etiquetas de cierre
+        setTimeout(() => {
+          textarea.focus();
+          const nextPos = Math.min(inputText.length, start + suffix.length);
+          textarea.setSelectionRange(nextPos, nextPos);
+        }, 30);
+      }
+    }
+  };
+
+  // Manejador de subida de imágenes desde el botón de la galería
+  const handleImageFileChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    files.forEach(file => {
+      if (!file.type.startsWith('image/')) return;
+      const reader = new FileReader();
+      reader.onload = (loadEvt) => {
+        const base64 = loadEvt.target.result;
+        setAttachedImages(prev => [...prev, base64].slice(0, 4)); // Máximo 4 imágenes
+      };
+      reader.readAsDataURL(file);
+    });
+
+    e.target.value = '';
+  };
+
+  const removeAttachedImage = (idx) => {
+    setAttachedImages(prev => prev.filter((_, i) => i !== idx));
   };
 
   // Enviar mensaje
@@ -210,7 +260,7 @@ export default function LiveChatRoom({
     }
 
     const cleanText = inputText.trim();
-    if (!cleanText || isSending) return;
+    if ((!cleanText && attachedImages.length === 0) || isSending) return;
 
     setIsSending(true);
     const socket = getSocket();
@@ -221,6 +271,7 @@ export default function LiveChatRoom({
       userId: currentUser.id,
       username: currentUser.username,
       text: cleanText,
+      images: attachedImages,
       page: (showPageTag && includePageTag && currentPage) ? currentPage : null,
       mangaTitle,
       chapterTitle,
@@ -234,7 +285,10 @@ export default function LiveChatRoom({
     const finishSend = (createdMsg) => {
       setIsSending(false);
       setInputText('');
+      setAttachedImages([]);
       setReplyingTo(null);
+      setActiveFormats({ bold: false, italic: false, underline: false, strike: false, quote: false, spoiler: false });
+      
       if (createdMsg) {
         setMessages(prev => prev.some(m => m.id === createdMsg.id) ? prev : [...prev, createdMsg]);
       }
@@ -297,7 +351,6 @@ export default function LiveChatRoom({
     }
   };
 
-  // Copiar texto del comentario
   const handleCopyComment = (msg) => {
     navigator.clipboard.writeText(msg.text);
     setCopiedId(msg.id);
@@ -305,7 +358,6 @@ export default function LiveChatRoom({
     setActiveMenuId(null);
   };
 
-  // Copiar enlace al comentario
   const handleCopyLink = (msg) => {
     const url = `${window.location.origin}${window.location.pathname}#comment-${msg.id}`;
     navigator.clipboard.writeText(url);
@@ -314,20 +366,18 @@ export default function LiveChatRoom({
     setActiveMenuId(null);
   };
 
-  // Reportar comentario
   const handleReport = (msg) => {
     axios.post('/api/chat/report', {
       roomId,
       messageId: msg.id,
       username: msg.username
     }).catch(() => {});
-    alert('Comentario reportado para revisión por el equipo de moderación.');
+    alert('Comentario reportado para moderación.');
     setActiveMenuId(null);
   };
 
-  // Eliminar comentario
   const handleDelete = (msg) => {
-    if (!window.confirm('¿Seguro que deseas eliminar este comentario?')) return;
+    if (!window.confirm('¿Deseas eliminar este comentario?')) return;
     axios.post('/api/chat/delete', {
       roomId,
       messageId: msg.id
@@ -339,7 +389,6 @@ export default function LiveChatRoom({
     setActiveMenuId(null);
   };
 
-  // Responder a un comentario
   const handleStartReply = (msg) => {
     setReplyingTo(msg);
     setActiveMenuId(null);
@@ -348,7 +397,7 @@ export default function LiveChatRoom({
     }, 50);
   };
 
-  // Ordenar lista de mensajes
+  // Ordenar mensajes
   const sortedMessages = useMemo(() => {
     const list = [...messages];
     if (sortBy === 'populares') {
@@ -356,14 +405,13 @@ export default function LiveChatRoom({
     } else if (sortBy === 'antiguos') {
       return list.sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
     }
-    // 'recientes': orden natural de llegada / cronológico
     return list;
   }, [messages, sortBy]);
 
   return (
     <div className="w-full space-y-4 font-sans selection:bg-purple-600 selection:text-white">
       
-      {/* 1. CABECERA INTEGRADA (Sin cuadros pesados) */}
+      {/* 1. CABECERA INTEGRADA */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-800/60">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-xl bg-purple-600/20 text-purple-400 border border-purple-600/30">
@@ -387,8 +435,6 @@ export default function LiveChatRoom({
 
         {/* Controles de Cabecera: Lectores y Ordenar Por */}
         <div className="flex items-center gap-3 self-start sm:self-auto flex-wrap">
-          
-          {/* Ordenar Por */}
           <div className="flex items-center gap-1.5 bg-[#121520] border border-gray-800 rounded-xl px-2.5 py-1 text-xs">
             <ArrowUpDown className="w-3.5 h-3.5 text-purple-400" />
             <span className="text-gray-400 font-medium">Ordenar:</span>
@@ -403,7 +449,6 @@ export default function LiveChatRoom({
             </select>
           </div>
 
-          {/* Lectores conectados */}
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#121520] border border-gray-800 text-xs text-gray-300 font-mono">
             <Users className="w-3.5 h-3.5 text-emerald-400" />
             <span>{activeUsersCount} {activeUsersCount === 1 ? 'lector' : 'lectores'}</span>
@@ -411,10 +456,10 @@ export default function LiveChatRoom({
         </div>
       </div>
 
-      {/* 2. LISTA DE MENSAJES (Diseño fluido integrado con el fondo) */}
+      {/* 2. LISTA DE MENSAJES (Ancho Completo y Fluido) */}
       <div 
         ref={chatContainerRef}
-        className="min-h-[220px] max-h-[420px] overflow-y-auto pr-1 sm:pr-2 space-y-2.5 custom-scrollbar py-1"
+        className="min-h-[220px] max-h-[440px] overflow-y-auto pr-1 sm:pr-2 space-y-2.5 custom-scrollbar py-1"
       >
         {loadingHistory ? (
           <div className="py-12 flex flex-col items-center justify-center gap-2 text-gray-500 text-xs">
@@ -431,13 +476,13 @@ export default function LiveChatRoom({
               <div 
                 key={msg.id} 
                 id={`comment-${msg.id}`}
-                className={`p-3 sm:p-3.5 rounded-2xl transition-all duration-200 flex flex-col gap-1.5 relative group border ${
+                className={`p-3.5 rounded-2xl transition-all duration-200 flex flex-col gap-1.5 relative border ${
                   isMe 
-                    ? 'bg-[#151828]/80 border-purple-900/40 hover:border-purple-700/60' 
-                    : 'bg-[#0e111a]/70 border-gray-800/60 hover:border-gray-700/80 hover:bg-[#121522]/90'
+                    ? 'bg-[#151828]/90 border-purple-900/40 hover:border-purple-700/60' 
+                    : 'bg-[#0e111a]/80 border-gray-800/70 hover:border-gray-700/80 hover:bg-[#121522]'
                 }`}
               >
-                {/* Si es respuesta a otro mensaje, mostrar referencia compacta */}
+                {/* Referencia si es respuesta */}
                 {msg.replyTo && (
                   <div className="flex items-center gap-1.5 text-[11px] text-purple-300/80 bg-purple-950/30 border-l-2 border-purple-500 px-2 py-0.5 rounded-r-md mb-0.5 max-w-xl truncate">
                     <Reply className="w-3 h-3 text-purple-400 shrink-0" />
@@ -448,14 +493,8 @@ export default function LiveChatRoom({
 
                 {/* Cabecera del Mensaje */}
                 <div className="flex items-center justify-between gap-2">
-                  
-                  {/* Perfil de Usuario */}
                   <div 
-                    onClick={() => {
-                      if (onOpenUserCard) {
-                        onOpenUserCard(msg.userId, msg.username, msg.userAvatar);
-                      }
-                    }}
+                    onClick={() => onOpenUserCard && onOpenUserCard(msg.userId, msg.username, msg.userAvatar)}
                     className="flex items-center gap-2.5 cursor-pointer group/user min-w-0"
                     title="Ver perfil de usuario"
                   >
@@ -484,13 +523,11 @@ export default function LiveChatRoom({
                     )}
                   </div>
 
-                  {/* Hora y Menú 3 Puntos */}
                   <div className="flex items-center gap-1.5 shrink-0">
                     <span className="text-[10px] text-gray-500 font-mono">
                       {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Reciente'}
                     </span>
 
-                    {/* Botón 3 Puntos */}
                     <div className="relative">
                       <button
                         onClick={(e) => {
@@ -498,12 +535,11 @@ export default function LiveChatRoom({
                           setActiveMenuId(isMenuOpen ? null : msg.id);
                         }}
                         className="p-1 rounded-lg text-gray-500 hover:text-gray-200 hover:bg-gray-800/60 transition cursor-pointer"
-                        title="Opciones de mensaje"
+                        title="Opciones"
                       >
                         <MoreVertical className="w-3.5 h-3.5" />
                       </button>
 
-                      {/* Menú Flotante de Opciones */}
                       {isMenuOpen && (
                         <div 
                           onClick={(e) => e.stopPropagation()}
@@ -556,12 +592,12 @@ export default function LiveChatRoom({
                   </div>
                 </div>
 
-                {/* Contenido del Mensaje con Soporte de Spoiler y Formato */}
+                {/* Contenido con Spoiler, Formato e Imágenes */}
                 <div className="text-xs sm:text-sm text-gray-200 leading-relaxed select-text pl-9 break-words">
-                  <FormattedMessage text={msg.text} />
+                  <FormattedMessage text={msg.text} images={msg.images} image={msg.image} />
                 </div>
 
-                {/* Pie con Acciones Rápidas (Responder y Like) */}
+                {/* Acciones Rápidas */}
                 <div className="flex items-center gap-3 pl-9 pt-0.5 text-xs text-gray-400">
                   <button
                     onClick={() => handleToggleLike(msg.id)}
@@ -597,7 +633,7 @@ export default function LiveChatRoom({
       {currentUser ? (
         <form onSubmit={handleSendMessage} className="space-y-2 pt-1">
           
-          {/* Banner de Respuesta Activa */}
+          {/* Banner de Respuesta */}
           {replyingTo && (
             <div className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-xl bg-purple-950/40 border border-purple-800/50 text-xs text-purple-200 animate-fade-in">
               <div className="flex items-center gap-2 truncate">
@@ -616,6 +652,25 @@ export default function LiveChatRoom({
             </div>
           )}
 
+          {/* Previsualización de Fotos Adjuntas */}
+          {attachedImages.length > 0 && (
+            <div className="flex items-center gap-2 p-2 rounded-xl bg-[#0d101a] border border-gray-800 overflow-x-auto">
+              {attachedImages.map((imgData, i) => (
+                <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border border-purple-500/50 shrink-0 group">
+                  <img src={imgData} alt="Adjunto" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => removeAttachedImage(i)}
+                    className="absolute top-1 right-1 p-0.5 rounded-full bg-black/80 text-rose-400 hover:bg-rose-600 hover:text-white transition"
+                    title="Quitar foto"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           {showPageTag && currentPage && (
             <label className="flex items-center gap-1.5 text-[11px] text-gray-400 cursor-pointer pl-1">
               <input
@@ -628,10 +683,19 @@ export default function LiveChatRoom({
             </label>
           )}
 
+          {/* Input file oculto para subir fotos */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handleImageFileChange}
+          />
+
           {/* Contenedor del Editor de Texto */}
           <div className="rounded-2xl bg-[#111420] border border-gray-800 focus-within:border-purple-500/80 transition shadow-inner overflow-hidden">
             
-            {/* Campo de Entrada de Texto */}
             <textarea
               ref={textareaRef}
               rows={2}
@@ -648,15 +712,18 @@ export default function LiveChatRoom({
               className="w-full bg-transparent px-3.5 pt-3 pb-1.5 text-xs sm:text-sm text-white placeholder-gray-500 focus:outline-none resize-none select-text"
             />
 
-            {/* Barra de Herramientas de Formato (Exacta a las imágenes del usuario) */}
+            {/* Barra de Herramientas de Formato (B, I, U, S, Cita, Spoiler, Subir Fotos) */}
             <div className="flex items-center justify-between px-2.5 py-1.5 border-t border-gray-800/80 bg-[#0d101a]">
               
-              {/* Botones de Formato: B, I, U, S, Cita, Spoiler, Imagen */}
               <div className="flex items-center gap-1">
                 <button
                   type="button"
                   onClick={() => handleFormat('bold')}
-                  className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/70 transition cursor-pointer font-bold text-xs"
+                  className={`p-1.5 rounded-lg transition cursor-pointer font-bold text-xs ${
+                    activeFormats.bold 
+                      ? 'bg-purple-600 text-white shadow-md border border-purple-400' 
+                      : 'text-gray-400 hover:text-white hover:bg-gray-800/70'
+                  }`}
                   title="Negrita (**texto**)"
                 >
                   <Bold className="w-3.5 h-3.5" />
@@ -665,7 +732,11 @@ export default function LiveChatRoom({
                 <button
                   type="button"
                   onClick={() => handleFormat('italic')}
-                  className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/70 transition cursor-pointer italic text-xs"
+                  className={`p-1.5 rounded-lg transition cursor-pointer italic text-xs ${
+                    activeFormats.italic 
+                      ? 'bg-purple-600 text-white shadow-md border border-purple-400' 
+                      : 'text-gray-400 hover:text-white hover:bg-gray-800/70'
+                  }`}
                   title="Cursiva (*texto*)"
                 >
                   <Italic className="w-3.5 h-3.5" />
@@ -674,7 +745,11 @@ export default function LiveChatRoom({
                 <button
                   type="button"
                   onClick={() => handleFormat('underline')}
-                  className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/70 transition cursor-pointer text-xs"
+                  className={`p-1.5 rounded-lg transition cursor-pointer text-xs ${
+                    activeFormats.underline 
+                      ? 'bg-purple-600 text-white shadow-md border border-purple-400' 
+                      : 'text-gray-400 hover:text-white hover:bg-gray-800/70'
+                  }`}
                   title="Subrayado (<u>texto</u>)"
                 >
                   <Underline className="w-3.5 h-3.5" />
@@ -683,7 +758,11 @@ export default function LiveChatRoom({
                 <button
                   type="button"
                   onClick={() => handleFormat('strike')}
-                  className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/70 transition cursor-pointer text-xs"
+                  className={`p-1.5 rounded-lg transition cursor-pointer text-xs ${
+                    activeFormats.strike 
+                      ? 'bg-purple-600 text-white shadow-md border border-purple-400' 
+                      : 'text-gray-400 hover:text-white hover:bg-gray-800/70'
+                  }`}
                   title="Tachado (~~texto~~)"
                 >
                   <Strikethrough className="w-3.5 h-3.5" />
@@ -692,7 +771,11 @@ export default function LiveChatRoom({
                 <button
                   type="button"
                   onClick={() => handleFormat('quote')}
-                  className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/70 transition cursor-pointer text-xs"
+                  className={`p-1.5 rounded-lg transition cursor-pointer text-xs ${
+                    activeFormats.quote 
+                      ? 'bg-purple-600 text-white shadow-md border border-purple-400' 
+                      : 'text-gray-400 hover:text-white hover:bg-gray-800/70'
+                  }`}
                   title="Cita (> texto)"
                 >
                   <Quote className="w-3.5 h-3.5" />
@@ -702,17 +785,31 @@ export default function LiveChatRoom({
                 <button
                   type="button"
                   onClick={() => handleFormat('spoiler')}
-                  className="p-1.5 rounded-lg text-purple-400 hover:text-purple-200 hover:bg-purple-950/60 transition cursor-pointer text-xs border border-purple-800/40"
+                  className={`p-1.5 rounded-lg transition cursor-pointer text-xs ${
+                    activeFormats.spoiler 
+                      ? 'bg-purple-600 text-white shadow-md border border-purple-400' 
+                      : 'text-purple-400 hover:text-purple-200 hover:bg-purple-950/60 border border-purple-800/40'
+                  }`}
                   title="Marcar como Spoiler (||texto||)"
                 >
                   <Eye className="w-3.5 h-3.5" />
+                </button>
+
+                {/* BOTÓN DE SUBIR FOTOS (Al costado del Ojito 🖼️) */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-purple-300 hover:bg-gray-800/70 transition cursor-pointer text-xs"
+                  title="Subir foto o imagen al chat"
+                >
+                  <ImageIcon className="w-3.5 h-3.5" />
                 </button>
               </div>
 
               {/* Botón de Enviar */}
               <button
                 type="submit"
-                disabled={!inputText.trim() || isSending}
+                disabled={(!inputText.trim() && attachedImages.length === 0) || isSending}
                 className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 disabled:opacity-30 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-purple-600/30 transition transform hover:scale-105 active:scale-95 cursor-pointer shrink-0"
                 title="Enviar mensaje (Enter)"
               >
@@ -740,7 +837,7 @@ export default function LiveChatRoom({
                 Únete a la conversación
               </span>
               <p className="text-[11px] text-gray-400">
-                Inicia sesión o regístrate para poder enviar mensajes y spoilers en vivo.
+                Inicia sesión o regístrate para poder enviar mensajes, fotos y spoilers en vivo.
               </p>
             </div>
           </div>
