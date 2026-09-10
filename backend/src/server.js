@@ -196,9 +196,11 @@ io.on('connection', (socket) => {
 
       // Si es un mensaje directo (DM), emitir notificación instantánea al receptor y emisor
       if (roomId.startsWith('dm:')) {
-        const parts = roomId.replace('dm:', '').split('_');
-        parts.forEach(targetId => {
-          io.to(`user:${targetId}`).emit('dm_notification', {
+        const raw = roomId.replace(/^dm:/, '');
+        const allUsers = loadUsers();
+        const matched = allUsers.filter(u => raw.includes(u.id));
+        matched.forEach(targetUser => {
+          io.to(`user:${targetUser.id}`).emit('dm_notification', {
             message,
             roomId,
             fromUser: {

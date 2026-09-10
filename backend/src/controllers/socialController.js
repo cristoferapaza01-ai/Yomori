@@ -526,13 +526,18 @@ export const getFriendsAndDMs = async (req, res) => {
     const messageRequests = [];
 
     dmRooms.forEach(roomId => {
-      const otherUserId = roomId.replace('dm:', '').split('_').find(id => id !== me.id);
-      const otherUser = users.find(u => u.id === otherUserId) || {
-        id: otherUserId,
-        username: 'Usuario',
-        avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(otherUserId || 'User')}`,
-        badge: 'Lector'
-      };
+      const raw = roomId.replace(/^dm:/, '');
+      let otherUser = users.find(u => u.id !== me.id && raw.includes(u.id));
+      if (!otherUser) {
+        const parts = raw.split(/_(?=usr_)/);
+        const otherId = parts.find(id => id !== me.id) || raw.replace(me.id, '').replace(/^_|_$/g, '');
+        otherUser = users.find(u => u.id === otherId) || {
+          id: otherId,
+          username: 'Usuario',
+          avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(otherId || 'User')}`,
+          badge: 'Lector'
+        };
+      }
 
       const roomMessages = chats[roomId] || [];
       const lastMessage = roomMessages[roomMessages.length - 1] || null;
