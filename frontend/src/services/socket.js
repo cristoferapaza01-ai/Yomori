@@ -1,15 +1,15 @@
 import { io } from 'socket.io-client';
 
 let socket = null;
+export const CLOUD_SERVER_URL = 'http://158.101.116.245';
 
 export function getSocket() {
   if (!socket) {
-    let serverUrl = 'http://localhost:4000';
+    // Conectar al servidor central en la nube de Yomori para sincronización global en tiempo real (PC <-> Celular)
+    let serverUrl = CLOUD_SERVER_URL;
     if (typeof window !== 'undefined' && window.location) {
       const hostname = window.location.hostname || '';
-      if (hostname === 'localhost' || hostname === '127.0.0.1') {
-        serverUrl = 'http://localhost:4000';
-      } else if (window.location.protocol.startsWith('http')) {
+      if (hostname === '158.101.116.245' || hostname.includes('yomori')) {
         serverUrl = window.location.origin;
       }
     }
@@ -23,7 +23,7 @@ export function getSocket() {
     });
 
     socket.on('connect', () => {
-      console.log('⚡ Conectado a Yomori Real-time Socket Server:', socket.id);
+      console.log('⚡ Conectado a Yomori Real-time Socket Server:', socket.id, '->', serverUrl);
     });
 
     socket.on('disconnect', () => {
@@ -36,3 +36,4 @@ export function getSocket() {
   }
   return socket;
 }
+
