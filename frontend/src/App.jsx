@@ -283,9 +283,6 @@ export default function App() {
       if (res.data?.success) {
         const exts = res.data.data || [];
         setInstalledExtensions(exts);
-        if (exts.length > 0 && (!selectedExtension || !exts.some(e => e.id === selectedExtension))) {
-          setSelectedExtension(exts[0].id);
-        }
       }
     } catch (err) {
       console.warn('Backend /api/extensions/installed:', err.message);
@@ -804,6 +801,7 @@ export default function App() {
           onSelectView={(v) => {
             if (v === 'explore') {
               setExploreSubTab('sources');
+              setSelectedExtension('');
               setSelectedManga(null);
             }
             setView(v);

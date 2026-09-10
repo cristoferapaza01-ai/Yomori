@@ -319,7 +319,13 @@ export default function ExploreView({
   const debounceRef = useRef(null);
 
   useEffect(() => {
-    if (selectedExtension && installedExtensions.length > 0) {
+    setActiveSubTab(exploreSubTab || 'sources');
+  }, [exploreSubTab]);
+
+  useEffect(() => {
+    if (!selectedExtension) {
+      setSelectedSourceForCatalog(null);
+    } else if (installedExtensions.length > 0) {
       const found = installedExtensions.find(e => e.id === selectedExtension);
       if (found) setSelectedSourceForCatalog(found);
     }
@@ -352,6 +358,10 @@ export default function ExploreView({
 
   const handleSubTabChange = (tab) => {
     setActiveSubTab(tab);
+    if (tab === 'sources') {
+      setSelectedSourceForCatalog(null);
+      if (onSelectExtension) onSelectExtension('');
+    }
     if (onSelectSubTab) onSelectSubTab(tab);
     if (tab === 'extensions' && repoExtensions.length === 0) {
       handleSyncRepo();
@@ -663,7 +673,10 @@ export default function ExploreView({
               <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 pb-3 border-b border-gray-800">
                 <div className="flex items-center gap-3 flex-wrap">
                   <button
-                    onClick={() => setSelectedSourceForCatalog(null)}
+                    onClick={() => {
+                      setSelectedSourceForCatalog(null);
+                      if (onSelectExtension) onSelectExtension('');
+                    }}
                     className="px-3 py-1.5 rounded-xl bg-[#121622] hover:bg-gray-800 text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1.5 font-semibold transition-all duration-200 active:scale-95 border border-gray-800 shrink-0 shadow-sm"
                   >
                     <ChevronLeft className="w-4 h-4" />
