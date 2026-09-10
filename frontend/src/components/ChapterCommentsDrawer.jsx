@@ -1,23 +1,31 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import { 
   MessageSquare, 
   X, 
   Send, 
   Heart, 
-  Sparkles, 
   User, 
-  Clock, 
-  Smile, 
   ChevronLeft,
-  Flame,
-  ThumbsUp,
-  Bookmark,
   Users,
   LogIn,
-  Loader2
+  Loader2,
+  Eye,
+  Bold,
+  Italic,
+  Underline,
+  Strikethrough,
+  Quote,
+  MoreVertical,
+  Reply,
+  Copy,
+  Link2,
+  Flag,
+  Trash2,
+  ArrowUpDown
 } from 'lucide-react';
 import { getSocket } from '../services/socket.js';
+import FormattedMessage from './FormattedMessage.jsx';
 
 export default function ChapterCommentsDrawer({
   chapterUrl,
@@ -35,9 +43,24 @@ export default function ChapterCommentsDrawer({
   const [isSending, setIsSending] = useState(false);
   const [activeReaders, setActiveReaders] = useState(1);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  
+  // Ordenamiento: 'recientes' (default), 'populares', 'antiguos'
+  const [sortBy, setSortBy] = useState('recientes');
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [activeMenuId, setActiveMenuId] = useState(null);
+  const [copiedId, setCopiedId] = useState(null);
+
+  const textareaRef = useRef(null);
   const commentsEndRef = useRef(null);
+  const scrollContainerRef = useRef(null);
 
   const roomId = chapterUrl ? `chapter:${btoa(encodeURIComponent(chapterUrl)).slice(0, 32)}` : 'chapter:default';
+
+  useEffect(() => {
+    const handleClickOutside = () => setActiveMenuId(null);
+    window.addEventListener('click', handleClickOutside);
+    return () => window.removeEventListener('click', handleClickOutside);
+  }, []);
 
   // 1. Cargar historial persistente desde el backend
   useEffect(() => {
@@ -45,7 +68,7 @@ export default function ChapterCommentsDrawer({
     let isMounted = true;
     setLoadingHistory(true);
 
-    axios.get(`/api/chat/messages?roomId=${encodeURIComponent(roomId)}&limit=100`)
+    axios.get(`/api/chat/messages?roomId=${encodeURIComponent(roomId)}&limit=150`)
       .then(res => {
         if (isMounted && res.data?.success) {
           setComments(res.data.messages || []);
@@ -55,7 +78,14 @@ export default function ChapterCommentsDrawer({
         console.warn('[ChapterChat] Error cargando mensajes:', err.message);
       })
       .finally(() => {
-        if (isMounted) setLoadingHistory(false);
+        if (isMounted) {
+          setLoadingHistory(false);
+          setTimeout(() => {
+            if (scrollContainerRef.current) {
+              scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+            }
+          }, 80);
+        }
       });
 
     return () => {
@@ -79,8 +109,13 @@ export default function ChapterCommentsDrawer({
         });
 
         setTimeout(() => {
-          commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        }, 60);
+          if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTo({
+              top: scrollContainerRef.current.scrollHeight,
+              behavior: 'smooth'
+            });
+          }
+        }, 50);
       }
     };
 
@@ -99,6 +134,12 @@ export default function ChapterCommentsDrawer({
       }
     };
 
+    const handleMessageDeleted = (data) => {
+      if (data.roomId === roomId) {
+        setComments(prev => prev.filter(m => m.id !== data.messageId));
+      }
+    };
+
     const handleRoomUsers = (data) => {
       if (data.roomId === roomId) {
         setActiveReaders(Math.max(1, data.activeCount || 1));
@@ -107,17 +148,52 @@ export default function ChapterCommentsDrawer({
 
     socket.on('new_message', handleNewMessage);
     socket.on('message_updated', handleMessageUpdated);
+    socket.on('message_deleted', handleMessageDeleted);
     socket.on('room_users_count', handleRoomUsers);
 
     return () => {
       socket.emit('leave_room', roomId);
       socket.off('new_message', handleNewMessage);
       socket.off('message_updated', handleMessageUpdated);
+      socket.off('message_deleted', handleMessageDeleted);
       socket.off('room_users_count', handleRoomUsers);
     };
   }, [chapterUrl, roomId]);
 
-  const handleSendComment = (e) => {
+  // Aplicar formato de texto
+  const handleFormat = (tagType) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart || 0;
+    const end = textarea.selectionEnd || 0;
+    const selected = inputText.substring(start, end);
+
+    let prefix = '', suffix = '', placeholder = 'texto';
+    switch (tagType) {
+      case 'bold': prefix = '**'; suffix = '**'; placeholder = 'negrita'; break;
+      case 'italic': prefix = '*'; suffix = '*'; placeholder = 'cursiva'; break;
+      case 'underline': prefix = '<u>'; suffix = '</u>'; placeholder = 'subrayado'; break;
+      case 'strike': prefix = '~~'; suffix = '~~'; placeholder = 'tachado'; break;
+      case 'quote': prefix = '> '; suffix = ''; placeholder = 'cita'; break;
+      case 'spoiler': prefix = '||'; suffix = '||'; placeholder = 'spoiler'; break;
+      default: break;
+    }
+
+    const replacement = prefix + (selected || placeholder) + suffix;
+    const newText = inputText.substring(0, start) + replacement + inputText.substring(end);
+    setInputText(newText);
+
+    setTimeout(() => {
+      textarea.focus();
+      const selectionStart = start + prefix.length;
+      const selectionEnd = selected ? selectionStart + selected.length : selectionStart + placeholder.length;
+      textarea.setSelectionRange(selectionStart, selectionEnd);
+    }, 50);
+  };
+
+  // Enviar comentario
+  const handleSend = (e) => {
     if (e) e.preventDefault();
     if (!currentUser) {
       if (onOpenAuth) onOpenAuth('login');
@@ -138,30 +214,47 @@ export default function ChapterCommentsDrawer({
       text: cleanText,
       page: includePageTag ? currentPage : null,
       mangaTitle,
-      chapterTitle
+      chapterTitle,
+      replyTo: replyingTo ? {
+        id: replyingTo.id,
+        username: replyingTo.username,
+        text: replyingTo.text.length > 80 ? replyingTo.text.slice(0, 80) + '...' : replyingTo.text
+      } : null
+    };
+
+    const finishSend = (createdMsg) => {
+      setIsSending(false);
+      setInputText('');
+      setReplyingTo(null);
+      if (createdMsg) {
+        setComments(prev => prev.some(m => m.id === createdMsg.id) ? prev : [...prev, createdMsg]);
+      }
+      setTimeout(() => {
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollTo({
+            top: scrollContainerRef.current.scrollHeight,
+            behavior: 'smooth'
+          });
+        }
+      }, 50);
     };
 
     if (socket && socket.connected) {
       socket.emit('send_message', payload, (res) => {
-        setIsSending(false);
         if (res?.success) {
-          setInputText('');
-          setTimeout(() => {
-            commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-          }, 60);
+          finishSend(res.message);
+        } else {
+          setIsSending(false);
         }
       });
     } else {
       axios.post('/api/chat/send', payload, {
         headers: { Authorization: `Bearer ${currentUser.token}` }
       }).then(res => {
-        setIsSending(false);
         if (res.data?.success) {
-          setInputText('');
-          setComments(prev => [...prev, res.data.message]);
-          setTimeout(() => {
-            commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-          }, 60);
+          finishSend(res.data.message);
+        } else {
+          setIsSending(false);
         }
       }).catch(() => {
         setIsSending(false);
@@ -169,6 +262,7 @@ export default function ChapterCommentsDrawer({
     }
   };
 
+  // Toggle Like
   const handleToggleLike = (commentId) => {
     if (!currentUser) {
       if (onOpenAuth) onOpenAuth('login');
@@ -193,228 +287,404 @@ export default function ChapterCommentsDrawer({
     }
   };
 
-  const handleQuickReaction = (emojiText) => {
-    if (!currentUser) {
-      if (onOpenAuth) onOpenAuth('login');
-      return;
-    }
-    setInputText(prev => prev ? `${prev} ${emojiText}` : emojiText);
+  // Copiar y Opciones
+  const handleCopyComment = (msg) => {
+    navigator.clipboard.writeText(msg.text);
+    setCopiedId(msg.id);
+    setTimeout(() => setCopiedId(null), 2000);
+    setActiveMenuId(null);
   };
+
+  const handleCopyLink = (msg) => {
+    const url = `${window.location.origin}${window.location.pathname}#comment-${msg.id}`;
+    navigator.clipboard.writeText(url);
+    setCopiedId(msg.id);
+    setTimeout(() => setCopiedId(null), 2000);
+    setActiveMenuId(null);
+  };
+
+  const handleReport = (msg) => {
+    axios.post('/api/chat/report', { roomId, messageId: msg.id, username: msg.username }).catch(() => {});
+    alert('Comentario reportado para revisión.');
+    setActiveMenuId(null);
+  };
+
+  const handleDelete = (msg) => {
+    if (!window.confirm('¿Deseas eliminar este comentario?')) return;
+    axios.post('/api/chat/delete', { roomId, messageId: msg.id }, {
+      headers: currentUser?.token ? { Authorization: `Bearer ${currentUser.token}` } : {}
+    }).then(() => {
+      setComments(prev => prev.filter(m => m.id !== msg.id));
+    }).catch(() => {});
+    setActiveMenuId(null);
+  };
+
+  // Ordenar lista de comentarios
+  const sortedComments = useMemo(() => {
+    const list = [...comments];
+    if (sortBy === 'populares') {
+      return list.sort((a, b) => (b.likes || 0) - (a.likes || 0));
+    } else if (sortBy === 'antiguos') {
+      return list.sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+    }
+    return list;
+  }, [comments, sortBy]);
 
   return (
     <>
-      {/* 1. BOTÓN FLOTANTE EN EL LADO IZQUIERDO DEL LECTOR */}
+      {/* Botón flotante para abrir comentarios del capítulo */}
       <button
-        onClick={(e) => {
-          e.stopPropagation();
-          setIsOpen(prev => !prev);
-        }}
-        className={`fixed left-4 top-1/2 -translate-y-1/2 z-40 p-3 rounded-2xl border transition-all duration-300 shadow-2xl flex flex-col items-center gap-1 group active:scale-95 cursor-pointer ${
-          isOpen
-            ? 'bg-purple-600 border-purple-400 text-white shadow-purple-600/40 translate-x-80 sm:translate-x-96'
-            : 'bg-[#0f121d]/90 hover:bg-[#161a29] border-gray-800 text-gray-300 hover:text-white shadow-black/80 hover:border-purple-600/60 backdrop-blur-xl'
-        }`}
-        title={isOpen ? 'Cerrar panel de comentarios' : `${activeReaders} personas leyendo en vivo`}
+        onClick={() => setIsOpen(true)}
+        className="fixed bottom-6 right-6 z-40 px-4 py-3 rounded-full bg-[#181a28]/95 hover:bg-[#202438] border border-purple-500/50 hover:border-purple-400 text-white shadow-2xl backdrop-blur-xl flex items-center gap-2.5 transition transform hover:scale-105 active:scale-95 cursor-pointer font-bold text-xs"
+        title="Ver comentarios del capítulo"
       >
-        <MessageSquare className={`w-5 h-5 transition-transform duration-300 ${isOpen ? 'rotate-180 text-white' : 'group-hover:scale-110 text-purple-400'}`} />
-        <span className="text-[10px] font-bold font-mono tracking-tight">
-          {comments.length}
-        </span>
-        <span className="flex items-center gap-0.5 text-[9px] text-emerald-400 font-mono font-semibold">
-          <Users className="w-2.5 h-2.5" />
-          <span>{activeReaders}</span>
-        </span>
+        <MessageSquare className="w-4 h-4 text-purple-400" />
+        <span>Comentarios ({comments.length})</span>
+        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse ml-0.5" />
       </button>
 
-      {/* 2. PANEL LATERAL FLOTANTE DE COMENTARIOS EN VIVO */}
-      <aside
-        onClick={(e) => e.stopPropagation()}
-        className={`fixed top-0 left-0 bottom-0 z-40 w-80 sm:w-96 bg-[#0c0f18]/95 backdrop-blur-2xl border-r border-gray-800/90 shadow-2xl shadow-black/90 flex flex-col transition-all duration-300 ease-in-out select-none ${
-          isOpen
-            ? 'translate-x-0 opacity-100 pointer-events-auto'
-            : '-translate-x-full opacity-0 pointer-events-none'
-        }`}
-      >
-        {/* Cabecera del Panel */}
-        <div className="p-4 border-b border-gray-800/80 flex items-center justify-between bg-[#101420]/80">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="p-2 rounded-xl bg-purple-950/70 border border-purple-800/60 text-purple-400 shrink-0">
-              <MessageSquare className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <h3 className="text-xs sm:text-sm font-bold text-white truncate">
-                  Comentarios en Vivo
-                </h3>
-                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-800/60 text-[10px] font-bold text-emerald-400 font-mono shrink-0 shadow-sm">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>Live</span>
-                  <span className="text-emerald-600/80">•</span>
-                  <Users className="w-3 h-3 text-emerald-400" />
-                  <span>{activeReaders} {activeReaders === 1 ? 'leyendo' : 'leyendo'}</span>
-                </span>
-              </div>
-              <p className="text-[11px] text-gray-400 truncate mt-0.5">
-                {chapterTitle} • {comments.length} comentarios
-              </p>
-            </div>
-          </div>
-
-          <button
+      {/* Drawer lateral de comentarios */}
+      {isOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end animate-fade-in">
+          {/* Fondo oscuro traslúcido para cerrar */}
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
             onClick={() => setIsOpen(false)}
-            className="p-1.5 rounded-xl hover:bg-gray-800 text-gray-400 hover:text-white transition active:scale-90 shrink-0 ml-2 cursor-pointer"
-            title="Cerrar panel de comentarios"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+          />
 
-        {/* Barra de Reacciones Rápidas */}
-        <div className="px-3 py-2 bg-[#090b12] border-b border-gray-800/60 flex items-center gap-1.5 overflow-x-auto custom-scrollbar">
-          {['🔥 Épico', '😱 Qué giro', '❤️ Me encantó', '😂 Jaja', '👏 10/10', '✨ Obra Maestra'].map((rx) => (
-            <button
-              key={rx}
-              onClick={() => handleQuickReaction(rx)}
-              className="px-2.5 py-1 rounded-lg bg-[#141824] hover:bg-purple-950/80 hover:text-purple-300 border border-gray-800/80 text-[11px] font-medium text-gray-300 whitespace-nowrap transition active:scale-95 cursor-pointer"
-            >
-              {rx}
-            </button>
-          ))}
-        </div>
-
-        {/* Lista de Comentarios con Scroll */}
-        <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 custom-scrollbar">
-          {loadingHistory ? (
-            <div className="py-12 flex flex-col items-center justify-center gap-2 text-gray-500 text-xs">
-              <Loader2 className="w-5 h-5 animate-spin text-purple-400" />
-              <span>Cargando comentarios...</span>
-            </div>
-          ) : comments.length > 0 ? (
-            comments.map((comment) => {
-              const isLiked = currentUser && Array.isArray(comment.likedBy) && comment.likedBy.includes(currentUser.id);
-              const isMe = currentUser && comment.userId === currentUser.id;
-
-              return (
-                <div
-                  key={comment.id}
-                  className={`p-3 rounded-2xl border transition flex flex-col gap-2 group shadow-sm ${
-                    isMe ? 'bg-[#16182a] border-purple-800/40' : 'bg-[#121622] border-gray-800/70 hover:border-gray-700/80'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    
-                    {/* Click en usuario abre su tarjeta flotante Discord */}
-                    <div 
-                      onClick={() => {
-                        if (onOpenUserCard) {
-                          onOpenUserCard(comment.userId, comment.username, comment.userAvatar);
-                        }
-                      }}
-                      className="flex items-center gap-2 min-w-0 cursor-pointer group/u"
-                      title="Ver perfil de usuario"
-                    >
-                      <div className="w-6 h-6 rounded-full overflow-hidden bg-purple-950 border border-purple-700/50 flex items-center justify-center text-white text-[10px] font-bold uppercase shadow-sm group-hover/u:scale-105 transition">
-                        <img 
-                          src={comment.userAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(comment.username)}`} 
-                          alt={comment.username}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <span className="text-xs font-bold text-gray-200 group-hover/u:text-purple-300 transition truncate">
-                        {comment.username}
-                      </span>
-                      {comment.page && (
-                        <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-purple-950 text-purple-300 border border-purple-800/50">
-                          Pág. {comment.page}
-                        </span>
-                      )}
-                    </div>
-
-                    <span className="text-[10px] text-gray-500 shrink-0 font-mono">
-                      {comment.createdAt ? new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Reciente'}
-                    </span>
-                  </div>
-
-                  {/* Texto del comentario */}
-                  <p className="text-xs text-gray-300 leading-relaxed break-words select-text">
-                    {comment.text}
+          {/* Panel Principal */}
+          <div className="relative w-full max-w-md h-full bg-[#0a0d14]/95 border-l border-gray-800/80 shadow-2xl flex flex-col z-10 backdrop-blur-xl animate-slide-left">
+            
+            {/* Cabecera */}
+            <div className="p-4 border-b border-gray-800/80 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-purple-600/20 text-purple-400 border border-purple-600/30">
+                  <MessageSquare className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white tracking-tight">
+                    Comentarios del Capítulo
+                  </h3>
+                  <p className="text-[11px] text-gray-400 truncate max-w-[200px]">
+                    {chapterTitle} • {mangaTitle}
                   </p>
+                </div>
+              </div>
 
-                  {/* Botón de Like */}
-                  <div className="flex items-center justify-between pt-1 border-t border-gray-800/40">
-                    <button
-                      onClick={() => handleToggleLike(comment.id)}
-                      className={`flex items-center gap-1.5 text-[11px] font-semibold transition active:scale-95 cursor-pointer ${
-                        isLiked ? 'text-rose-400 font-bold' : 'text-gray-500 hover:text-gray-300'
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-xl bg-[#121520] border border-gray-800 text-[10px] text-gray-300 font-mono">
+                  <Users className="w-3 h-3 text-emerald-400" />
+                  <span>{activeReaders}</span>
+                </div>
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="p-1.5 rounded-xl text-gray-400 hover:text-white hover:bg-gray-800 transition cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Selector de Ordenar Por */}
+            <div className="px-4 py-2 bg-[#0d101a] border-b border-gray-800/60 flex items-center justify-between text-xs">
+              <div className="flex items-center gap-1.5 text-gray-400">
+                <ArrowUpDown className="w-3.5 h-3.5 text-purple-400" />
+                <span>Ordenar:</span>
+              </div>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="bg-[#141824] border border-gray-700/80 rounded-lg px-2 py-1 text-purple-300 font-bold text-xs focus:outline-none cursor-pointer"
+              >
+                <option value="recientes">Recientes</option>
+                <option value="populares">Populares</option>
+                <option value="antiguos">Antiguos</option>
+              </select>
+            </div>
+
+            {/* Lista de Comentarios */}
+            <div 
+              ref={scrollContainerRef}
+              className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar"
+            >
+              {loadingHistory ? (
+                <div className="py-16 flex flex-col items-center justify-center gap-2 text-gray-500 text-xs">
+                  <Loader2 className="w-5 h-5 animate-spin text-purple-400" />
+                  <span>Cargando comentarios...</span>
+                </div>
+              ) : sortedComments.length > 0 ? (
+                sortedComments.map((msg) => {
+                  const isLiked = currentUser && Array.isArray(msg.likedBy) && msg.likedBy.includes(currentUser.id);
+                  const isMe = currentUser && (msg.userId === currentUser.id || msg.username === currentUser.username);
+                  const isMenuOpen = activeMenuId === msg.id;
+
+                  return (
+                    <div 
+                      key={msg.id} 
+                      className={`p-3 rounded-2xl border transition flex flex-col gap-1.5 relative ${
+                        isMe 
+                          ? 'bg-[#151828] border-purple-900/40' 
+                          : 'bg-[#10131e] border-gray-800/70'
                       }`}
                     >
-                      <Heart className={`w-3.5 h-3.5 ${isLiked ? 'fill-rose-500 text-rose-500 animate-bounce' : ''}`} />
-                      <span>{comment.likes || 0}</span>
-                    </button>
-                  </div>
+                      {/* Referencia de Respuesta */}
+                      {msg.replyTo && (
+                        <div className="flex items-center gap-1.5 text-[10px] text-purple-300/80 bg-purple-950/30 border-l-2 border-purple-500 px-2 py-0.5 rounded-r-md mb-0.5 truncate">
+                          <Reply className="w-2.5 h-2.5 text-purple-400 shrink-0" />
+                          <span className="font-bold">@{msg.replyTo.username}:</span>
+                          <span className="text-gray-400 truncate italic">{msg.replyTo.text}</span>
+                        </div>
+                      )}
+
+                      {/* Cabecera del Comentario */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div 
+                          onClick={() => onOpenUserCard && onOpenUserCard(msg.userId, msg.username, msg.userAvatar)}
+                          className="flex items-center gap-2 cursor-pointer group min-w-0"
+                        >
+                          <div className="w-6 h-6 rounded-lg overflow-hidden bg-purple-950 shrink-0">
+                            <img 
+                              src={msg.userAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(msg.username)}`} 
+                              alt={msg.username} 
+                              className="w-full h-full object-cover" 
+                            />
+                          </div>
+                          <span className="text-xs font-bold text-white group-hover:text-purple-300 transition truncate">
+                            {msg.username}
+                          </span>
+                          {msg.page && (
+                            <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded-md bg-blue-950/90 text-blue-300 border border-blue-800/50 shrink-0">
+                              Pág. {msg.page}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0">
+                          <span className="text-[10px] text-gray-500 font-mono">
+                            {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Reciente'}
+                          </span>
+
+                          <div className="relative">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveMenuId(isMenuOpen ? null : msg.id);
+                              }}
+                              className="p-1 text-gray-500 hover:text-gray-200 transition cursor-pointer"
+                            >
+                              <MoreVertical className="w-3 h-3" />
+                            </button>
+
+                            {isMenuOpen && (
+                              <div 
+                                onClick={(e) => e.stopPropagation()}
+                                className="absolute right-0 top-5 z-40 bg-[#161a28] border border-gray-700/80 rounded-xl shadow-2xl p-1 flex flex-col gap-0.5 min-w-[150px] text-xs"
+                              >
+                                <button
+                                  onClick={() => { setReplyingTo(msg); setActiveMenuId(null); textareaRef.current?.focus(); }}
+                                  className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-purple-950/60 text-gray-200 hover:text-purple-300 transition text-left"
+                                >
+                                  <Reply className="w-3 h-3 text-purple-400" />
+                                  <span>Responder</span>
+                                </button>
+                                <button
+                                  onClick={() => handleCopyComment(msg)}
+                                  className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-gray-800 text-gray-200 transition text-left"
+                                >
+                                  <Copy className="w-3 h-3 text-gray-400" />
+                                  <span>{copiedId === msg.id ? '¡Copiado!' : 'Copiar texto'}</span>
+                                </button>
+                                <button
+                                  onClick={() => handleCopyLink(msg)}
+                                  className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-gray-800 text-gray-200 transition text-left"
+                                >
+                                  <Link2 className="w-3 h-3 text-gray-400" />
+                                  <span>Copiar enlace</span>
+                                </button>
+                                <button
+                                  onClick={() => handleReport(msg)}
+                                  className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-amber-950/40 text-amber-300 transition text-left"
+                                >
+                                  <Flag className="w-3 h-3 text-amber-400" />
+                                  <span>Reportar</span>
+                                </button>
+                                {(isMe || currentUser?.role === 'admin') && (
+                                  <button
+                                    onClick={() => handleDelete(msg)}
+                                    className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-rose-950/60 text-rose-300 transition text-left border-t border-gray-800 mt-0.5"
+                                  >
+                                    <Trash2 className="w-3 h-3 text-rose-400" />
+                                    <span>Eliminar</span>
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Contenido con Spoiler y Formato */}
+                      <div className="text-xs text-gray-200 leading-relaxed select-text pl-8 break-words">
+                        <FormattedMessage text={msg.text} />
+                      </div>
+
+                      {/* Acciones */}
+                      <div className="flex items-center gap-3 pl-8 pt-0.5 text-xs">
+                        <button
+                          onClick={() => handleToggleLike(msg.id)}
+                          className={`flex items-center gap-1 font-semibold px-1.5 py-0.5 rounded transition cursor-pointer ${
+                            isLiked ? 'text-rose-400 bg-rose-950/40' : 'text-gray-500 hover:text-rose-400'
+                          }`}
+                        >
+                          <Heart className={`w-3 h-3 ${isLiked ? 'fill-rose-500 text-rose-500' : ''}`} />
+                          <span>{msg.likes || 0}</span>
+                        </button>
+                        <button
+                          onClick={() => { setReplyingTo(msg); textareaRef.current?.focus(); }}
+                          className="flex items-center gap-1 text-gray-500 hover:text-purple-300 transition cursor-pointer"
+                        >
+                          <Reply className="w-3 h-3" />
+                          <span>Responder</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="py-16 text-center text-gray-500 text-xs">
+                  Sin comentarios aún en este capítulo. ¡Sé el primero en opinar!
                 </div>
-              );
-            })
-          ) : (
-            <div className="py-12 text-center text-gray-500 text-xs">
-              No hay comentarios aún en este capítulo. ¡Sé el primero en comentar!
-            </div>
-          )}
-          <div ref={commentsEndRef} />
-        </div>
-
-        {/* Input para Escribir Comentario */}
-        {currentUser ? (
-          <form onSubmit={handleSendComment} className="p-3 border-t border-gray-800/90 bg-[#0e121c]">
-            <div className="flex items-center justify-between mb-1.5 px-1">
-              <label className="flex items-center gap-1.5 text-[10px] text-gray-400 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={includePageTag}
-                  onChange={(e) => setIncludePageTag(e.target.checked)}
-                  className="w-3 h-3 rounded accent-purple-600 bg-gray-800 border-gray-700"
-                />
-                <span>Etiquetar viñeta actual (Pág. {currentPage})</span>
-              </label>
+              )}
             </div>
 
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                placeholder="Escribe un comentario en vivo..."
-                maxLength={500}
-                className="flex-1 bg-[#141824] border border-gray-800 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition shadow-inner select-text"
-              />
-              <button
-                type="submit"
-                disabled={!inputText.trim() || isSending}
-                className="p-2 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white shadow-md shadow-purple-600/30 transition active:scale-95 shrink-0 cursor-pointer"
-                title="Publicar comentario en tiempo real"
-              >
-                {isSending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Send className="w-4 h-4" />
-                )}
-              </button>
+            {/* Formulario de Entrada */}
+            <div className="p-3 bg-[#0c0f18] border-t border-gray-800">
+              {currentUser ? (
+                <form onSubmit={handleSend} className="space-y-2">
+                  
+                  {replyingTo && (
+                    <div className="flex items-center justify-between gap-2 px-2.5 py-1 rounded-lg bg-purple-950/40 border border-purple-800/40 text-[11px] text-purple-200">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <Reply className="w-3 h-3 text-purple-400 shrink-0" />
+                        <span className="font-bold">@{replyingTo.username}:</span>
+                        <span className="text-gray-400 truncate italic">"{replyingTo.text}"</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setReplyingTo(null)}
+                        className="p-0.5 text-gray-400 hover:text-white"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
+
+                  <label className="flex items-center gap-1.5 text-[11px] text-gray-400 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={includePageTag}
+                      onChange={(e) => setIncludePageTag(e.target.checked)}
+                      className="w-3.5 h-3.5 rounded accent-purple-600 bg-gray-800 border-gray-700"
+                    />
+                    <span>Etiquetar página actual ({currentPage})</span>
+                  </label>
+
+                  <div className="rounded-xl bg-[#131622] border border-gray-800 focus-within:border-purple-500 transition overflow-hidden">
+                    <textarea
+                      ref={textareaRef}
+                      rows={2}
+                      value={inputText}
+                      onChange={(e) => setInputText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSend();
+                        }
+                      }}
+                      placeholder="Comentar en este capítulo..."
+                      maxLength={500}
+                      className="w-full bg-transparent px-3 pt-2 text-xs text-white placeholder-gray-500 focus:outline-none resize-none select-text"
+                    />
+
+                    {/* Toolbar de formato */}
+                    <div className="flex items-center justify-between px-2 py-1 border-t border-gray-800/60 bg-[#0f121d]">
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleFormat('bold')}
+                          className="p-1 rounded text-gray-400 hover:text-white hover:bg-gray-800 text-xs font-bold"
+                          title="Negrita"
+                        >
+                          <Bold className="w-3 h-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleFormat('italic')}
+                          className="p-1 rounded text-gray-400 hover:text-white hover:bg-gray-800 text-xs italic"
+                          title="Cursiva"
+                        >
+                          <Italic className="w-3 h-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleFormat('underline')}
+                          className="p-1 rounded text-gray-400 hover:text-white hover:bg-gray-800 text-xs"
+                          title="Subrayado"
+                        >
+                          <Underline className="w-3 h-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleFormat('strike')}
+                          className="p-1 rounded text-gray-400 hover:text-white hover:bg-gray-800 text-xs"
+                          title="Tachado"
+                        >
+                          <Strikethrough className="w-3 h-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleFormat('quote')}
+                          className="p-1 rounded text-gray-400 hover:text-white hover:bg-gray-800 text-xs"
+                          title="Cita"
+                        >
+                          <Quote className="w-3 h-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleFormat('spoiler')}
+                          className="p-1 rounded text-purple-400 hover:text-purple-200 hover:bg-purple-950/60 text-xs border border-purple-800/40"
+                          title="Spoiler (||texto||)"
+                        >
+                          <Eye className="w-3 h-3" />
+                        </button>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={!inputText.trim() || isSending}
+                        className="px-3 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-30 text-white font-bold text-xs flex items-center gap-1 transition cursor-pointer"
+                      >
+                        {isSending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              ) : (
+                <div className="p-3 rounded-xl bg-[#141824] text-center space-y-2">
+                  <p className="text-xs text-gray-400">Inicia sesión para comentar</p>
+                  <button
+                    onClick={() => onOpenAuth && onOpenAuth('login')}
+                    className="w-full py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs"
+                  >
+                    Iniciar Sesión
+                  </button>
+                </div>
+              )}
             </div>
-          </form>
-        ) : (
-          <div className="p-3 border-t border-gray-800/90 bg-[#0e121c] flex items-center justify-between gap-2">
-            <span className="text-[11px] text-gray-400">
-              Inicia sesión para comentar
-            </span>
-            <button
-              onClick={() => onOpenAuth && onOpenAuth('login')}
-              className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition active:scale-95 cursor-pointer"
-            >
-              Entrar
-            </button>
+
           </div>
-        )}
-      </aside>
+        </div>
+      )}
     </>
   );
 }

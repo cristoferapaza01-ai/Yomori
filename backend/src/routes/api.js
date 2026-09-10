@@ -33,7 +33,9 @@ import {
 import { 
   getRoomMessages, 
   postMessage, 
-  toggleLikeMessage 
+  toggleLikeMessage,
+  deleteMessage,
+  reportMessage
 } from '../controllers/chatController.js';
 import {
   getCommunities,
@@ -97,6 +99,9 @@ router.get('/users/:userId', getPublicProfile);
 router.get('/chat/messages', getRoomMessages);
 router.post('/chat/send', postMessage);
 router.post('/chat/like', toggleLikeMessage);
+router.post('/chat/delete', deleteMessage);
+router.post('/chat/report', reportMessage);
+
 
 // Comunidades, Amigos y Mensajes Directos (DMs)
 router.get('/social/communities', getCommunities);

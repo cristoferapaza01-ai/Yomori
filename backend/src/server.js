@@ -114,7 +114,7 @@ io.on('connection', (socket) => {
   // 3. Enviar mensaje en vivo a una sala
   socket.on('send_message', async (data, callback) => {
     try {
-      const { roomId = 'global', token, userId, username, text, page = null, mangaTitle = null, chapterTitle = null } = data || {};
+      const { roomId = 'global', token, userId, username, text, page = null, mangaTitle = null, chapterTitle = null, replyTo = null } = data || {};
 
       const users = loadUsers();
       let user = null;
@@ -165,6 +165,7 @@ io.on('connection', (socket) => {
         page: page ? parseInt(page, 10) : null,
         mangaTitle: mangaTitle || null,
         chapterTitle: chapterTitle || null,
+        replyTo: replyTo || null,
         likes: 0,
         likedBy: [],
         createdAt: new Date().toISOString()
@@ -230,6 +231,30 @@ io.on('connection', (socket) => {
       });
 
       if (typeof callback === 'function') callback({ success: true, likes: msg.likes, isLiked: !hasLiked });
+    } catch (e) {}
+  });
+
+  // 5. Eliminar mensaje en tiempo real
+  socket.on('delete_message', async (data, callback) => {
+    try {
+      const { roomId = 'global', messageId, token } = data || {};
+      if (!messageId) return;
+
+      const users = loadUsers();
+      const user = users.find(u => u.token === token);
+
+      const chats = loadChats();
+      const roomMessages = chats[roomId] || [];
+      const msg = roomMessages.find(m => m.id === messageId);
+      if (!msg) return;
+
+      if (user && user.id !== msg.userId && user.role !== 'admin') return;
+
+      chats[roomId] = roomMessages.filter(m => m.id !== messageId);
+      saveChats(chats);
+
+      io.to(roomId).emit('message_deleted', { roomId, messageId });
+      if (typeof callback === 'function') callback({ success: true, messageId });
     } catch (e) {}
   });
 

@@ -1497,18 +1497,19 @@ export default function HomeView({
           </div>
         </div>
 
+        {/* 4. CHAT GLOBAL EN VIVO (Comunidad de Yomori - Integrado fluidamente) */}
+        <section className="pt-6 border-t border-gray-800/80">
+          <LiveChatRoom
+            roomId="global"
+            title="Chat de la Comunidad"
+            subtitle="Opina, comparte teorías y debate en directo con todos los lectores de Yomori."
+            currentUser={currentUser}
+            onOpenAuth={onOpenAuth}
+            onOpenUserCard={onOpenUserCard}
+          />
+        </section>
 
       </div>
-
-      {/* 4. CHAT GLOBAL EN VIVO (Comunidad de Yomori) */}
-      <LiveChatRoom
-        roomId="global"
-        title="Chat de la Comunidad"
-        subtitle="Opina, comparte teorías y debate en directo con todos los lectores de Yomori."
-        currentUser={currentUser}
-        onOpenAuth={onOpenAuth}
-        onOpenUserCard={onOpenUserCard}
-      />
 
       {/* Modal de Advertencia y Confirmación +18 */}
       {showAdultWarningModal && (

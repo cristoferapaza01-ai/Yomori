@@ -19,6 +19,7 @@ import {
   Play
 } from 'lucide-react';
 import { getSocket } from '../services/socket.js';
+import FormattedMessage from './FormattedMessage.jsx';
 
 export default function MessagesView({
   currentUser = null,
@@ -412,7 +413,9 @@ export default function MessagesView({
                             )}
                           </div>
                         ) : (
-                          <p className="select-text whitespace-pre-wrap">{msg.text}</p>
+                          <div className="select-text whitespace-pre-wrap break-words">
+                            <FormattedMessage text={msg.text} />
+                          </div>
                         )}
                       </div>
 

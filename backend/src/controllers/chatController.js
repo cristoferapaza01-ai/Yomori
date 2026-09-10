@@ -100,7 +100,7 @@ export const postMessage = async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     const token = authHeader ? authHeader.replace('Bearer ', '').trim() : '';
-    const { roomId = 'global', userId, username, text, page = null, mangaTitle = null, chapterTitle = null } = req.body;
+    const { roomId = 'global', userId, username, text, page = null, mangaTitle = null, chapterTitle = null, replyTo = null } = req.body;
 
     const users = loadUsers();
     let user = null;
@@ -148,6 +148,7 @@ export const postMessage = async (req, res) => {
       page: page ? parseInt(page, 10) : null,
       mangaTitle: mangaTitle || null,
       chapterTitle: chapterTitle || null,
+      replyTo: replyTo || null,
       likes: 0,
       likedBy: [],
       createdAt: new Date().toISOString()
@@ -230,3 +231,51 @@ export const toggleLikeMessage = async (req, res) => {
     return res.status(500).json({ success: false, message: err.message });
   }
 };
+
+// Eliminar mensaje
+export const deleteMessage = async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const token = authHeader ? authHeader.replace('Bearer ', '').trim() : '';
+    const { roomId = 'global', messageId } = req.body;
+
+    if (!messageId) {
+      return res.status(400).json({ success: false, message: 'Falta messageId.' });
+    }
+
+    const users = loadUsers();
+    const user = users.find(u => u.token === token);
+
+    const chats = loadChats();
+    const roomMessages = chats[roomId] || [];
+    const msg = roomMessages.find(m => m.id === messageId);
+
+    if (!msg) {
+      return res.status(404).json({ success: false, message: 'Mensaje no encontrado.' });
+    }
+
+    // Permitir si es autor o administrador o modo local
+    if (user && user.id !== msg.userId && user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'No tienes permiso para eliminar este mensaje.' });
+    }
+
+    chats[roomId] = roomMessages.filter(m => m.id !== messageId);
+    saveChats(chats);
+
+    return res.json({ success: true, messageId, roomId });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// Reportar mensaje
+export const reportMessage = async (req, res) => {
+  try {
+    const { roomId = 'global', messageId, username, reason = 'Reporte de usuario' } = req.body;
+    console.log(`[Reporte de Moderación] Mensaje: ${messageId} en sala ${roomId} reportado por ${username || 'Anónimo'}. Motivo: ${reason}`);
+    return res.json({ success: true, message: 'Comentario reportado para revisión con éxito.' });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
