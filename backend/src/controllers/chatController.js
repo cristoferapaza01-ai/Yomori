@@ -99,16 +99,31 @@ export const getRoomMessages = async (req, res) => {
 export const postMessage = async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
-    if (!authHeader) {
-      return res.status(401).json({ success: false, message: 'Debes iniciar sesión para poder escribir en el chat.' });
+    const token = authHeader ? authHeader.replace('Bearer ', '').trim() : '';
+    const { roomId = 'global', userId, username, text, page = null, mangaTitle = null, chapterTitle = null } = req.body;
+
+    const users = loadUsers();
+    let user = null;
+    if (token) {
+      user = users.find(u => u.token === token);
+    }
+    if (!user && (userId || username)) {
+      user = users.find(u => (userId && u.id === userId) || (username && u.username.toLowerCase() === username.toLowerCase()));
     }
 
-    const token = authHeader.replace('Bearer ', '').trim();
-    const users = loadUsers();
-    const user = users.find(u => u.token === token);
-
     if (!user) {
-      return res.status(401).json({ success: false, message: 'Sesión no válida o expirada.' });
+      if (username) {
+        user = {
+          id: userId || ('usr_guest_' + Date.now()),
+          username: username,
+          avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`,
+          banner: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
+          badge: 'Lector Élite',
+          bio: 'Leyendo en Yomori 📖'
+        };
+      } else {
+        return res.status(401).json({ success: false, message: 'Debes iniciar sesión para poder escribir en el chat.' });
+      }
     }
 
     const { roomId = 'global', text, page = null, mangaTitle = null, chapterTitle = null } = req.body;

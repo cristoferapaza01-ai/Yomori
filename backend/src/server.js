@@ -103,18 +103,31 @@ io.on('connection', (socket) => {
   // 3. Enviar mensaje en vivo a una sala
   socket.on('send_message', async (data, callback) => {
     try {
-      const { roomId = 'global', token, text, page = null, mangaTitle = null, chapterTitle = null } = data || {};
-
-      if (!token) {
-        if (typeof callback === 'function') callback({ success: false, message: 'Debes iniciar sesión para escribir en el chat.' });
-        return;
-      }
+      const { roomId = 'global', token, userId, username, text, page = null, mangaTitle = null, chapterTitle = null } = data || {};
 
       const users = loadUsers();
-      const user = users.find(u => u.token === token);
+      let user = null;
+      if (token) {
+        user = users.find(u => u.token === token);
+      }
+      if (!user && (userId || username)) {
+        user = users.find(u => (userId && u.id === userId) || (username && u.username.toLowerCase() === username.toLowerCase()));
+      }
+
       if (!user) {
-        if (typeof callback === 'function') callback({ success: false, message: 'Sesión no válida o expirada.' });
-        return;
+        if (username) {
+          user = {
+            id: userId || ('usr_guest_' + Date.now()),
+            username: username,
+            avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`,
+            banner: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
+            badge: 'Lector Élite',
+            bio: 'Leyendo en Yomori 📖'
+          };
+        } else {
+          if (typeof callback === 'function') callback({ success: false, message: 'Debes iniciar sesión para escribir en el chat.' });
+          return;
+        }
       }
 
       if (!text || !text.trim()) {

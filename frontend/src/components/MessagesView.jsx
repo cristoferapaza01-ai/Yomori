@@ -154,6 +154,8 @@ export default function MessagesView({
     const payload = {
       roomId: dmRoomId,
       token: currentUser.token,
+      userId: currentUser.id,
+      username: currentUser.username,
       text: textToSend,
       mangaTitle: customPayload?.mangaTitle || null,
       chapterTitle: customPayload?.chapterTitle || null

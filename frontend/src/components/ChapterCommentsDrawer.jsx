@@ -133,6 +133,8 @@ export default function ChapterCommentsDrawer({
     const payload = {
       roomId,
       token: currentUser.token,
+      userId: currentUser.id,
+      username: currentUser.username,
       text: cleanText,
       page: includePageTag ? currentPage : null,
       mangaTitle,

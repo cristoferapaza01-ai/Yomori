@@ -141,6 +141,8 @@ export default function LiveChatRoom({
     const payload = {
       roomId,
       token: currentUser.token,
+      userId: currentUser.id,
+      username: currentUser.username,
       text: cleanText,
       page: (showPageTag && includePageTag && currentPage) ? currentPage : null,
       mangaTitle,

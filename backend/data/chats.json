@@ -35,6 +35,40 @@
       "likes": 0,
       "likedBy": [],
       "createdAt": "2026-09-09T23:03:12.087Z"
+    },
+    {
+      "id": "msg_1789002609517_0704b3",
+      "roomId": "global",
+      "userId": "usr_invitado_1789002106414",
+      "username": "Lector_Invitado",
+      "userAvatar": "https://api.dicebear.com/7.x/bottts/svg?seed=Lector_Invitado",
+      "userBanner": "linear-gradient(135deg, #059669 0%, #10b981 100%)",
+      "userBadge": "Lector Explorador 🌟",
+      "userStatus": "¡Probando Yomori en vivo! 🚀✨",
+      "text": "hola",
+      "page": null,
+      "mangaTitle": null,
+      "chapterTitle": null,
+      "likes": 0,
+      "likedBy": [],
+      "createdAt": "2026-09-10T01:10:09.518Z"
+    },
+    {
+      "id": "msg_1789002623436_c1c85c",
+      "roomId": "global",
+      "userId": "usr_invitado_1789002106414",
+      "username": "Lector_Invitado",
+      "userAvatar": "https://api.dicebear.com/7.x/bottts/svg?seed=Lector_Invitado",
+      "userBanner": "linear-gradient(135deg, #059669 0%, #10b981 100%)",
+      "userBadge": "Lector Explorador 🌟",
+      "userStatus": "¡Probando Yomori en vivo! 🚀✨",
+      "text": "qqq",
+      "page": null,
+      "mangaTitle": null,
+      "chapterTitle": null,
+      "likes": 0,
+      "likedBy": [],
+      "createdAt": "2026-09-10T01:10:23.436Z"
     }
   ]
 }

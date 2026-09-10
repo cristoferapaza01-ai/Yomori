@@ -211,5 +211,55 @@
     "createdAt": "2026-09-09T22:57:29.795Z",
     "updatedAt": "2026-09-09T22:57:29.795Z",
     "lastLogin": "2026-09-09T22:57:29.795Z"
+  },
+  {
+    "id": "usr_1789001469891_12540376",
+    "username": "Katsuro_Sato",
+    "email": "katsuro.sato10@gmail.com",
+    "avatar": "https://api.dicebear.com/7.x/bottts/svg?seed=Katsuro_Sato",
+    "banner": "linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%)",
+    "bio": "Leyendo en Yomori 📖✨",
+    "badge": "Lector Principiante",
+    "isLibraryPublic": true,
+    "role": "user",
+    "salt": "88b0d81f4487740f9b89c26e630260bf",
+    "password": "f589af8c9c0f287d646afdce45e7019a8b177db81ec3a9f4d3177a0f0ed4a1b159e8658902e785ebe488ca8083c2ab340cd07fe67f4ffcc86edd334c2ee1f4da",
+    "token": "8194dec8a1336c6e8026028da7d99949eb6d90daf7ba45aabc8af0a7c05f8d53",
+    "library": [],
+    "history": [],
+    "chapterProgress": {},
+    "settings": {},
+    "stats": {
+      "totalChaptersRead": 0,
+      "createdAt": "2026-09-10T00:51:09.891Z"
+    },
+    "createdAt": "2026-09-10T00:51:09.893Z",
+    "updatedAt": "2026-09-10T00:52:04.381Z",
+    "lastLogin": "2026-09-10T00:52:04.381Z"
+  },
+  {
+    "id": "usr_invitado_1789002106414",
+    "username": "Lector_Invitado",
+    "email": "invitado@yomori.app",
+    "avatar": "https://api.dicebear.com/7.x/bottts/svg?seed=Lector_Invitado",
+    "banner": "linear-gradient(135deg, #059669 0%, #10b981 100%)",
+    "bio": "¡Probando Yomori en vivo! 🚀✨",
+    "badge": "Lector Explorador 🌟",
+    "isLibraryPublic": true,
+    "role": "user",
+    "salt": "77ca617f9f88a31de84f0df0e58cbcec",
+    "password": "5d584ae6f9f210f7304801e0ea4638665a01f13c708d7774c7192130139116ccd986e6087ca59305eb441582fbf345ba08c66e3e2a2e4ad6caa40ac748316c5b",
+    "token": "f5c10aca179d3fd7f17b0b9309a8e131b3f1da306f79ab713a7a0f286359d8d6",
+    "library": [],
+    "history": [],
+    "chapterProgress": {},
+    "settings": {},
+    "stats": {
+      "totalChaptersRead": 0,
+      "createdAt": "2026-09-10T01:01:46.414Z"
+    },
+    "createdAt": "2026-09-10T01:01:46.415Z",
+    "updatedAt": "2026-09-10T01:10:00.496Z",
+    "lastLogin": "2026-09-10T01:10:00.496Z"
   }
 ]
