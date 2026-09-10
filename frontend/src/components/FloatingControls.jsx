@@ -82,44 +82,43 @@ export default function FloatingControls({
 
   return (
     <>
-      {/* 0. BARRA SUPERIOR PERSISTENTE (Título del Manga, Capítulo y Botón Volver) */}
+      {/* 0. BARRA SUPERIOR PERSISTENTE (Título del Manga y Capítulo al Centro, Botón Volver a la Izquierda) */}
       <div
         onClick={(e) => e.stopPropagation()}
         className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ease-out select-none ${
           shouldShow ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'
         }`}
       >
-        <div className="w-full bg-[#090c14]/95 backdrop-blur-md border-b border-gray-800/80 px-4 sm:px-6 h-14 flex items-center justify-between shadow-2xl">
-          {/* Botón Volver e Información del Manga */}
-          <div className="flex items-center gap-3 min-w-0">
+        <div className="relative w-full bg-[#090c14]/95 backdrop-blur-md border-b border-gray-800/80 px-4 sm:px-6 h-14 flex items-center justify-between shadow-2xl">
+          {/* Lado Izquierdo: Botón Volver */}
+          <div className="flex items-center z-10">
             {onBack && (
               <button
                 onClick={onBack}
-                className="p-1.5 px-2.5 rounded-xl bg-gray-800/90 hover:bg-gray-700 text-gray-200 hover:text-white transition flex items-center gap-1.5 text-xs font-semibold cursor-pointer shrink-0 shadow-sm border border-gray-700/60"
+                className="p-1.5 px-3 rounded-xl bg-gray-800/90 hover:bg-gray-700 text-gray-200 hover:text-white transition flex items-center gap-1.5 text-xs font-semibold cursor-pointer shrink-0 shadow-sm border border-gray-700/60 active:scale-95"
                 title="Volver"
               >
                 <ArrowLeft className="w-4 h-4" />
                 <span>Volver</span>
               </button>
             )}
-            <div className="flex flex-col min-w-0">
-              <h2 className="text-xs sm:text-sm font-black text-white truncate max-w-[280px] sm:max-w-md">
-                {mangaTitle || chapterData?.mangaTitle || 'Manga'}
-              </h2>
-              <span className="text-[11px] text-purple-400 font-semibold truncate">
-                {chapterData?.chapterTitle && chapterData.chapterTitle !== (mangaTitle || chapterData?.mangaTitle) ? chapterData.chapterTitle : getChapterLabel()}
-              </span>
-            </div>
           </div>
 
-          {/* Lado Derecho: Paginación y Ajustes rápidos */}
-          <div className="flex items-center gap-2.5 sm:gap-4 shrink-0">
-            <span className="text-xs font-mono font-medium text-gray-400 hidden sm:inline">
-              Página <strong className="text-purple-400">{currentPage}</strong> de <strong>{totalPages || 1}</strong> ({percent}%)
+          {/* Centro: Título del Manga y Capítulo centrados */}
+          <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center justify-center max-w-[55vw] sm:max-w-[65vw] text-center pointer-events-none z-0">
+            <h2 className="text-xs sm:text-sm font-black text-white truncate w-full">
+              {mangaTitle || chapterData?.mangaTitle || 'Manga'}
+            </h2>
+            <span className="text-[11px] text-purple-400 font-semibold truncate w-full">
+              {chapterData?.chapterTitle && chapterData.chapterTitle !== (mangaTitle || chapterData?.mangaTitle) ? chapterData.chapterTitle : getChapterLabel()}
             </span>
+          </div>
+
+          {/* Lado Derecho: Botón Ajustes */}
+          <div className="flex items-center gap-2 z-10">
             <button
               onClick={onOpenSettings}
-              className="p-2 rounded-xl bg-gray-800/80 hover:bg-purple-600 text-gray-300 hover:text-white transition cursor-pointer"
+              className="p-2 rounded-xl bg-gray-800/80 hover:bg-purple-600 text-gray-300 hover:text-white transition cursor-pointer active:scale-95 border border-gray-700/50"
               title="Ajustes del lector"
             >
               <Sliders className="w-4 h-4" />
