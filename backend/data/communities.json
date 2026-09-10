@@ -1,0 +1,50 @@
+[
+  {
+    "id": "comm_shonen",
+    "name": "Mundo Shonen & Aventura ⚔️",
+    "description": "Comunidad dedicada a los mejores mangas y manhwas de acción, batallas épicas y superación.",
+    "category": "Acción & Aventura",
+    "icon": "⚔️",
+    "banner": "linear-gradient(135deg, #b91c1c 0%, #ea580c 50%, #f59e0b 100%)",
+    "membersCount": 142,
+    "members": [],
+    "createdBy": "Yomori",
+    "createdAt": "2026-09-09T22:53:51.208Z"
+  },
+  {
+    "id": "comm_manhwa_cult",
+    "name": "Sectas de Cultivación & Manhwa 🗡️",
+    "description": "El rincón para los amantes del cultivo inmortal, regreso al pasado, mazmorras y sistemas de niveles.",
+    "category": "Cultivo & Manhwa",
+    "icon": "🐉",
+    "banner": "linear-gradient(135deg, #4c1d95 0%, #7c3aed 50%, #6366f1 100%)",
+    "membersCount": 238,
+    "members": [],
+    "createdBy": "Yomori",
+    "createdAt": "2026-09-09T22:53:51.208Z"
+  },
+  {
+    "id": "comm_romance_slice",
+    "name": "Romance, Drama & Recuentos 🌸",
+    "description": "Recomendaciones, debates y momentos conmovedores de los mangas románticos y comedias del momento.",
+    "category": "Romance & Drama",
+    "icon": "🌸",
+    "banner": "linear-gradient(135deg, #db2777 0%, #f43f5e 50%, #fb7185 100%)",
+    "membersCount": 95,
+    "members": [],
+    "createdBy": "Yomori",
+    "createdAt": "2026-09-09T22:53:51.208Z"
+  },
+  {
+    "id": "comm_isekai_reborn",
+    "name": "Gremio Isekai & Reencarnación 🏰",
+    "description": "Si fuiste atropellado por un camión y despertaste con poderes OP en otro mundo, esta es tu casa.",
+    "category": "Fantasía & Isekai",
+    "icon": "🏰",
+    "banner": "linear-gradient(135deg, #065f46 0%, #059669 50%, #10b981 100%)",
+    "membersCount": 180,
+    "members": [],
+    "createdBy": "Yomori",
+    "createdAt": "2026-09-09T22:53:51.208Z"
+  }
+]

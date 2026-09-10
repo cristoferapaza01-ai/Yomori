@@ -6,7 +6,10 @@ export function getSocket() {
   if (!socket) {
     let serverUrl = 'http://localhost:4000';
     if (typeof window !== 'undefined' && window.location) {
-      if (window.location.hostname && window.location.hostname !== '' && window.location.protocol.startsWith('http') && window.location.port !== '5173') {
+      const hostname = window.location.hostname || '';
+      if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        serverUrl = 'http://localhost:4000';
+      } else if (window.location.protocol.startsWith('http')) {
         serverUrl = window.location.origin;
       }
     }

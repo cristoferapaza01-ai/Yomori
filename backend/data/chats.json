@@ -18,6 +18,23 @@
         "usr_1788994649795_5bc3b66c"
       ],
       "createdAt": "2026-09-09T22:57:30.323Z"
+    },
+    {
+      "id": "msg_1788994992086_850bed",
+      "roomId": "global",
+      "userId": "usr_1788991964318_s09yt",
+      "username": "Rey_Palomo",
+      "userAvatar": "https://api.dicebear.com/7.x/bottts/svg?seed=Rey_Palomo",
+      "userBanner": "linear-gradient(135deg, #b91c1c 0%, #ea580c 50%, #f59e0b 100%)",
+      "userBadge": "Lector Élite ⚡",
+      "userStatus": "Leyendo en Yomori 📖✨",
+      "text": "hola",
+      "page": null,
+      "mangaTitle": null,
+      "chapterTitle": null,
+      "likes": 0,
+      "likedBy": [],
+      "createdAt": "2026-09-09T23:03:12.087Z"
     }
   ]
 }

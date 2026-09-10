@@ -17,13 +17,14 @@
     "avatar": "https://api.dicebear.com/7.x/bottts/svg?seed=Rey_Palomo",
     "salt": "6f7b1582b6daa22cfe6763519ff7b1a6",
     "password": "e1ca2796eb5acc656f5ecf64e32f625452a93ff964b6f645190c969c0fdd50882cf233d392029e049faaaa68330bdf4c3138b82e05c0d6ba5a82d0cecc5a76c1",
-    "token": "555ccf316c5c8237e94ee085dfe709b85b2344bce54b39ab5246607df8d72e75",
+    "token": "d7d5c34168fdff4e750da24b904a4e1503da82b00f6c388eb3eddf0f3d94f8e7",
     "createdAt": "2026-09-09T22:12:44.319Z",
     "banner": "linear-gradient(135deg, #b91c1c 0%, #ea580c 50%, #f59e0b 100%)",
     "bio": "Leyendo en Yomori 📖✨",
     "badge": "Lector Élite ⚡",
     "isLibraryPublic": true,
-    "updatedAt": "2026-09-09T22:44:20.109Z"
+    "updatedAt": "2026-09-09T23:36:49.887Z",
+    "lastLogin": "2026-09-09T23:36:49.886Z"
   },
   {
     "id": "usr_1788992187506_842dcdae",
