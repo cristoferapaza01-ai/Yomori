@@ -11,13 +11,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
- * M3 Navbar with no horizontal spacer
+ * M3 Navbar with no horizontal spacer and sleek adapted height
  *
  * @see [androidx.compose.material3.NavigationBar]
  */
@@ -28,6 +29,7 @@ fun NavigationBar(
     contentColor: Color = MaterialTheme.colorScheme.contentColorFor(containerColor),
     tonalElevation: Dp = NavigationBarDefaults.Elevation,
     windowInsets: WindowInsets = NavigationBarDefaults.windowInsets,
+    height: Dp = 58.dp,
     content: @Composable RowScope.() -> Unit,
 ) {
     androidx.compose.material3.Surface(
@@ -40,8 +42,9 @@ fun NavigationBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .windowInsetsPadding(windowInsets)
-                .height(80.dp)
+                .height(height)
                 .selectableGroup(),
+            verticalAlignment = Alignment.CenterVertically,
             content = content,
         )
     }

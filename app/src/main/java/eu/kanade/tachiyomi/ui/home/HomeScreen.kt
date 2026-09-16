@@ -25,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -111,7 +112,10 @@ object HomeScreen : Screen() {
                                 enter = expandVertically(),
                                 exit = shrinkVertically(),
                             ) {
-                                NavigationBar {
+                                NavigationBar(
+                                    containerColor = eu.kanade.tachiyomi.ui.yomori.ui.YomoriBgDark,
+                                    height = 54.dp,
+                                ) {
                                     TABS.fastForEach {
                                         NavigationBarItem(it)
                                     }
@@ -196,15 +200,12 @@ object HomeScreen : Screen() {
                 }
             },
             icon = { NavigationIconItem(tab) },
-            label = {
-                Text(
-                    text = tab.options.title,
-                    style = MaterialTheme.typography.labelLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            },
-            alwaysShowLabel = true,
+            alwaysShowLabel = false,
+            colors = androidx.compose.material3.NavigationBarItemDefaults.colors(
+                selectedIconColor = eu.kanade.tachiyomi.ui.yomori.ui.YomoriTeal,
+                indicatorColor = eu.kanade.tachiyomi.ui.yomori.ui.YomoriTeal.copy(alpha = 0.18f),
+                unselectedIconColor = eu.kanade.tachiyomi.ui.yomori.ui.TextMuted,
+            ),
         )
     }
 
@@ -224,15 +225,12 @@ object HomeScreen : Screen() {
                 }
             },
             icon = { NavigationIconItem(tab) },
-            label = {
-                Text(
-                    text = tab.options.title,
-                    style = MaterialTheme.typography.labelLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            },
-            alwaysShowLabel = true,
+            alwaysShowLabel = false,
+            colors = androidx.compose.material3.NavigationRailItemDefaults.colors(
+                selectedIconColor = eu.kanade.tachiyomi.ui.yomori.ui.YomoriTeal,
+                indicatorColor = eu.kanade.tachiyomi.ui.yomori.ui.YomoriTeal.copy(alpha = 0.18f),
+                unselectedIconColor = eu.kanade.tachiyomi.ui.yomori.ui.TextMuted,
+            ),
         )
     }
 
