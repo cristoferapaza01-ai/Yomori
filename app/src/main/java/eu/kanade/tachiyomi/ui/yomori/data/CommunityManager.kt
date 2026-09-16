@@ -27,8 +27,8 @@ data class YomoriCommunityMessage(
     val badgeColor: Long,
     val message: String,
     val timestamp: String,
-    val likes: Int = 0,
-    val isLiked: Boolean = false,
+    val imageUrl: String? = null,
+    val reactions: Map<String, List<String>> = emptyMap(),
     val replyToUser: String? = null,
     val replyToText: String? = null
 )
@@ -184,7 +184,7 @@ object CommunityManager {
                     badgeColor = 0xFFFF0055L,
                     message = "¡Bienvenidos a La Secta del Admin! Dejen sus opiniones y recomendaciones de mangas acá.",
                     timestamp = "15:30",
-                    likes = 3
+                    reactions = mapOf("🔥" to listOf("admin_rey_palomo", "user_guest"), "❤️" to listOf("admin_rey_palomo"))
                 )
             )
         )
@@ -202,6 +202,7 @@ object CommunityManager {
     fun sendCommunityMessage(
         communityId: String,
         text: String,
+        imageUrl: String? = null,
         replyToUser: String? = null,
         replyToText: String? = null
     ) {
@@ -219,6 +220,7 @@ object CommunityManager {
             badgeColor = user.rankColor,
             message = text.trim(),
             timestamp = time,
+            imageUrl = imageUrl,
             replyToUser = replyToUser,
             replyToText = replyToText
         )
@@ -228,14 +230,25 @@ object CommunityManager {
         UserManager.addXp(15) // +15 XP por interactuar en la comunidad
     }
 
-    fun toggleLikeMessage(communityId: String, messageId: String) {
+    fun toggleEmojiReaction(communityId: String, messageId: String, emoji: String) {
+        val user = UserManager.userState.value
         val currentList = _communityMessages.value[communityId] ?: return
         val updatedList = currentList.map { msg ->
             if (msg.id == messageId) {
-                msg.copy(
-                    likes = if (msg.isLiked) msg.likes - 1 else msg.likes + 1,
-                    isLiked = !msg.isLiked
-                )
+                val currentUsers = msg.reactions[emoji] ?: emptyList()
+                val newReactions = msg.reactions.toMutableMap()
+                if (currentUsers.contains(user.id)) {
+                    val nextUsers = currentUsers - user.id
+                    if (nextUsers.isEmpty()) {
+                        newReactions.remove(emoji)
+                    } else {
+                        newReactions[emoji] = nextUsers
+                    }
+                } else {
+                    newReactions[emoji] = currentUsers + user.id
+                    UserManager.addXp(5) // +5 XP por reaccionar
+                }
+                msg.copy(reactions = newReactions)
             } else msg
         }
         _communityMessages.value = _communityMessages.value + (communityId to updatedList)
