@@ -1,4 +1,4 @@
-﻿plugins {
+plugins {
     alias(mihonx.plugins.android.application)
 }
 
@@ -7,8 +7,8 @@ android {
 
     defaultConfig {
         applicationId = "org.yomori.extension.es.tmohentai"
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 10
+        versionName = "1.5.0"
     }
 
     signingConfigs {
