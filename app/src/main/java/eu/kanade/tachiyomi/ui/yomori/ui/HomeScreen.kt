@@ -1,5 +1,8 @@
 package eu.kanade.tachiyomi.ui.yomori.ui
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -12,7 +15,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -28,6 +33,8 @@ import androidx.compose.runtime.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.launch
@@ -65,11 +72,78 @@ fun YomoriHomeScreen(
     // Estado local para chat en vivo interactivo
     var chatMessages by remember { mutableStateOf(BuiltInScansRepository.initialChatMessages) }
     var commentText by remember { mutableStateOf("") }
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var replyingTo by remember { mutableStateOf<LiveChatMessage?>(null) }
     var showFullChatModal by remember { mutableStateOf(false) }
     var hasNewNotification by remember { mutableStateOf(true) }
     val coroutineScope = rememberCoroutineScope()
     val modalListState = rememberLazyListState()
+
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        selectedImageUri = uri
+    }
+
+    val onToggleReaction: (String, String) -> Unit = { msgId, emoji ->
+        chatMessages = chatMessages.map { msg ->
+            if (msg.id == msgId) {
+                val currentList = msg.reactions[emoji] ?: emptyList()
+                val updatedList = if (currentList.contains(user.id)) {
+                    currentList - user.id
+                } else {
+                    currentList + user.id
+                }
+                val newReactions = if (updatedList.isEmpty()) {
+                    msg.reactions - emoji
+                } else {
+                    msg.reactions + (emoji to updatedList)
+                }
+                if (!currentList.contains(user.id)) {
+                    UserManager.addXp(5)
+                }
+                msg.copy(reactions = newReactions)
+            } else {
+                msg
+            }
+        }
+    }
+
+    val onSendMessage: (String, String?, String?, String?) -> Unit = { text, imageUrl, replyUser, replyText ->
+        val textToSend = text.trim()
+        val msgBadge = if (user.isAdmin) "👑 ADMIN" else "[${user.rankTier}] ${user.rankTitle}"
+        val newMsg = LiveChatMessage(
+            id = "chat-${System.currentTimeMillis()}",
+            user = user.username,
+            avatarInitial = user.username.take(1).uppercase(),
+            badge = msgBadge,
+            badgeColor = user.rankColor,
+            time = "Ahora",
+            manga = "",
+            text = textToSend,
+            imageUrl = imageUrl,
+            reactions = emptyMap(),
+            replyToUser = replyUser,
+            replyToText = replyText?.take(40)
+        )
+        chatMessages = chatMessages + listOf(newMsg)
+        UserManager.addXp(15)
+
+        coroutineScope.launch {
+            YomoriSupabaseService.sendChatMessage(
+                userName = user.username,
+                userId = user.id,
+                avatarInitial = user.username.take(1).uppercase(),
+                badge = msgBadge,
+                badgeColor = user.rankColor,
+                mangaTitle = "",
+                message = textToSend,
+                imageUrl = imageUrl,
+                replyToUser = replyUser,
+                replyToText = replyText?.take(40)
+            )
+        }
+    }
 
     LaunchedEffect(Unit) {
         val cloudChat = eu.kanade.tachiyomi.ui.yomori.data.YomoriSupabaseService.fetchChatMessages(25)
@@ -559,26 +633,68 @@ fun YomoriHomeScreen(
                     chatMessages.takeLast(4).forEach { msg ->
                         YomoriMessageItem(
                             msg = msg,
+                            currentUserId = user.id,
                             isAdmin = user.isAdmin,
                             currentUsername = user.username,
                             onReply = { replyingTo = it },
+                            onToggleReaction = { emoji -> onToggleReaction(msg.id, emoji) },
                             onDelete = {
                                 coroutineScope.launch {
                                     YomoriSupabaseService.deleteChatMessage(msg.id)
                                     chatMessages = chatMessages.filter { it.id != msg.id }
                                 }
-                            },
-                            onLike = {
-                                chatMessages = chatMessages.map { m ->
-                                    if (m.id == msg.id) {
-                                        m.copy(
-                                            likes = if (m.isLiked) m.likes - 1 else m.likes + 1,
-                                            isLiked = !m.isLiked
-                                        )
-                                    } else m
-                                }
                             }
                         )
+                    }
+                }
+
+                // Banner de preview de imagen si está seleccionada
+                if (selectedImageUri != null) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = YomoriSurfaceVariant,
+                        border = CardDefaults.outlinedCardBorder().copy(
+                            brush = Brush.linearGradient(listOf(YomoriTeal.copy(alpha = 0.5f), YomoriBorder))
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 10.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                AsyncImage(
+                                    model = selectedImageUri,
+                                    contentDescription = "Imagen seleccionada",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(RoundedCornerShape(6.dp))
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    "Imagen lista para enviar",
+                                    color = YomoriTeal,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                            IconButton(
+                                onClick = { selectedImageUri = null },
+                                modifier = Modifier.size(20.dp)
+                            ) {
+                                Icon(
+                                    Icons.Filled.Close,
+                                    contentDescription = "Quitar imagen",
+                                    tint = TextMuted,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -623,7 +739,7 @@ fun YomoriHomeScreen(
                     }
                 }
 
-                // Input para enviar mensaje al chat
+                // Input para enviar mensaje al chat con icono de subir imagen a la izquierda
                 Spacer(modifier = Modifier.height(8.dp))
                 Surface(
                     shape = RoundedCornerShape(12.dp),
@@ -632,9 +748,24 @@ fun YomoriHomeScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // Botón para subir imágenes
+                        IconButton(
+                            onClick = { galleryLauncher.launch("image/*") },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                Icons.Filled.AddPhotoAlternate,
+                                contentDescription = "Subir Imagen",
+                                tint = if (selectedImageUri != null) YomoriTeal else TextSecondary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(2.dp))
+
                         TextField(
                             value = commentText,
                             onValueChange = { commentText = it },
@@ -659,50 +790,24 @@ fun YomoriHomeScreen(
 
                         IconButton(
                             onClick = {
-                                if (commentText.isNotBlank()) {
-                                    val textToSend = commentText.trim()
-                                    val targetReply = replyingTo
-                                    val msgBadge = if (user.isAdmin) "👑 ADMIN" else "[${user.rankTier}] ${user.rankTitle}"
-                                    val newMsg = LiveChatMessage(
-                                        id = "chat-${System.currentTimeMillis()}",
-                                        user = user.username,
-                                        avatarInitial = user.username.take(1).uppercase(),
-                                        badge = msgBadge,
-                                        badgeColor = user.rankColor,
-                                        time = "Ahora",
-                                        manga = "",
-                                        text = textToSend,
-                                        likes = 0,
-                                        isLiked = false,
-                                        replyToUser = targetReply?.user,
-                                        replyToText = targetReply?.text?.take(40)
+                                if (commentText.isNotBlank() || selectedImageUri != null) {
+                                    onSendMessage(
+                                        commentText,
+                                        selectedImageUri?.toString(),
+                                        replyingTo?.user,
+                                        replyingTo?.text
                                     )
-                                    chatMessages = chatMessages + listOf(newMsg)
                                     commentText = ""
+                                    selectedImageUri = null
                                     replyingTo = null
-                                    UserManager.addXp(15)
-
-                                    coroutineScope.launch {
-                                        YomoriSupabaseService.sendChatMessage(
-                                            userName = user.username,
-                                            userId = user.id,
-                                            avatarInitial = user.username.take(1).uppercase(),
-                                            badge = msgBadge,
-                                            badgeColor = user.rankColor,
-                                            mangaTitle = "",
-                                            message = textToSend,
-                                            replyToUser = targetReply?.user,
-                                            replyToText = targetReply?.text?.take(40)
-                                        )
-                                    }
                                 }
                             },
-                            enabled = commentText.isNotBlank()
+                            enabled = commentText.isNotBlank() || selectedImageUri != null
                         ) {
                             Icon(
                                 Icons.AutoMirrored.Filled.Send,
                                 contentDescription = "Enviar",
-                                tint = if (commentText.isNotBlank()) YomoriTeal else TextMuted,
+                                tint = if (commentText.isNotBlank() || selectedImageUri != null) YomoriTeal else TextMuted,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -823,26 +928,68 @@ fun YomoriHomeScreen(
                         items(chatMessages, key = { it.id }) { msg ->
                             YomoriMessageItem(
                                 msg = msg,
+                                currentUserId = user.id,
                                 isAdmin = user.isAdmin,
                                 currentUsername = user.username,
                                 onReply = { replyingTo = it },
+                                onToggleReaction = { emoji -> onToggleReaction(msg.id, emoji) },
                                 onDelete = {
                                     coroutineScope.launch {
                                         YomoriSupabaseService.deleteChatMessage(msg.id)
                                         chatMessages = chatMessages.filter { it.id != msg.id }
                                     }
-                                },
-                                onLike = {
-                                    chatMessages = chatMessages.map { m ->
-                                        if (m.id == msg.id) {
-                                            m.copy(
-                                                likes = if (m.isLiked) m.likes - 1 else m.likes + 1,
-                                                isLiked = !m.isLiked
-                                            )
-                                        } else m
-                                    }
                                 }
                             )
+                        }
+                    }
+
+                    // Banner de preview de imagen si está seleccionada dentro del modal
+                    if (selectedImageUri != null) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = YomoriSurfaceVariant,
+                            border = CardDefaults.outlinedCardBorder().copy(
+                                brush = Brush.linearGradient(listOf(YomoriTeal.copy(alpha = 0.5f), YomoriBorder))
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 10.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    AsyncImage(
+                                        model = selectedImageUri,
+                                        contentDescription = "Imagen seleccionada",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(RoundedCornerShape(6.dp))
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        "Imagen lista para enviar",
+                                        color = YomoriTeal,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { selectedImageUri = null },
+                                    modifier = Modifier.size(20.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Filled.Close,
+                                        contentDescription = "Quitar imagen",
+                                        tint = TextMuted,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
                         }
                     }
 
@@ -887,7 +1034,7 @@ fun YomoriHomeScreen(
                         }
                     }
 
-                    // Input flotante al final del modal
+                    // Input flotante al final del modal con icono de subir imagen a la izquierda
                     Spacer(modifier = Modifier.height(8.dp))
                     Surface(
                         shape = RoundedCornerShape(12.dp),
@@ -896,9 +1043,24 @@ fun YomoriHomeScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            // Botón para subir imágenes
+                            IconButton(
+                                onClick = { galleryLauncher.launch("image/*") },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    Icons.Filled.AddPhotoAlternate,
+                                    contentDescription = "Subir Imagen",
+                                    tint = if (selectedImageUri != null) YomoriTeal else TextSecondary,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(2.dp))
+
                             TextField(
                                 value = commentText,
                                 onValueChange = { commentText = it },
@@ -923,54 +1085,31 @@ fun YomoriHomeScreen(
 
                             IconButton(
                                 onClick = {
-                                    if (commentText.isNotBlank()) {
-                                        val textToSend = commentText.trim()
-                                        val targetReply = replyingTo
-                                        val msgBadge = if (user.isAdmin) "👑 ADMIN" else "[${user.rankTier}] ${user.rankTitle}"
-                                        val newMsg = LiveChatMessage(
-                                            id = "chat-${System.currentTimeMillis()}",
-                                            user = user.username,
-                                            avatarInitial = user.username.take(1).uppercase(),
-                                            badge = msgBadge,
-                                            badgeColor = user.rankColor,
-                                            time = "Ahora",
-                                            manga = "",
-                                            text = textToSend,
-                                            likes = 0,
-                                            isLiked = false,
-                                            replyToUser = targetReply?.user,
-                                            replyToText = targetReply?.text?.take(40)
+                                    if (commentText.isNotBlank() || selectedImageUri != null) {
+                                        onSendMessage(
+                                            commentText,
+                                            selectedImageUri?.toString(),
+                                            replyingTo?.user,
+                                            replyingTo?.text
                                         )
-                                        chatMessages = chatMessages + listOf(newMsg)
                                         commentText = ""
+                                        selectedImageUri = null
                                         replyingTo = null
-                                        UserManager.addXp(15)
 
                                         // Auto-scroll hacia el nuevo mensaje al escribir
                                         coroutineScope.launch {
                                             if (chatMessages.isNotEmpty()) {
                                                 modalListState.animateScrollToItem(chatMessages.size - 1)
                                             }
-                                            YomoriSupabaseService.sendChatMessage(
-                                                userName = user.username,
-                                                userId = user.id,
-                                                avatarInitial = user.username.take(1).uppercase(),
-                                                badge = msgBadge,
-                                                badgeColor = user.rankColor,
-                                                mangaTitle = "",
-                                                message = textToSend,
-                                                replyToUser = targetReply?.user,
-                                                replyToText = targetReply?.text?.take(40)
-                                            )
                                         }
                                     }
                                 },
-                                enabled = commentText.isNotBlank()
+                                enabled = commentText.isNotBlank() || selectedImageUri != null
                             ) {
                                 Icon(
                                     Icons.AutoMirrored.Filled.Send,
                                     contentDescription = "Enviar",
-                                    tint = if (commentText.isNotBlank()) YomoriTeal else TextMuted,
+                                    tint = if (commentText.isNotBlank() || selectedImageUri != null) YomoriTeal else TextMuted,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -985,19 +1124,23 @@ fun YomoriHomeScreen(
 @Composable
 fun YomoriMessageItem(
     msg: LiveChatMessage,
+    currentUserId: String,
     isAdmin: Boolean,
     currentUsername: String,
     onReply: (LiveChatMessage) -> Unit,
-    onDelete: () -> Unit,
-    onLike: () -> Unit
+    onToggleReaction: (emoji: String) -> Unit,
+    onDelete: () -> Unit
 ) {
+    val clipboardManager = LocalClipboardManager.current
     var menuExpanded by remember { mutableStateOf(false) }
+    var showEmojiCatalog by remember { mutableStateOf(false) }
     val isUserAdmin = msg.user.equals("Rey_Palomo", ignoreCase = true) || msg.badge.contains("ADMIN", ignoreCase = true)
     val displayColor = if (isUserAdmin) {
         Color(0xFFFF0055)
     } else {
         Color(msg.badgeColor)
     }
+    val isMine = msg.user == currentUsername
 
     Column(
         modifier = Modifier
@@ -1006,13 +1149,23 @@ fun YomoriMessageItem(
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.Top
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            // User Avatar (AsyncImage si hay avatarUrl o inicial en círculo)
+            if (!msg.avatarUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = msg.avatarUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .border(1.dp, displayColor, CircleShape)
+                )
+            } else {
                 Box(
                     modifier = Modifier
-                        .size(28.dp)
+                        .size(32.dp)
                         .clip(CircleShape)
                         .background(displayColor.copy(alpha = 0.2f))
                         .border(1.dp, displayColor, CircleShape),
@@ -1022,173 +1175,311 @@ fun YomoriMessageItem(
                         msg.avatarInitial,
                         color = displayColor,
                         fontWeight = FontWeight.Black,
-                        fontSize = 12.sp
+                        fontSize = 13.sp
                     )
                 }
+            }
 
-                Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(10.dp))
 
-                Text(msg.user, color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                Spacer(modifier = Modifier.width(6.dp))
-
-                Surface(
-                    shape = RoundedCornerShape(4.dp),
-                    color = displayColor.copy(alpha = 0.15f),
-                    border = CardDefaults.outlinedCardBorder().copy(
-                        brush = Brush.linearGradient(
-                            listOf(displayColor, displayColor.copy(alpha = 0.5f))
-                        )
-                    )
+            Column(modifier = Modifier.weight(1f)) {
+                // Top Row: Username + Rank badge + Timestamp + Action Icons (Reply, Emoji, 3 dots)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        modifier = Modifier.weight(1f, fill = false)
                     ) {
-                        if (isUserAdmin) {
-                            Text("👑 ", fontSize = 9.sp)
-                        }
                         Text(
-                            if (isUserAdmin) "ADMIN" else msg.badge.replace("👑 ", "").trim(),
-                            color = displayColor,
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Black
+                            msg.user,
+                            color = TextPrimary,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
                         )
-                    }
-                }
-            }
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                // Botón Responder (flechita curva al costado izquierdo del tiempo)
-                IconButton(
-                    onClick = { onReply(msg) },
-                    modifier = Modifier.size(24.dp)
-                ) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.Reply,
-                        contentDescription = "Responder",
-                        tint = TextMuted,
-                        modifier = Modifier.size(15.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(2.dp))
-
-                Text(msg.time, color = TextMuted, fontSize = 10.sp)
-
-                // 3 puntitos verticales para opciones de mensaje
-                Box {
-                    IconButton(
-                        onClick = { menuExpanded = true },
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(
-                            Icons.Filled.MoreVert,
-                            contentDescription = "Opciones",
-                            tint = TextMuted,
-                            modifier = Modifier.size(15.dp)
-                        )
-                    }
-
-                    DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false },
-                        modifier = Modifier.background(YomoriSurfaceDark)
-                    ) {
-                        DropdownMenuItem(
-                            text = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        Icons.AutoMirrored.Filled.Reply,
-                                        contentDescription = null,
-                                        tint = YomoriTeal,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Responder", color = TextPrimary, fontSize = 12.sp)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = displayColor.copy(alpha = 0.15f),
+                            border = CardDefaults.outlinedCardBorder().copy(
+                                brush = Brush.linearGradient(
+                                    listOf(displayColor, displayColor.copy(alpha = 0.5f))
+                                )
+                            )
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                            ) {
+                                if (isUserAdmin) {
+                                    Text("👑 ", fontSize = 9.sp)
                                 }
-                            },
-                            onClick = {
-                                menuExpanded = false
-                                onReply(msg)
+                                Text(
+                                    if (isUserAdmin) "ADMIN" else msg.badge.replace("👑 ", "").trim(),
+                                    color = displayColor,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Black
+                                )
                             }
+                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            msg.time,
+                            color = TextMuted,
+                            fontSize = 10.sp
                         )
+                    }
 
-                        if (isAdmin || msg.user == currentUsername) {
-                            DropdownMenuItem(
-                                text = {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            Icons.Filled.Delete,
-                                            contentDescription = null,
-                                            tint = Color(0xFFFF6B6B),
-                                            modifier = Modifier.size(14.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text("Eliminar mensaje", color = Color(0xFFFF6B6B), fontSize = 12.sp)
-                                    }
-                                },
-                                onClick = {
-                                    menuExpanded = false
-                                    onDelete()
-                                }
+                    // Acciones superiores: Responder, Reacción Emoji y 3 puntitos verticales
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        // Responder
+                        IconButton(
+                            onClick = { onReply(msg) },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.Reply,
+                                contentDescription = "Responder",
+                                tint = TextMuted,
+                                modifier = Modifier.size(15.dp)
                             )
                         }
+
+                        // Reaccionar Emoji
+                        Box {
+                            IconButton(
+                                onClick = { showEmojiCatalog = !showEmojiCatalog },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Text("😊", fontSize = 13.sp)
+                            }
+
+                            // Catálogo de Emojis desplegable
+                            DropdownMenu(
+                                expanded = showEmojiCatalog,
+                                onDismissRequest = { showEmojiCatalog = false },
+                                modifier = Modifier.background(YomoriSurfaceDark)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    EMOJI_CATALOG.take(8).forEach { emoji ->
+                                        Text(
+                                           text = emoji,
+                                           fontSize = 18.sp,
+                                           modifier = Modifier
+                                               .clickable {
+                                                   onToggleReaction(emoji)
+                                                   showEmojiCatalog = false
+                                               }
+                                               .padding(4.dp)
+                                        )
+                                    }
+                                }
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    EMOJI_CATALOG.drop(8).forEach { emoji ->
+                                        Text(
+                                           text = emoji,
+                                           fontSize = 18.sp,
+                                           modifier = Modifier
+                                               .clickable {
+                                                   onToggleReaction(emoji)
+                                                   showEmojiCatalog = false
+                                               }
+                                               .padding(4.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // 3 puntitos verticales (Más opciones / Eliminar)
+                        Box {
+                            IconButton(
+                                onClick = { menuExpanded = true },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    Icons.Filled.MoreVert,
+                                    contentDescription = "Opciones",
+                                    tint = TextMuted,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+
+                            DropdownMenu(
+                                expanded = menuExpanded,
+                                onDismissRequest = { menuExpanded = false },
+                                modifier = Modifier.background(YomoriSurfaceDark)
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Responder", color = TextPrimary, fontSize = 12.sp) },
+                                    onClick = {
+                                        menuExpanded = false
+                                        onReply(msg)
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.AutoMirrored.Filled.Reply, contentDescription = null, tint = YomoriTeal, modifier = Modifier.size(16.dp))
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Copiar texto", color = TextPrimary, fontSize = 12.sp) },
+                                    onClick = {
+                                        menuExpanded = false
+                                        clipboardManager.setText(AnnotatedString(msg.text))
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.Filled.ContentCopy, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(16.dp))
+                                    }
+                                )
+                                if (isAdmin || isMine) {
+                                    HorizontalDivider(color = YomoriBorder)
+                                    DropdownMenuItem(
+                                        text = { Text("Eliminar mensaje", color = Color(0xFFFF6B6B), fontSize = 12.sp) },
+                                        onClick = {
+                                            menuExpanded = false
+                                            onDelete()
+                                        },
+                                        leadingIcon = {
+                                            Icon(Icons.Filled.Delete, contentDescription = null, tint = Color(0xFFFF6B6B), modifier = Modifier.size(16.dp))
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
-            }
-        }
 
-        // Cita si este mensaje es respuesta a otro
-        if (!msg.replyToUser.isNullOrBlank()) {
-            Spacer(modifier = Modifier.height(3.dp))
-            Surface(
-                shape = RoundedCornerShape(6.dp),
-                color = displayColor.copy(alpha = 0.08f),
-                border = CardDefaults.outlinedCardBorder().copy(
-                    brush = Brush.horizontalGradient(listOf(displayColor.copy(alpha = 0.6f), Color.Transparent))
-                ),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.Reply, contentDescription = null, tint = displayColor, modifier = Modifier.size(11.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
+                // Cita si este mensaje es respuesta a otro
+                if (!msg.replyToUser.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = YomoriSurfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .width(2.dp)
+                                    .height(20.dp)
+                                    .background(YomoriTeal, RoundedCornerShape(2.dp))
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Column {
+                                Text(
+                                    "Respondiendo a @${msg.replyToUser}",
+                                    color = YomoriTeal,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    msg.replyToText ?: "",
+                                    color = TextSecondary,
+                                    fontSize = 10.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Text Content
+                if (msg.text.isNotBlank()) {
                     Text(
-                        "Respondiendo a @${msg.replyToUser}: ${msg.replyToText ?: ""}",
-                        color = TextSecondary,
-                        fontSize = 10.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        msg.text,
+                        color = TextPrimary,
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp
                     )
                 }
-            }
-        }
 
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(msg.text, color = TextSecondary, fontSize = 12.sp, lineHeight = 16.sp)
+                // Imagen adjunta si existe
+                if (!msg.imageUrl.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    AsyncImage(
+                        model = msg.imageUrl,
+                        contentDescription = "Imagen compartida",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxWidth(0.85f)
+                            .heightIn(max = 220.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .border(1.dp, YomoriBorder, RoundedCornerShape(12.dp))
+                    )
+                }
 
-        Spacer(modifier = Modifier.height(4.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .clickable { onLike() }
-                    .padding(2.dp)
-            ) {
-                Icon(
-                    if (msg.isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                    contentDescription = "Me gusta",
-                    tint = if (msg.isLiked) Color.Red else TextMuted,
-                    modifier = Modifier.size(13.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("${msg.likes}", color = if (msg.isLiked) Color.Red else TextMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                // EMOJI REACTIONS ROW (ESTILO DISCORD)
+                if (msg.reactions.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        items(msg.reactions.entries.toList(), key = { it.key }) { (emoji, users) ->
+                            val userHasReacted = users.contains(currentUserId)
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (userHasReacted) YomoriTeal.copy(alpha = 0.2f) else YomoriSurfaceVariant,
+                                border = CardDefaults.outlinedCardBorder().copy(
+                                    brush = Brush.linearGradient(
+                                        if (userHasReacted) listOf(YomoriTeal, YomoriTeal) else listOf(Color.Transparent, Color.Transparent)
+                                    )
+                                ),
+                                modifier = Modifier.clickable { onToggleReaction(emoji) }
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(emoji, fontSize = 12.sp)
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        "${users.size}",
+                                        color = if (userHasReacted) YomoriTeal else TextSecondary,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+
+                        // Mini botón + para agregar más reacciones
+                        item {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = YomoriSurfaceDark,
+                                border = CardDefaults.outlinedCardBorder().copy(
+                                    brush = Brush.linearGradient(listOf(YomoriBorder, YomoriBorder))
+                                ),
+                                modifier = Modifier.clickable { showEmojiCatalog = true }
+                            ) {
+                                Text(
+                                    "+",
+                                    color = TextMuted,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
 

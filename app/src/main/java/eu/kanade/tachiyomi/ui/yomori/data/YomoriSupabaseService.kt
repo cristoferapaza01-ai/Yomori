@@ -225,6 +225,25 @@ object YomoriSupabaseService {
 
                 val replyUser = obj.optString("reply_to_user", "").ifBlank { null }
                 val replyTxt = obj.optString("reply_to_text", "").ifBlank { null }
+                val imgUrl = obj.optString("image_url", "").ifBlank { null }
+                val avtUrl = obj.optString("avatar_url", "").ifBlank { null }
+
+                val reactionsMap = mutableMapOf<String, List<String>>()
+                val reactionsObj = obj.optJSONObject("reactions")
+                if (reactionsObj != null) {
+                    val keys = reactionsObj.keys()
+                    while (keys.hasNext()) {
+                        val key = keys.next()
+                        val userArr = reactionsObj.optJSONArray(key)
+                        if (userArr != null) {
+                            val userList = mutableListOf<String>()
+                            for (j in 0 until userArr.length()) {
+                                userList.add(userArr.getString(j))
+                            }
+                            reactionsMap[key] = userList
+                        }
+                    }
+                }
 
                 list.add(
                     LiveChatMessage(
@@ -236,9 +255,12 @@ object YomoriSupabaseService {
                         time = "Ahora",
                         manga = obj.optString("manga_title", "General"),
                         text = obj.optString("message", ""),
+                        imageUrl = imgUrl,
+                        reactions = reactionsMap,
                         likes = obj.optInt("likes", 0),
                         replyToUser = replyUser,
-                        replyToText = replyTxt
+                        replyToText = replyTxt,
+                        avatarUrl = avtUrl
                     )
                 )
             }
@@ -259,6 +281,8 @@ object YomoriSupabaseService {
         badgeColor: Long,
         mangaTitle: String,
         message: String,
+        imageUrl: String? = null,
+        reactions: Map<String, List<String>> = emptyMap(),
         replyToUser: String? = null,
         replyToText: String? = null
     ): Boolean = withContext(Dispatchers.IO) {
@@ -272,6 +296,16 @@ object YomoriSupabaseService {
                 put("manga_title", mangaTitle)
                 put("message", message)
                 put("likes", 0)
+                if (!imageUrl.isNullOrBlank()) put("image_url", imageUrl)
+                if (reactions.isNotEmpty()) {
+                    val rObj = JSONObject()
+                    reactions.forEach { (k, v) ->
+                        val arr = JSONArray()
+                        v.forEach { arr.put(it) }
+                        rObj.put(k, arr)
+                    }
+                    put("reactions", rObj)
+                }
                 if (!replyToUser.isNullOrBlank()) put("reply_to_user", replyToUser)
                 if (!replyToText.isNullOrBlank()) put("reply_to_text", replyToText)
             }

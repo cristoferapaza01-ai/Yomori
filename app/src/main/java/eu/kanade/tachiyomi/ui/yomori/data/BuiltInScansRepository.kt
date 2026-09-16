@@ -52,10 +52,13 @@ data class LiveChatMessage(
     val time: String,
     val manga: String = "",
     val text: String,
+    val imageUrl: String? = null,
+    val reactions: Map<String, List<String>> = emptyMap(),
     var likes: Int = 0,
     var isLiked: Boolean = false,
     val replyToUser: String? = null,
-    val replyToText: String? = null
+    val replyToText: String? = null,
+    val avatarUrl: String? = null
 )
 
 object BuiltInScansRepository {
@@ -678,6 +681,7 @@ object BuiltInScansRepository {
             time = "Hace 2 min",
             manga = "El Lord que sube de nivel",
             text = "¡El capítulo 112 estuvo brutal! El dibujo en la pelea contra el dragón carmesí subió de nivel totalmente 🔥🔥",
+            reactions = mapOf("🔥" to listOf("u1", "u2", "u3"), "❤️" to listOf("u4")),
             likes = 24
         ),
         LiveChatMessage(
@@ -689,6 +693,7 @@ object BuiltInScansRepository {
             time = "Hace 6 min",
             manga = "El Método de Inversión",
             text = "No me esperaba la jugada que hizo con las acciones de la farmacéutica, se nota que el autor sabe de economía real.",
+            reactions = mapOf("👏" to listOf("u1"), "😮" to listOf("u5")),
             likes = 15
         ),
         LiveChatMessage(
@@ -700,6 +705,7 @@ object BuiltInScansRepository {
             time = "Hace 11 min",
             manga = "El Indomable Rey Marcial",
             text = "Olympus sacó el capítulo super rápido hoy, gracias a los traductores por la calidad 👏",
+            reactions = mapOf("✨" to listOf("u2"), "🎉" to listOf("u3")),
             likes = 31
         ),
         LiveChatMessage(
@@ -711,6 +717,7 @@ object BuiltInScansRepository {
             time = "Hace 15 min",
             manga = "Solo Máximo Nivel",
             text = "Recomienden manhwas parecidos a este, me quedé sin nada para leer hoy",
+            reactions = mapOf("👀" to listOf("u6")),
             likes = 8
         )
     )
