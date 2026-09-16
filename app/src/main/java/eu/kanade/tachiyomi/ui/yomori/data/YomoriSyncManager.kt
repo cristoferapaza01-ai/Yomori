@@ -17,6 +17,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.withContext
 import logcat.LogPriority
 import org.json.JSONArray
@@ -25,6 +26,7 @@ import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.category.interactor.GetCategories
 import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.manga.interactor.GetFavorites
+import tachiyomi.domain.manga.interactor.GetLibraryManga
 import tachiyomi.domain.manga.model.Manga
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
@@ -33,6 +35,7 @@ object YomoriSyncManager {
 
     private val scope = CoroutineScope(Dispatchers.IO)
     private var syncJob: Job? = null
+    private var isAutoSyncStarted = false
 
     private val _isSyncing = MutableStateFlow(false)
     val isSyncing = _isSyncing.asStateFlow()
@@ -46,6 +49,47 @@ object YomoriSyncManager {
     private val mangaBackupCreator by lazy { MangaBackupCreator() }
     private val categoriesRestorer by lazy { CategoriesRestorer() }
     private val mangaRestorer by lazy { MangaRestorer() }
+
+    init {
+        initAutoSync()
+    }
+
+    /**
+     * Inicia observadores automáticos de biblioteca y ciclo periódico de sincronización.
+     */
+    fun initAutoSync() {
+        if (isAutoSyncStarted) return
+        isAutoSyncStarted = true
+
+        // 1. Observar cambios en la biblioteca (manga agregado, borrado, progreso)
+        scope.launch {
+            try {
+                Injekt.get<GetLibraryManga>().subscribe()
+                    .drop(1) // Omitir la emisión inicial
+                    .collect {
+                        val currentUser = UserManager.userState.value
+                        if (currentUser.isLoggedIn && currentUser.username.isNotBlank()) {
+                            logcat(LogPriority.INFO) { "YomoriSync: Detectado cambio en biblioteca local, programando auto-sync..." }
+                            scheduleSyncPush(8000L) // 8 segundos de debounce
+                        }
+                    }
+            } catch (e: Exception) {
+                logcat(LogPriority.ERROR, e) { "YomoriSync: Error escuchando cambios de biblioteca" }
+            }
+        }
+
+        // 2. Ciclo periódico cada 5 minutos en primer plano / app abierta
+        scope.launch {
+            while (true) {
+                delay(5 * 60 * 1000L) // Cada 5 minutos
+                val currentUser = UserManager.userState.value
+                if (currentUser.isLoggedIn && currentUser.username.isNotBlank()) {
+                    logcat(LogPriority.INFO) { "YomoriSync: Sincronización automática periódica cada 5 min" }
+                    pushLibraryToCloud()
+                }
+            }
+        }
+    }
 
     /**
      * Sincroniza hacia la nube de Supabase (Push) con debounce para evitar llamadas excesivas.
@@ -200,10 +244,10 @@ object YomoriSyncManager {
                         source = mObj.optLong("s", 0L),
                         url = mObj.optString("u", ""),
                         title = mObj.optString("t", ""),
-                        thumbnailUrl = mObj.optString("c", null),
-                        author = mObj.optString("a", null),
-                        artist = mObj.optString("art", null),
-                        description = mObj.optString("d", null),
+                        thumbnailUrl = if (mObj.has("c")) mObj.optString("c") else null,
+                        author = if (mObj.has("a")) mObj.optString("a") else null,
+                        artist = if (mObj.has("art")) mObj.optString("art") else null,
+                        description = if (mObj.has("d")) mObj.optString("d") else null,
                         status = mObj.optInt("st", 0),
                         favorite = mObj.optBoolean("fav", true),
                     )

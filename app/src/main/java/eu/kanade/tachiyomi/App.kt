@@ -197,6 +197,14 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
                 logcat(LogPriority.ERROR, e) { "Failed to initialize default extension repository" }
             }
         }
+
+        // Yomori Cloud Sync Automático (Periódico cada 15 min en segundo plano y cada 5 min en app activa)
+        try {
+            eu.kanade.tachiyomi.ui.yomori.data.YomoriSyncJob.setupTask(this)
+            eu.kanade.tachiyomi.ui.yomori.data.YomoriSyncManager.initAutoSync()
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR, e) { "Failed to initialize Yomori Cloud Sync" }
+        }
     }
 
     private fun initializeMigrator() {
