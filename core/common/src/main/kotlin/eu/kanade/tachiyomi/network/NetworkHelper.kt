@@ -24,6 +24,8 @@ class NetworkHelper(
             .connectTimeout(30.seconds)
             .readTimeout(30.seconds)
             .callTimeout(2.minutes)
+            .retryOnConnectionFailure(true)
+            .dns(PreferIpv4Dns())
             .cache(
                 Cache(
                     directory = File(context.cacheDir, "network_cache"),

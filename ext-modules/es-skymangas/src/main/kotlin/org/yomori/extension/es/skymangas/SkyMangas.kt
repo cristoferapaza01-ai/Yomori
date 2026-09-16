@@ -27,6 +27,7 @@ class SkyMangas : HttpSource() {
         .add("Referer", "$baseUrl/")
         .add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
         .add("Accept-Language", "es-ES,es;q=0.9")
+        .add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
 
     override fun popularMangaRequest(page: Int): Request {
         return GET("$baseUrl/explorar?page=$page", headers)
@@ -301,6 +302,14 @@ class SkyMangas : HttpSource() {
         } catch (e: Exception) {
             0L
         }
+    }
+
+    override fun imageRequest(page: Page): Request {
+        val imageHeaders = headersBuilder()
+            .set("Referer", "$baseUrl/")
+            .set("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
+            .build()
+        return GET(page.imageUrl!!, imageHeaders)
     }
 
     override fun imageUrlParse(response: Response): String = ""
