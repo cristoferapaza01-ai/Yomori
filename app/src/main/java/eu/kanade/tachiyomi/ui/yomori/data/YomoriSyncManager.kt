@@ -180,7 +180,44 @@ object YomoriSyncManager {
                 }
                 mangaArray.put(mObj)
             }
-            rootJson.put("mangas", mangaArray)
+
+            var finalMangaArray = mangaArray
+            var finalCatArray = catArray
+
+            // Verificación y Fusión Inteligente (Merge) con la Nube
+            val existingCloud = YomoriSupabaseService.pullUserSync(currentUser.username.lowercase().trim())
+            if (existingCloud?.libraryJson != null) {
+                try {
+                    val cloudJson = JSONObject(existingCloud.libraryJson)
+                    val cloudMangas = cloudJson.optJSONArray("mangas")
+                    val cloudCats = cloudJson.optJSONArray("cats")
+
+                    if (backupMangas.isEmpty() && cloudMangas != null && cloudMangas.length() > 0) {
+                        // El dispositivo actual está vacío pero la nube tiene datos guardados.
+                        // Descargamos los datos para no borrar la nube accidentalmente!
+                        logcat(LogPriority.INFO) { "YomoriSync: Dispositivo local sin mangas. Restaurando ${cloudMangas.length()} mangas desde la nube..." }
+                        pullLibraryFromCloud()
+                        return@withContext true
+                    } else if (cloudMangas != null && cloudMangas.length() > 0) {
+                        // Combinar mangas de la nube y locales por URL/Source
+                        val mergedMap = mutableMapOf<String, JSONObject>()
+                        for (i in 0 until cloudMangas.length()) {
+                            val m = cloudMangas.getJSONObject(i)
+                            val key = "${m.optLong("s")}_${m.optString("u")}"
+                            mergedMap[key] = m
+                        }
+                        for (i in 0 until mangaArray.length()) {
+                            val m = mangaArray.getJSONObject(i)
+                            val key = "${m.optLong("s")}_${m.optString("u")}"
+                            mergedMap[key] = m
+                        }
+                        finalMangaArray = JSONArray()
+                        mergedMap.values.forEach { finalMangaArray.put(it) }
+                    }
+                } catch (_: Exception) {}
+            }
+
+            rootJson.put("mangas", finalMangaArray)
 
             // Construir payload del Perfil & Rangos
             val settingsJson = JSONObject().apply {
@@ -211,7 +248,7 @@ object YomoriSyncManager {
 
             if (success) {
                 _lastSyncTime.value = System.currentTimeMillis()
-                logcat(LogPriority.INFO) { "YomoriSync: Push exitoso para ${currentUser.username} (${mangaArray.length()} mangas, Rango: [${currentUser.rankTier}] ${currentUser.rankTitle})" }
+                logcat(LogPriority.INFO) { "YomoriSync: Push exitoso para ${currentUser.username} (${finalMangaArray.length()} mangas, Rango: [${currentUser.rankTier}] ${currentUser.rankTitle})" }
             }
             success
         } catch (e: Exception) {
