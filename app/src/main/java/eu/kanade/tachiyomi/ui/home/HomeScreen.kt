@@ -77,8 +77,8 @@ object HomeScreen : Screen() {
 
     private val TABS = listOf(
         YomoriHomeTab,
-        LibraryTab,
         YomoriCommunityTab,
+        LibraryTab,
         BrowseTab,
         MoreTab,
     )
