@@ -400,16 +400,7 @@ fun CommunityCard(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(2.dp))
-
-                // Creator Tag
-                Text(
-                    "👑 Creado por @${community.creatorUsername}",
-                    color = TextMuted,
-                    fontSize = 11.sp
-                )
-
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 // Description
                 Text(
@@ -474,6 +465,15 @@ fun CommunityCard(
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                // Creator Tag debajo de los géneros
+                Text(
+                    "Por: ${community.creatorUsername}",
+                    color = TextMuted,
+                    fontSize = 11.sp
+                )
             }
         }
     }
@@ -882,6 +882,13 @@ fun CommunityChatHeaderCard(
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    "Por: ${community.creatorUsername}",
+                    color = TextMuted,
+                    fontSize = 11.sp
+                )
             }
         }
     }
