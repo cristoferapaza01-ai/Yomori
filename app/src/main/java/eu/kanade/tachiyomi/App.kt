@@ -56,8 +56,10 @@ import mihon.core.migration.Migrator
 import mihon.core.migration.migrations.migrations
 import mihon.telemetry.TelemetryConfig
 import org.conscrypt.Conscrypt
+import mihon.domain.extension.repository.ExtensionStoreRepository
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.preference.Preference
+import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.core.common.util.system.ImageUtil
 import tachiyomi.core.common.util.system.logcat
@@ -168,6 +170,33 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
         }
 
         initializeMigrator()
+
+        scope.launchIO {
+            try {
+                val extensionStoreRepository = Injekt.get<ExtensionStoreRepository>()
+                val targetRepoUrl = "https://cristoferapaza01-ai.github.io/yomori-extensions/repo.json"
+                val existing = extensionStoreRepository.getAll()
+                
+                // Clean up any old invalid repositories
+                for (store in existing) {
+                    if (store.indexUrl.contains("duckdns") || store.indexUrl.contains("yomorimanga") || store.indexUrl != targetRepoUrl) {
+                        try {
+                            Injekt.get<tachiyomi.data.Database>().extension_storeQueries.delete(store.indexUrl)
+                        } catch (_: Exception) {}
+                    }
+                }
+                
+                if (extensionStoreRepository.getAll().none { it.indexUrl == targetRepoUrl }) {
+                    extensionStoreRepository.insert(targetRepoUrl)
+                }
+                extensionStoreRepository.refreshAll()
+                try {
+                    Injekt.get<eu.kanade.tachiyomi.extension.ExtensionManager>().findAvailableExtensions()
+                } catch (_: Exception) {}
+            } catch (e: Exception) {
+                logcat(LogPriority.ERROR, e) { "Failed to initialize default extension repository" }
+            }
+        }
     }
 
     private fun initializeMigrator() {

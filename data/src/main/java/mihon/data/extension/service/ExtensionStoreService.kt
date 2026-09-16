@@ -14,10 +14,12 @@ import mihon.data.extension.model.NetworkLegacyExtension
 import mihon.data.extension.model.NetworkLegacyExtensionRepo
 import mihon.data.extension.model.toAvailableExtensions
 import mihon.domain.extension.model.ExtensionStore
+import okhttp3.CacheControl
 import okio.BufferedSource
 import okio.buffer
 import okio.gzip
 import tachiyomi.core.common.util.system.logcat
+import tachiyomi.core.common.util.lang.withIOContext
 import kotlin.coroutines.cancellation.CancellationException
 
 class ExtensionStoreService(
@@ -25,10 +27,10 @@ class ExtensionStoreService(
     private val json: Json,
     private val protoBuf: ProtoBuf,
 ) {
-    suspend fun fetch(indexUrl: String): Result<ExtensionStore> {
+    suspend fun fetch(indexUrl: String): Result<ExtensionStore> = withIOContext {
         var updatedIndexUrl: String = indexUrl
-        return try {
-            val response = network.client.newCall(GET(updatedIndexUrl)).awaitSuccess()
+        try {
+            val response = network.client.newCall(GET(updatedIndexUrl, cache = CacheControl.FORCE_NETWORK)).awaitSuccess()
             val store = response.body.source().decompressIfGzipped().use { source ->
                 val networkStore = when (source.peek().readByte()) {
                     // "[..."
@@ -37,7 +39,7 @@ class ExtensionStoreService(
                             throw IllegalArgumentException("Provided legacy store url is not valid")
                         }
                         updatedIndexUrl = indexUrl.replace("/index.min.json", "/repo.json")
-                        network.client.newCall(GET(updatedIndexUrl)).awaitSuccess().body.source().use {
+                        network.client.newCall(GET(updatedIndexUrl, cache = CacheControl.FORCE_NETWORK)).awaitSuccess().body.source().use {
                             json.decodeFromBufferedSource<NetworkLegacyExtensionRepo>(it)
                         }
                     }
@@ -51,7 +53,7 @@ class ExtensionStoreService(
                 }
 
                 if (networkStore is NetworkLegacyExtensionRepo && networkStore.indexV2 != null) {
-                    return fetch(networkStore.indexV2)
+                    return@withIOContext fetch(networkStore.indexV2)
                 }
 
                 networkStore.toExtensionStore(updatedIndexUrl)
@@ -67,10 +69,10 @@ class ExtensionStoreService(
         }
     }
 
-    suspend fun getExtensions(store: ExtensionStore): Result<List<Extension.Available>> {
-        return try {
+    suspend fun getExtensions(store: ExtensionStore): Result<List<Extension.Available>> = withIOContext {
+        try {
             val extensions = if (store.extensionListUrl != null) {
-                val response = network.client.newCall(GET(store.extensionListUrl!!)).awaitSuccess()
+                val response = network.client.newCall(GET(store.extensionListUrl!!, cache = CacheControl.FORCE_NETWORK)).awaitSuccess()
                 response.body.source().decompressIfGzipped().use { source ->
                     when (source.peek().readByte()) {
                         // "{..."
@@ -82,7 +84,7 @@ class ExtensionStoreService(
                         .toAvailableExtensions(store)
                 }
             } else if (!store.isLegacy) {
-                val response = network.client.newCall(GET(store.indexUrl)).awaitSuccess()
+                val response = network.client.newCall(GET(store.indexUrl, cache = CacheControl.FORCE_NETWORK)).awaitSuccess()
                 response.body.source().decompressIfGzipped().use { source ->
                     when (source.peek().readByte()) {
                         // "{..."
@@ -94,7 +96,7 @@ class ExtensionStoreService(
                 }
             } else {
                 val storeBaseUrl = store.indexUrl.removeSuffix("/repo.json")
-                val response = network.client.newCall(GET("$storeBaseUrl/index.min.json")).awaitSuccess()
+                val response = network.client.newCall(GET("$storeBaseUrl/index.min.json", cache = CacheControl.FORCE_NETWORK)).awaitSuccess()
                 response.body.source().use { source ->
                     json.decodeFromBufferedSource<List<NetworkLegacyExtension>>(source)
                         .map { it.toAvailableExtension(store, storeBaseUrl) }

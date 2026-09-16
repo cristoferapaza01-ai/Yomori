@@ -161,7 +161,7 @@ object AboutScreen : Screen() {
                 item {
                     TextPreferenceWidget(
                         title = stringResource(MR.strings.privacy_policy),
-                        onPreferenceClick = { uriHandler.openUri("https://mihon.app/privacy/") },
+                        onPreferenceClick = { uriHandler.openUri("https://yomorimanga.duckdns.org") },
                     )
                 }
 
@@ -175,7 +175,7 @@ object AboutScreen : Screen() {
                         LinkIcon(
                             label = stringResource(MR.strings.website),
                             icon = Icons.Outlined.Public,
-                            url = "https://mihon.app",
+                            url = "https://yomorimanga.duckdns.org",
                         )
                         LinkIcon(
                             label = "Discord",
@@ -185,22 +185,22 @@ object AboutScreen : Screen() {
                         LinkIcon(
                             label = "X",
                             icon = CustomIcons.X,
-                            url = "https://x.com/mihonapp",
+                            url = "https://yomorimanga.duckdns.org",
                         )
                         LinkIcon(
                             label = "Facebook",
                             icon = CustomIcons.Facebook,
-                            url = "https://facebook.com/mihonapp",
+                            url = "https://yomorimanga.duckdns.org",
                         )
                         LinkIcon(
                             label = "Reddit",
                             icon = CustomIcons.Reddit,
-                            url = "https://www.reddit.com/r/mihonapp",
+                            url = "https://yomorimanga.duckdns.org",
                         )
                         LinkIcon(
                             label = "GitHub",
                             icon = CustomIcons.Github,
-                            url = "https://github.com/mihonapp",
+                            url = "https://yomorimanga.duckdns.org",
                         )
                     }
                 }

@@ -40,11 +40,13 @@ class ReleaseServiceImpl(
             BUILD_TYPES.find { "-$it" in asset.name } to asset.downloadLink
         }
 
-        return if (!isFoss) {
+        val primary = if (!isFoss) {
             map[Build.SUPPORTED_ABIS[0]] ?: map[null]
         } else {
             map[FOSS]
         }
+
+        return primary ?: release.assets.firstOrNull { it.name.endsWith(".apk", ignoreCase = true) }?.downloadLink
     }
 
     companion object {

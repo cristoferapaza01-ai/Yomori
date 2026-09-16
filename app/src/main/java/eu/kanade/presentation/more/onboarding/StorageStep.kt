@@ -32,10 +32,10 @@ internal class StorageStep : OnboardingStep {
 
     private val storagePref = Injekt.get<StoragePreferences>().baseStorageDirectory
 
-    private var _isComplete by mutableStateOf(false)
+    private var _isComplete by mutableStateOf(true)
 
     override val isComplete: Boolean
-        get() = _isComplete
+        get() = true
 
     @Composable
     override fun Content() {

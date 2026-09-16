@@ -118,6 +118,9 @@ import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsState
+import kotlinx.coroutines.flow.firstOrNull
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
 import uy.kohesive.injekt.injectLazy
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
@@ -184,7 +187,7 @@ class MainActivity : BaseActivity() {
             }
 
             Navigator(
-                screen = HomeScreen,
+                screen = eu.kanade.tachiyomi.ui.yomori.ui.YomoriAuthScreenVoyager(),
                 disposeBehavior = NavigatorDisposeBehavior(disposeNestedNavigators = false, disposeSteps = true),
             ) { navigator ->
                 LaunchedEffect(navigator) {
@@ -196,6 +199,19 @@ class MainActivity : BaseActivity() {
 
                         // Reset Incognito Mode on relaunch
                         preferences.incognitoMode.set(false)
+
+                        // Auto-seed Yomori Extension Repository
+                        launchIO {
+                            try {
+                                val count = Injekt.get<mihon.domain.extension.interactor.GetExtensionStoreCountAsFlow>().invoke().firstOrNull() ?: 0L
+                                if (count == 0L) {
+                                    val addStore = Injekt.get<mihon.domain.extension.interactor.AddExtensionStore>()
+                                    addStore("https://raw.githubusercontent.com/cristoferapaza01-ai/Yomori/main/extensions/index.min.json")
+                                    val updateStores = Injekt.get<mihon.domain.extension.interactor.UpdateExtensionStores>()
+                                    updateStores()
+                                }
+                            } catch (_: Throwable) {}
+                        }
                     }
                 }
                 LaunchedEffect(navigator.lastItem) {
@@ -266,11 +282,8 @@ class MainActivity : BaseActivity() {
             }
         }
 
-        val startTime = System.currentTimeMillis()
-        splashScreen?.setKeepOnScreenCondition {
-            val elapsed = System.currentTimeMillis() - startTime
-            elapsed <= SPLASH_MIN_DURATION || (!ready && elapsed <= SPLASH_MAX_DURATION)
-        }
+        ready = true
+        splashScreen?.setKeepOnScreenCondition { false }
         setSplashScreenExitAnimation(splashScreen)
 
         if (isLaunch && libraryPreferences.autoClearChapterCache.get()) {

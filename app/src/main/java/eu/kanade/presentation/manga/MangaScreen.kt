@@ -33,7 +33,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,6 +58,7 @@ import eu.kanade.presentation.manga.components.MangaChapterListItem
 import eu.kanade.presentation.manga.components.MangaInfoBox
 import eu.kanade.presentation.manga.components.MangaToolbar
 import eu.kanade.presentation.manga.components.MissingChapterCountListItem
+import eu.kanade.presentation.manga.components.MissingChaptersBridgeBanner
 import eu.kanade.presentation.util.formatChapterNumber
 import eu.kanade.tachiyomi.data.download.model.Download
 import eu.kanade.tachiyomi.source.getNameForMangaInfo
@@ -259,12 +262,97 @@ private fun MangaScreenSmallImpl(
 ) {
     val chapterListState = rememberLazyListState()
 
-    val (chapters, listItem, isAnySelected) = remember(state) {
+    val (rawChapters, rawListItem, isAnySelected) = remember(state) {
         Triple(
             first = state.processedChapters,
             second = state.chapterListItems,
             third = state.isAnySelected,
         )
+    }
+
+    val esCount = remember(rawChapters) {
+        rawChapters.count { it.chapter.name.contains("[ES]") || it.chapter.scanlator?.contains("ES") == true }
+    }
+    val latCount = remember(rawChapters) {
+        rawChapters.count { it.chapter.name.contains("[LAT]") || it.chapter.scanlator?.contains("LAT") == true }
+    }
+    val hasEsChapters = esCount > 0
+    val hasLatChapters = latCount > 0
+    val showLanguageToggle = hasEsChapters && hasLatChapters
+
+    val defaultLanguage = remember(state.manga.id, esCount, latCount) {
+        if (latCount > esCount && latCount > 0) "LAT" else "ES"
+    }
+    var selectedLanguage by rememberSaveable(state.manga.id) { mutableStateOf(defaultLanguage) }
+
+    val (chapters, listItem) = remember(rawChapters, rawListItem, selectedLanguage, showLanguageToggle, hasEsChapters, hasLatChapters) {
+        if (!showLanguageToggle) {
+            Pair(rawChapters, rawListItem)
+        } else {
+            val filteredChapters = when (selectedLanguage) {
+                "ES" -> if (hasEsChapters) {
+                    rawChapters.filter { it.chapter.name.contains("[ES]") || it.chapter.scanlator?.contains("ES") == true }
+                } else rawChapters
+                "LAT" -> if (hasLatChapters) {
+                    rawChapters.filter { it.chapter.name.contains("[LAT]") || it.chapter.scanlator?.contains("LAT") == true }
+                } else rawChapters
+                else -> rawChapters
+            }
+            val filteredItems = when (selectedLanguage) {
+                "ES" -> if (hasEsChapters) {
+                    rawListItem.filter { item ->
+                        when (item) {
+                            is ChapterList.Item -> item.chapter.name.contains("[ES]") || item.chapter.scanlator?.contains("ES") == true
+                            is ChapterList.MissingCount -> true
+                        }
+                    }
+                } else rawListItem
+                "LAT" -> if (hasLatChapters) {
+                    rawListItem.filter { item ->
+                        when (item) {
+                            is ChapterList.Item -> item.chapter.name.contains("[LAT]") || item.chapter.scanlator?.contains("LAT") == true
+                            is ChapterList.MissingCount -> true
+                        }
+                    }
+                } else rawListItem
+                else -> rawListItem
+            }
+            Pair(filteredChapters, filteredItems)
+        }
+    }
+
+    val lowestChapterNumber = remember(chapters) {
+        chapters.mapNotNull { it.chapter.chapterNumber.takeIf { n -> n > 0.0 } }.minOrNull() ?: 1.0
+    }
+    val totalMissingGaps = remember(chapters) {
+        chapters.map { it.chapter.chapterNumber }.missingChaptersCount()
+    }
+    val earlyMissingCount = remember(lowestChapterNumber) {
+        if (lowestChapterNumber > 1.5) (lowestChapterNumber - 1.0).toInt().coerceAtLeast(1) else 0
+    }
+    val intermediateMissingCount = remember(totalMissingGaps, earlyMissingCount) {
+        (totalMissingGaps - earlyMissingCount).coerceAtLeast(0)
+    }
+    val isMangaDex = remember(state.source) {
+        state.source.name.contains("MangaDex", ignoreCase = true)
+    }
+    val showMissingChaptersBanner = remember(earlyMissingCount, intermediateMissingCount, chapters.size, state.manga.initialized, isMangaDex) {
+        isMangaDex && (
+            (chapters.isNotEmpty() && (earlyMissingCount > 0 || intermediateMissingCount > 0)) ||
+            (chapters.isEmpty() && state.manga.initialized)
+        )
+    }
+    val missingSummary = remember(earlyMissingCount, intermediateMissingCount, chapters.size) {
+        when {
+            chapters.isEmpty() ->
+                "No hay capítulos en español disponibles en este scan."
+            earlyMissingCount > 0 && intermediateMissingCount > 0 ->
+                "Faltan los primeros capítulos (del 1 al $earlyMissingCount) y $intermediateMissingCount capítulos intermedios en este scan."
+            earlyMissingCount > 0 ->
+                "Faltan los primeros capítulos de esta obra (del 1 al $earlyMissingCount) en este scan."
+            else ->
+                "Faltan $intermediateMissingCount capítulos intermedios en este scan."
+        }
     }
 
     BackHandler(enabled = isAnySelected) {
@@ -418,18 +506,30 @@ private fun MangaScreenSmallImpl(
                         )
                     }
 
+                    if (showMissingChaptersBanner) {
+                        item(
+                            key = MangaScreenItem.MISSING_CHAPTERS_BANNER,
+                            contentType = MangaScreenItem.MISSING_CHAPTERS_BANNER,
+                        ) {
+                            MissingChaptersBridgeBanner(
+                                missingSummary = missingSummary,
+                                onFindInOtherSources = { onSearch(state.manga.title, true) },
+                            )
+                        }
+                    }
+
                     item(
                         key = MangaScreenItem.CHAPTER_HEADER,
                         contentType = MangaScreenItem.CHAPTER_HEADER,
                     ) {
-                        val missingChapterCount = remember(chapters) {
-                            chapters.map { it.chapter.chapterNumber }.missingChaptersCount()
-                        }
                         ChapterHeader(
                             enabled = !isAnySelected,
                             chapterCount = chapters.size,
-                            missingChapterCount = missingChapterCount,
+                            missingChapterCount = totalMissingGaps,
                             onClick = onFilterClicked,
+                            showLanguageToggle = showLanguageToggle,
+                            selectedLanguage = selectedLanguage,
+                            onLanguageSelected = { selectedLanguage = it },
                         )
                     }
 
@@ -502,7 +602,7 @@ fun MangaScreenLargeImpl(
     val layoutDirection = LocalLayoutDirection.current
     val density = LocalDensity.current
 
-    val (chapters, listItem, isAnySelected) = remember(state) {
+    val (rawChapters, rawListItem, isAnySelected) = remember(state) {
         Triple(
             first = state.processedChapters,
             second = state.chapterListItems,
@@ -510,10 +610,95 @@ fun MangaScreenLargeImpl(
         )
     }
 
+    val esCount = remember(rawChapters) {
+        rawChapters.count { it.chapter.name.contains("[ES]") || it.chapter.scanlator?.contains("ES") == true }
+    }
+    val latCount = remember(rawChapters) {
+        rawChapters.count { it.chapter.name.contains("[LAT]") || it.chapter.scanlator?.contains("LAT") == true }
+    }
+    val hasEsChapters = esCount > 0
+    val hasLatChapters = latCount > 0
+    val showLanguageToggle = hasEsChapters && hasLatChapters
+
+    val defaultLanguage = remember(state.manga.id, esCount, latCount) {
+        if (latCount > esCount && latCount > 0) "LAT" else "ES"
+    }
+    var selectedLanguage by rememberSaveable(state.manga.id) { mutableStateOf(defaultLanguage) }
+
+    val (chapters, listItem) = remember(rawChapters, rawListItem, selectedLanguage, showLanguageToggle, hasEsChapters, hasLatChapters) {
+        if (!showLanguageToggle) {
+            Pair(rawChapters, rawListItem)
+        } else {
+            val filteredChapters = when (selectedLanguage) {
+                "ES" -> if (hasEsChapters) {
+                    rawChapters.filter { it.chapter.name.contains("[ES]") || it.chapter.scanlator?.contains("ES") == true }
+                } else rawChapters
+                "LAT" -> if (hasLatChapters) {
+                    rawChapters.filter { it.chapter.name.contains("[LAT]") || it.chapter.scanlator?.contains("LAT") == true }
+                } else rawChapters
+                else -> rawChapters
+            }
+            val filteredItems = when (selectedLanguage) {
+                "ES" -> if (hasEsChapters) {
+                    rawListItem.filter { item ->
+                        when (item) {
+                            is ChapterList.Item -> item.chapter.name.contains("[ES]") || item.chapter.scanlator?.contains("ES") == true
+                            is ChapterList.MissingCount -> true
+                        }
+                    }
+                } else rawListItem
+                "LAT" -> if (hasLatChapters) {
+                    rawListItem.filter { item ->
+                        when (item) {
+                            is ChapterList.Item -> item.chapter.name.contains("[LAT]") || item.chapter.scanlator?.contains("LAT") == true
+                            is ChapterList.MissingCount -> true
+                        }
+                    }
+                } else rawListItem
+                else -> rawListItem
+            }
+            Pair(filteredChapters, filteredItems)
+        }
+    }
+
     val insetPadding = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal).asPaddingValues()
     var topBarHeight by remember { mutableIntStateOf(0) }
 
     val chapterListState = rememberLazyListState()
+
+    val lowestChapterNumber = remember(chapters) {
+        chapters.mapNotNull { it.chapter.chapterNumber.takeIf { n -> n > 0.0 } }.minOrNull() ?: 1.0
+    }
+    val totalMissingGaps = remember(chapters) {
+        chapters.map { it.chapter.chapterNumber }.missingChaptersCount()
+    }
+    val earlyMissingCount = remember(lowestChapterNumber) {
+        if (lowestChapterNumber > 1.5) (lowestChapterNumber - 1.0).toInt().coerceAtLeast(1) else 0
+    }
+    val intermediateMissingCount = remember(totalMissingGaps, earlyMissingCount) {
+        (totalMissingGaps - earlyMissingCount).coerceAtLeast(0)
+    }
+    val isMangaDex = remember(state.source) {
+        state.source.name.contains("MangaDex", ignoreCase = true)
+    }
+    val showMissingChaptersBanner = remember(earlyMissingCount, intermediateMissingCount, chapters.size, state.manga.initialized, isMangaDex) {
+        isMangaDex && (
+            (chapters.isNotEmpty() && (earlyMissingCount > 0 || intermediateMissingCount > 0)) ||
+            (chapters.isEmpty() && state.manga.initialized)
+        )
+    }
+    val missingSummary = remember(earlyMissingCount, intermediateMissingCount, chapters.size) {
+        when {
+            chapters.isEmpty() ->
+                "No hay capítulos en español disponibles en este scan."
+            earlyMissingCount > 0 && intermediateMissingCount > 0 ->
+                "Faltan los primeros capítulos (del 1 al $earlyMissingCount) y $intermediateMissingCount capítulos intermedios en este scan."
+            earlyMissingCount > 0 ->
+                "Faltan los primeros capítulos de esta obra (del 1 al $earlyMissingCount) en este scan."
+            else ->
+                "Faltan $intermediateMissingCount capítulos intermedios en este scan."
+        }
+    }
 
     BackHandler(enabled = isAnySelected) {
         onAllChapterSelected(false)
@@ -655,18 +840,30 @@ fun MangaScreenLargeImpl(
                                 bottom = contentPadding.calculateBottomPadding(),
                             ),
                         ) {
+                            if (showMissingChaptersBanner) {
+                                item(
+                                    key = MangaScreenItem.MISSING_CHAPTERS_BANNER,
+                                    contentType = MangaScreenItem.MISSING_CHAPTERS_BANNER,
+                                ) {
+                                    MissingChaptersBridgeBanner(
+                                        missingSummary = missingSummary,
+                                        onFindInOtherSources = { onSearch(state.manga.title, true) },
+                                    )
+                                }
+                            }
+
                             item(
                                 key = MangaScreenItem.CHAPTER_HEADER,
                                 contentType = MangaScreenItem.CHAPTER_HEADER,
                             ) {
-                                val missingChapterCount = remember(chapters) {
-                                    chapters.map { it.chapter.chapterNumber }.missingChaptersCount()
-                                }
                                 ChapterHeader(
                                     enabled = !isAnySelected,
                                     chapterCount = chapters.size,
-                                    missingChapterCount = missingChapterCount,
+                                    missingChapterCount = totalMissingGaps,
                                     onClick = onFilterButtonClicked,
+                                    showLanguageToggle = showLanguageToggle,
+                                    selectedLanguage = selectedLanguage,
+                                    onLanguageSelected = { selectedLanguage = it },
                                 )
                             }
 

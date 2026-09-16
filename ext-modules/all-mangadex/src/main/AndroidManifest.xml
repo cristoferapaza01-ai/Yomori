@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-feature android:name="tachiyomi.extension" />
+
+    <application
+        android:label="MangaDex"
+        android:icon="@mipmap/ic_launcher"
+        android:hasCode="true">
+        <meta-data
+            android:name="tachiyomi.extension.class"
+            android:value="org.yomori.extension.all.mangadex.MangaDex" />
+        <meta-data
+            android:name="tachiyomi.extension.versionCode"
+            android:value="1" />
+        <meta-data
+            android:name="tachiyomi.extension.libVersion"
+            android:value="1.4" />
+        <meta-data
+            android:name="tachiyomi.extension.nsfw"
+            android:value="0" />
+    </application>
+</manifest>

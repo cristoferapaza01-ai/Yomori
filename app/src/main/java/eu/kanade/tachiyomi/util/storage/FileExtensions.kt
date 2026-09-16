@@ -53,12 +53,11 @@ fun File.copyAndSetReadOnlyTo(target: File, overwrite: Boolean = false, bufferSi
 
         this.inputStream().use { input ->
             target.outputStream().use { output ->
-                // Set read-only
-                target.setReadOnly()
-
                 input.copyTo(output, bufferSize)
             }
         }
+        target.setReadOnly()
+        target.setReadable(true, false)
     }
 
     return target

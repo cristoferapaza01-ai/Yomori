@@ -100,7 +100,7 @@
     <string name="pref_enable_acra">שלח דוחות קריסה</string>
     <string name="untrusted_extension_message">תוסף זה נחתם עם אישור לא מהימן ולא הופעל.
 \n
-\nתוסף זדוני יכול לקרוא את אישורי ההתחברות המאוחסנים ב-Mihon או להריץ קוד שרירותי.
+\nתוסף זדוני יכול לקרוא את אישורי ההתחברות המאוחסנים ב-Yomori או להריץ קוד שרירותי.
 \n
 \nעל ידי אמון באישור זה אתה מקבל סיכונים אלה.</string>
     <string name="ext_uninstall">הסר התקנה</string>
@@ -519,7 +519,7 @@
     <string name="categorized_display_settings">הגדרות מיון לכל קטגוריה בנפרד</string>
     <string name="source_empty_screen">מקור לא נמצא</string>
     <string name="update_check_eol">גרסת האנדרואיד הזאת כבר לא נתמכת</string>
-    <string name="information_webview_required">WebView נצרך ל-Mihon</string>
+    <string name="information_webview_required">WebView נצרך ל-Yomori</string>
     <string name="action_display_cover_only_grid">רשת רק של הכריכות</string>
     <string name="action_open_log">פתח את יומן האירועים</string>
     <string name="pref_landscape_zoom">בצע קירוב לתמונות אופקיות באופן אוטומטי</string>
@@ -760,5 +760,5 @@
     <string name="upcoming_calendar_next">החודש הבא</string>
     <string name="upcoming_calendar_prev">החודש שעבר</string>
     <string name="pref_filter_upcoming_categories_details">פריטים בקטגוריות מוחרגות לא יוצגו, גם אם הם מופיעים בקטגוריות נבחרות.</string>
-    <string name="label_support_us">תמיכה ב־Mihon</string>
+    <string name="label_support_us">תמיכה ב־Yomori</string>
 </resources>

@@ -1,7 +1,7 @@
 [versions]
 aboutLibraries = "15.0.4"
 android-desugar = "2.1.5"
-android-gradle = "9.3.1"
+android-gradle = "9.2.1"
 androidx-activity-compose = "1.13.0"
 androidx-annotation = "1.10.0"
 androidx-appCompat = "1.7.1"
@@ -131,7 +131,7 @@ diskLruCache = { module = "com.jakewharton:disklrucache", version.ref = "diskLru
 firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebase-bom" }
 firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics" }
-flexibleAdapter = { module = "com.github.arkon.FlexibleAdapter:flexible-adapter", version.ref = "flexibleAdapter" }
+flexibleAdapter = { module = "eu.davidea:flexible-adapter", version = "5.1.0" }
 image-decoder = { module = "com.github.mihonapp:image-decoder", version.ref = "image-decoder" }
 injekt = { module = "com.github.mihonapp:injekt", version.ref = "injekt" }
 jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }

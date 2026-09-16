@@ -37,6 +37,9 @@ import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.presentation.util.Screen
 import eu.kanade.presentation.util.isTabletUi
 import eu.kanade.tachiyomi.ui.browse.BrowseTab
+import eu.kanade.tachiyomi.ui.yomori.tabs.YomoriHomeTab
+import eu.kanade.tachiyomi.ui.yomori.tabs.YomoriCommunityTab
+import eu.kanade.tachiyomi.ui.yomori.tabs.YomoriProfileTab
 import eu.kanade.tachiyomi.ui.download.DownloadQueueScreen
 import eu.kanade.tachiyomi.ui.history.HistoryTab
 import eu.kanade.tachiyomi.ui.library.LibraryTab
@@ -72,9 +75,9 @@ object HomeScreen : Screen() {
     private const val TabNavigatorKey = "HomeTabs"
 
     private val TABS = listOf(
+        YomoriHomeTab,
         LibraryTab,
-        UpdatesTab,
-        HistoryTab,
+        YomoriCommunityTab,
         BrowseTab,
         MoreTab,
     )
@@ -83,7 +86,7 @@ object HomeScreen : Screen() {
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
         TabNavigator(
-            tab = LibraryTab,
+            tab = YomoriHomeTab,
             key = TabNavigatorKey,
         ) { tabNavigator ->
             // Provide usable navigator to content screen
@@ -139,9 +142,9 @@ object HomeScreen : Screen() {
                 }
             }
 
-            val goToLibraryTab = { tabNavigator.current = LibraryTab }
+            val goToLibraryTab = { tabNavigator.current = YomoriHomeTab }
 
-            BackHandler(enabled = tabNavigator.current != LibraryTab, onBack = goToLibraryTab)
+            BackHandler(enabled = tabNavigator.current != YomoriHomeTab, onBack = goToLibraryTab)
 
             LaunchedEffect(Unit) {
                 launch {

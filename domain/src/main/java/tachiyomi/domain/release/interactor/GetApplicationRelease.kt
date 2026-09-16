@@ -30,26 +30,25 @@ class GetApplicationRelease(
     ): Boolean {
         // Removes prefixes like "r" or "v"
         val newVersion = versionTag.replace("[^\\d.]".toRegex(), "")
-        return if (isPreview) {
-            // Preview builds: based on releases in "mihonapp/mihon-preview" repo
-            // tagged as something like "r1234"
-            newVersion.toInt() > commitCount
-        } else {
-            // Release builds: based on releases in "mihonapp/mihon" repo
-            // tagged as something like "v0.1.2"
-            val oldVersion = versionName.replace("[^\\d.]".toRegex(), "")
+        val oldVersion = versionName.replace("[^\\d.]".toRegex(), "")
 
-            val newSemVer = newVersion.split(".").map { it.toInt() }
-            val oldSemVer = oldVersion.split(".").map { it.toInt() }
-
-            oldSemVer.mapIndexed { index, i ->
-                if (newSemVer[index] > i) {
-                    return true
+        if (newVersion.isBlank()) return false
+        if (newVersion != oldVersion) {
+            try {
+                val newSemVer = newVersion.split(".").map { it.toIntOrNull() ?: 0 }
+                val oldSemVer = oldVersion.split(".").map { it.toIntOrNull() ?: 0 }
+                val maxLen = maxOf(newSemVer.size, oldSemVer.size)
+                for (i in 0 until maxLen) {
+                    val n = newSemVer.getOrElse(i) { 0 }
+                    val o = oldSemVer.getOrElse(i) { 0 }
+                    if (n > o) return true
+                    if (n < o) return false
                 }
+            } catch (_: Exception) {
+                return true
             }
-
-            false
         }
+        return false
     }
 
     data class Arguments(

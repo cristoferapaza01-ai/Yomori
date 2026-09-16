@@ -67,10 +67,29 @@ internal class ExtensionInstaller(
             try {
                 step.value = InstallStep.Downloading
                 val request = Request.Builder().url(url).build()
-                val response = httpClient.newCall(request).execute()
+                var response = httpClient.newCall(request).execute()
 
                 if (!response.isSuccessful) {
-                    throw Exception("Failed to download extension")
+                    val fallbackUrl = if (url.contains("/dist/apk/")) {
+                        url.replace("/dist/apk/", "/apk/")
+                    } else if (url.contains("/apk/")) {
+                        url.replace("/apk/", "/dist/apk/")
+                    } else {
+                        null
+                    }
+
+                    if (fallbackUrl != null) {
+                        try {
+                            val fallbackResp = httpClient.newCall(Request.Builder().url(fallbackUrl).build()).execute()
+                            if (fallbackResp.isSuccessful) {
+                                response = fallbackResp
+                            }
+                        } catch (_: Exception) {}
+                    }
+                }
+
+                if (!response.isSuccessful) {
+                    throw Exception("Failed to download extension: HTTP ${response.code}")
                 }
                 response.body.byteStream().use { input ->
                     tmpFile.outputStream().use { output ->

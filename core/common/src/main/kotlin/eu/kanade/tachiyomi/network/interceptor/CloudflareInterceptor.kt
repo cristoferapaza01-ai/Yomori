@@ -32,15 +32,25 @@ class CloudflareInterceptor(
 
     override fun shouldIntercept(response: Response): Boolean {
         // Check if Cloudflare anti-bot is on
-        return if (response.code in ERROR_CODES && response.header("Server") in SERVER_CHECK) {
+        return if (response.code in ERROR_CODES && (response.header("Server") in SERVER_CHECK || response.header("cf-ray") != null)) {
+            val body = response.peekBody(Long.MAX_VALUE).string()
             val document = Jsoup.parse(
-                response.peekBody(Long.MAX_VALUE).string(),
+                body,
                 response.request.url.toString(),
             )
 
-            // solve with webview only on captcha, not on geo block
             document.getElementById("challenge-error-title") != null ||
-                document.getElementById("challenge-error-text") != null
+                document.getElementById("challenge-error-text") != null ||
+                document.getElementById("challenge-stage") != null ||
+                document.getElementById("challenge-form") != null ||
+                document.getElementById("challenge-running") != null ||
+                document.select("div#cf-please-wait").isNotEmpty() ||
+                body.contains("cf-browser-verification") ||
+                body.contains("challenges.cloudflare.com") ||
+                body.contains("challenge-platform") ||
+                body.contains("just a moment", ignoreCase = true) ||
+                body.contains("un momento", ignoreCase = true) ||
+                body.contains("attention required", ignoreCase = true)
         } else {
             false
         }
@@ -98,10 +108,18 @@ class CloudflareInterceptor(
                     if (isCloudFlareBypassed()) {
                         cloudflareBypassed = true
                         latch.countDown()
+                        return
                     }
 
-                    if (url == origRequestUrl && !challengeFound) {
-                        // The first request didn't return the challenge, abort.
+                    val title = view.title?.lowercase() ?: ""
+                    val isStillOnChallenge = title.contains("just a moment") ||
+                        title.contains("un momento") ||
+                        title.contains("attention required") ||
+                        title.contains("security check") ||
+                        title.contains("cloudflare")
+
+                    if (!isStillOnChallenge && (challengeFound || url != origRequestUrl)) {
+                        cloudflareBypassed = true
                         latch.countDown()
                     }
                 }
@@ -115,9 +133,6 @@ class CloudflareInterceptor(
                         if (errorResponse?.statusCode in ERROR_CODES) {
                             // Found the Cloudflare challenge page.
                             challengeFound = true
-                        } else {
-                            // Unlock thread, the challenge wasn't found.
-                            latch.countDown()
                         }
                     }
                 }

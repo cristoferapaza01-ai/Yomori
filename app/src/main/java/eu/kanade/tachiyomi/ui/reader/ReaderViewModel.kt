@@ -599,6 +599,19 @@ class ReaderViewModel @JvmOverloads constructor(
 
             upsertHistory.await(HistoryUpdate(chapterId, endTime, sessionReadDuration))
             chapterReadStartTime = null
+
+            val durationSeconds = sessionReadDuration / 1000
+            eu.kanade.tachiyomi.ui.yomori.data.UserManager.recordChapterReadWithAntiFarm(
+                chapterId = chapterId.toString(),
+                durationSeconds = durationSeconds
+            )
+
+            manga?.let { m ->
+                eu.kanade.tachiyomi.ui.yomori.data.YomoriSupabaseService.recordMangaRead(
+                    manga = m,
+                    chapterName = readerChapter.chapter.name
+                )
+            }
         }
     }
 

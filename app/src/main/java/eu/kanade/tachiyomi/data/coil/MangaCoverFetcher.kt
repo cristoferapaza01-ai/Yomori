@@ -116,6 +116,13 @@ class MangaCoverFetcher(
         }
 
         var snapshot = readFromDiskCache()
+        if (snapshot != null && url?.contains("ikigaimangas") == true) {
+            val fileSize = snapshot.data.toFile().length()
+            if (fileSize > 500_000L) {
+                snapshot.close()
+                snapshot = null
+            }
+        }
         try {
             // Fetch from disk cache
             if (snapshot != null) {
@@ -186,6 +193,14 @@ class MangaCoverFetcher(
             val sourceHeaders = sourceLazy.value?.headers
             if (sourceHeaders != null) {
                 headers(sourceHeaders)
+            }
+            if (url.contains("ikigaimangas")) {
+                header("Referer", "https://visorikigai.gettocaboca.com/")
+                header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+                header("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
+                header("Sec-Fetch-Dest", "image")
+                header("Sec-Fetch-Mode", "no-cors")
+                header("Sec-Fetch-Site", "cross-site")
             }
         }
 

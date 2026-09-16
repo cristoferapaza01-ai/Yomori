@@ -1,8 +1,44 @@
 <?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item
-        android:width="72dp"
-        android:height="72dp"
-        android:drawable="@drawable/ic_mihon"
-        android:gravity="center" />
-</layer-list>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="256dp"
+    android:height="256dp"
+    android:viewportWidth="256"
+    android:viewportHeight="256">
+    <!-- Outer/Background circle -->
+    <path
+        android:fillColor="#161D24"
+        android:pathData="M128,128m-120,0a120,120 0,1 1,240 0a120,120 0,1 1,-240 0" />
+    <!-- Cyan Ring -->
+    <path
+        android:strokeColor="#3DD6D0"
+        android:strokeWidth="8"
+        android:fillColor="#00000000"
+        android:pathData="M128,128m-110,0a110,110 0,1 1,220 0a110,110 0,1 1,-220 0" />
+    <!-- Stylized Kanji 夜 Strokes -->
+    <!-- Top Dot / Hook -->
+    <path
+        android:fillColor="#3DD6D0"
+        android:pathData="M128,42 C133,42 137,46 137,52 L137,68 C137,73 133,77 128,77 C123,77 119,73 119,68 L119,52 C119,46 123,42 128,42 Z" />
+    <!-- Horizontal Beam -->
+    <path
+        android:fillColor="#3DD6D0"
+        android:pathData="M60,82 C60,78 64,74 70,74 L186,74 C192,74 196,78 196,82 C196,86 192,90 186,90 L70,90 C64,90 60,86 60,82 Z" />
+    <!-- Left person radical stroke -->
+    <path
+        android:fillColor="#3DD6D0"
+        android:pathData="M106,96 C108,98 108,103 104,108 L82,142 C78,148 72,154 62,158 C58,160 54,156 56,152 C64,142 76,128 88,104 C91,98 96,96 106,96 Z" />
+    <path
+        android:fillColor="#3DD6D0"
+        android:pathData="M78,138 C82,138 86,142 86,148 L86,206 C86,212 82,216 76,216 C70,216 66,212 66,206 L66,148 C66,142 70,138 78,138 Z" />
+    <!-- Center/Right Box and Legs -->
+    <path
+        android:fillColor="#3DD6D0"
+        android:pathData="M112,106 C116,106 120,110 120,116 L120,154 C120,158 116,162 112,162 C108,162 104,158 104,154 L104,116 C104,110 108,106 112,106 Z" />
+    <path
+        android:fillColor="#3DD6D0"
+        android:pathData="M116,110 L174,110 C178,110 182,114 182,118 L182,152 C182,156 178,160 174,160 L116,160 C112,160 108,156 108,152 L108,118 C108,114 112,110 116,110 Z M122,124 L122,146 L168,146 L168,124 Z" />
+    <!-- Right sweeping leg -->
+    <path
+        android:fillColor="#3DD6D0"
+        android:pathData="M136,164 C140,164 144,168 144,174 C144,188 152,198 164,204 C174,208 186,208 194,200 C198,196 204,198 206,202 C208,206 204,212 198,216 C184,222 166,222 150,214 C132,204 124,188 124,174 C124,168 128,164 136,164 Z" />
+</vector>
