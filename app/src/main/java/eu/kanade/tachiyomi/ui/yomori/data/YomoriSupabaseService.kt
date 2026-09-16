@@ -314,4 +314,60 @@ object YomoriSupabaseService {
             false
         }
     }
+
+    /**
+     * Sube o actualiza la copia de seguridad de la biblioteca del usuario en Supabase (UPSERT).
+     */
+    suspend fun pushUserSync(userId: String, libraryJson: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val payload = JSONObject().apply {
+                put("user_id", userId)
+                put("library_data", JSONObject(libraryJson))
+                put("updated_at", "now()")
+            }
+
+            val request = Request.Builder()
+                .url("$SUPABASE_URL/rest/v1/yomori_user_sync?on_conflict=user_id")
+                .addHeader("apikey", API_KEY)
+                .addHeader("Authorization", "Bearer $API_KEY")
+                .addHeader("Content-Type", "application/json")
+                .addHeader("Prefer", "resolution=merge-duplicates")
+                .post(payload.toString().toRequestBody(JSON_MEDIA_TYPE))
+                .build()
+
+            val response = okHttpClient.newCall(request).execute()
+            val success = response.isSuccessful
+            response.close()
+            success
+        } catch (_: Throwable) {
+            false
+        }
+    }
+
+    /**
+     * Descarga la biblioteca y progreso de lectura del usuario desde Supabase.
+     */
+    suspend fun pullUserSync(userId: String): String? = withContext(Dispatchers.IO) {
+        try {
+            val request = Request.Builder()
+                .url("$SUPABASE_URL/rest/v1/yomori_user_sync?user_id=eq.$userId&select=library_data")
+                .addHeader("apikey", API_KEY)
+                .addHeader("Authorization", "Bearer $API_KEY")
+                .addHeader("Content-Type", "application/json")
+                .get()
+                .build()
+
+            val response = okHttpClient.newCall(request).execute()
+            if (!response.isSuccessful) return@withContext null
+
+            val body = response.body?.string() ?: return@withContext null
+            val array = JSONArray(body)
+            if (array.length() == 0) return@withContext null
+
+            val obj = array.getJSONObject(0)
+            obj.optJSONObject("library_data")?.toString()
+        } catch (_: Throwable) {
+            null
+        }
+    }
 }

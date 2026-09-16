@@ -232,8 +232,9 @@ object UserManager {
         val lifetimeAwardedIds = (sp?.getStringSet(KEY_LIFETIME_AWARDED_CHAPTERS, emptySet()) ?: emptySet()).toMutableSet()
         val lastXpTime = sp?.getLong(KEY_LAST_XP_AWARD_TIME, 0L) ?: 0L
 
-        // Siempre suma al total de capítulos leídos en el perfil
+        // Siempre suma al total de capítulos leídos en el perfil y programa sync a la nube
         incrementChapterStats()
+        YomoriSyncManager.scheduleSyncPush()
 
         // Modo Admin sin restricciones
         if (user.isAdmin) {
@@ -709,6 +710,13 @@ object UserManager {
             putInt(KEY_MANGAS, user.mangasCompleted)
             putInt(KEY_STREAK, user.streakDays)
             apply()
+        }
+        if (user.isLoggedIn) {
+            scope.launch {
+                try {
+                    YomoriSyncManager.pullLibraryFromCloud()
+                } catch (_: Throwable) {}
+            }
         }
     }
 

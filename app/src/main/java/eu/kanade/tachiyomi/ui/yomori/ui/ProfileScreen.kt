@@ -31,10 +31,13 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import coil3.compose.AsyncImage
 import eu.kanade.presentation.util.Screen
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 import eu.kanade.tachiyomi.ui.yomori.data.AVATAR_PRESETS
 import eu.kanade.tachiyomi.ui.yomori.data.Quest
 import eu.kanade.tachiyomi.ui.yomori.data.RANK_TIERS
 import eu.kanade.tachiyomi.ui.yomori.data.UserManager
+import eu.kanade.tachiyomi.ui.yomori.data.YomoriSyncManager
 import kotlinx.coroutines.launch
 
 class YomoriProfileScreenVoyager : Screen() {
@@ -344,7 +347,137 @@ fun YomoriProfileScreen(onBack: (() -> Unit)? = null) {
                 }
             }
 
-            // 5. Botón de Cerrar Sesión / Sincronización
+            // 5. Tarjeta de Sincronización en la Nube (Supabase)
+            if (user.isLoggedIn) {
+                item {
+                    val isSyncing by YomoriSyncManager.isSyncing.collectAsState()
+                    val lastSyncTime by YomoriSyncManager.lastSyncTime.collectAsState()
+                    val context = LocalContext.current
+
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = YomoriSurfaceDark,
+                        border = CardDefaults.outlinedCardBorder().copy(
+                            brush = Brush.linearGradient(
+                                listOf(YomoriTeal.copy(alpha = 0.4f), YomoriBorder)
+                            )
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Surface(
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = YomoriTeal.copy(alpha = 0.15f),
+                                        modifier = Modifier.size(38.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                Icons.Filled.CloudSync,
+                                                contentDescription = null,
+                                                tint = YomoriTeal,
+                                                modifier = Modifier.size(22.dp)
+                                            )
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
+                                        Text(
+                                            "Sincronización en la Nube",
+                                            color = TextPrimary,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp
+                                        )
+                                        Text(
+                                            if (lastSyncTime > 0) "Última vez: ${java.text.SimpleDateFormat("hh:mm a, dd MMM", java.util.Locale.getDefault()).format(java.util.Date(lastSyncTime))}"
+                                            else "Biblioteca vinculada a tu cuenta",
+                                            color = TextMuted,
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                }
+
+                                if (isSyncing) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        color = YomoriTeal,
+                                        strokeWidth = 2.dp
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Text(
+                                "Tus mangas guardados, categorías y capítulos leídos se sincronizan automáticamente en tiempo real entre todos tus dispositivos.",
+                                color = TextSecondary,
+                                fontSize = 11.sp,
+                                lineHeight = 16.sp
+                            )
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            val ok = YomoriSyncManager.pushLibraryToCloud()
+                                            if (ok) {
+                                                Toast.makeText(context, "☁️ ¡Biblioteca subida a la nube!", Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                Toast.makeText(context, "Error al sincronizar con la nube", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    },
+                                    enabled = !isSyncing,
+                                    modifier = Modifier.weight(1f).height(36.dp),
+                                    shape = RoundedCornerShape(8.dp),
+                                    border = CardDefaults.outlinedCardBorder().copy(
+                                        brush = Brush.linearGradient(listOf(YomoriTeal, YomoriBorder))
+                                    ),
+                                    contentPadding = PaddingValues(horizontal = 8.dp)
+                                ) {
+                                    Icon(Icons.Filled.CloudUpload, contentDescription = null, tint = YomoriTeal, modifier = Modifier.size(14.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Subir Nube", color = YomoriTeal, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+
+                                Button(
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            val ok = YomoriSyncManager.pullLibraryFromCloud()
+                                            if (ok) {
+                                                Toast.makeText(context, "✅ ¡Biblioteca restaurada desde la nube!", Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                Toast.makeText(context, "No se encontraron datos o hubo error", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    },
+                                    enabled = !isSyncing,
+                                    modifier = Modifier.weight(1f).height(36.dp),
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = YomoriTeal),
+                                    contentPadding = PaddingValues(horizontal = 8.dp)
+                                ) {
+                                    Icon(Icons.Filled.CloudDownload, contentDescription = null, tint = YomoriBgDark, modifier = Modifier.size(14.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Descargar Nube", color = YomoriBgDark, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 6. Botón de Cerrar Sesión
             item {
                 Spacer(modifier = Modifier.height(10.dp))
                 if (user.isLoggedIn) {
