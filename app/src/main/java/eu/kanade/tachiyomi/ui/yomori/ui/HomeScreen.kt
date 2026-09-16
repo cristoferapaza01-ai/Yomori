@@ -662,11 +662,12 @@ fun YomoriHomeScreen(
                                 if (commentText.isNotBlank()) {
                                     val textToSend = commentText.trim()
                                     val targetReply = replyingTo
+                                    val msgBadge = if (user.isAdmin) "👑 ADMIN" else "[${user.rankTier}] ${user.rankTitle}"
                                     val newMsg = LiveChatMessage(
                                         id = "chat-${System.currentTimeMillis()}",
                                         user = user.username,
                                         avatarInitial = user.username.take(1).uppercase(),
-                                        badge = if (user.isAdmin) "👑 ADMIN" else user.rankTitle,
+                                        badge = msgBadge,
                                         badgeColor = user.rankColor,
                                         time = "Ahora",
                                         manga = "",
@@ -686,7 +687,7 @@ fun YomoriHomeScreen(
                                             userName = user.username,
                                             userId = user.id,
                                             avatarInitial = user.username.take(1).uppercase(),
-                                            badge = if (user.isAdmin) "👑 ADMIN" else user.rankTitle,
+                                            badge = msgBadge,
                                             badgeColor = user.rankColor,
                                             mangaTitle = "",
                                             message = textToSend,
@@ -925,11 +926,12 @@ fun YomoriHomeScreen(
                                     if (commentText.isNotBlank()) {
                                         val textToSend = commentText.trim()
                                         val targetReply = replyingTo
+                                        val msgBadge = if (user.isAdmin) "👑 ADMIN" else "[${user.rankTier}] ${user.rankTitle}"
                                         val newMsg = LiveChatMessage(
                                             id = "chat-${System.currentTimeMillis()}",
                                             user = user.username,
                                             avatarInitial = user.username.take(1).uppercase(),
-                                            badge = if (user.isAdmin) "👑 ADMIN" else user.rankTitle,
+                                            badge = msgBadge,
                                             badgeColor = user.rankColor,
                                             time = "Ahora",
                                             manga = "",
@@ -953,7 +955,7 @@ fun YomoriHomeScreen(
                                                 userName = user.username,
                                                 userId = user.id,
                                                 avatarInitial = user.username.take(1).uppercase(),
-                                                badge = if (user.isAdmin) "👑 ADMIN" else user.rankTitle,
+                                                badge = msgBadge,
                                                 badgeColor = user.rankColor,
                                                 mangaTitle = "",
                                                 message = textToSend,
@@ -990,7 +992,8 @@ fun YomoriMessageItem(
     onLike: () -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
-    val displayColor = if (msg.user.equals("Rey_Palomo", ignoreCase = true) || msg.badge.contains("ADMIN", ignoreCase = true)) {
+    val isUserAdmin = msg.user.equals("Rey_Palomo", ignoreCase = true) || msg.badge.contains("ADMIN", ignoreCase = true)
+    val displayColor = if (isUserAdmin) {
         Color(0xFFFF0055)
     } else {
         Color(msg.badgeColor)
@@ -1041,11 +1044,11 @@ fun YomoriMessageItem(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
-                        if (msg.badge.contains("ADMIN", ignoreCase = true) || msg.badge.contains("👑") || msg.user.equals("Rey_Palomo", ignoreCase = true)) {
+                        if (isUserAdmin) {
                             Text("👑 ", fontSize = 9.sp)
                         }
                         Text(
-                            msg.badge.replace("👑 ", ""),
+                            if (isUserAdmin) "ADMIN" else msg.badge.replace("👑 ", "").trim(),
                             color = displayColor,
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Black

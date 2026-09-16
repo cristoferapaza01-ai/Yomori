@@ -182,14 +182,36 @@ object YomoriSyncManager {
             }
             rootJson.put("mangas", mangaArray)
 
+            // Construir payload del Perfil & Rangos
+            val settingsJson = JSONObject().apply {
+                put("nickname", currentUser.nickname)
+                put("username", currentUser.username)
+                put("avatar_url", currentUser.avatarUrl)
+                put("bio", currentUser.bio)
+                put("level", currentUser.level)
+                put("current_xp", currentUser.currentXp)
+                put("next_level_xp", currentUser.nextLevelXp)
+                put("rank_title", currentUser.rankTitle)
+                put("rank_tier", currentUser.rankTier)
+                put("rank_color", currentUser.rankColor)
+                put("chapters_read", currentUser.chaptersRead)
+                put("mangas_completed", currentUser.mangasCompleted)
+                put("streak_days", currentUser.streakDays)
+                put("is_admin", currentUser.isAdmin)
+                val qArr = JSONArray()
+                currentUser.claimedQuests.forEach { qArr.put(it) }
+                put("claimed_quests", qArr)
+            }
+
             val success = YomoriSupabaseService.pushUserSync(
                 userId = currentUser.username.lowercase().trim(),
                 libraryJson = rootJson.toString(),
+                settingsJson = settingsJson.toString()
             )
 
             if (success) {
                 _lastSyncTime.value = System.currentTimeMillis()
-                logcat(LogPriority.INFO) { "YomoriSync: Push exitoso para ${currentUser.username} (${mangaArray.length()} mangas)" }
+                logcat(LogPriority.INFO) { "YomoriSync: Push exitoso para ${currentUser.username} (${mangaArray.length()} mangas, Rango: [${currentUser.rankTier}] ${currentUser.rankTitle})" }
             }
             success
         } catch (e: Exception) {
@@ -201,7 +223,7 @@ object YomoriSyncManager {
     }
 
     /**
-     * Descarga la biblioteca, categorías y capítulos leídos desde Supabase e inserta en la base de datos local.
+     * Descarga la biblioteca, categorías, perfil y capítulos leídos desde Supabase e inserta en la base de datos local.
      */
     suspend fun pullLibraryFromCloud(context: Context? = null): Boolean = withContext(Dispatchers.IO) {
         val currentUser = UserManager.userState.value
@@ -210,9 +232,15 @@ object YomoriSyncManager {
         try {
             _isSyncing.value = true
 
-            val rawData = YomoriSupabaseService.pullUserSync(currentUser.username.lowercase().trim())
+            val cloudData = YomoriSupabaseService.pullUserSync(currentUser.username.lowercase().trim())
                 ?: return@withContext false
 
+            // 1. Restaurar Perfil y Rangos si existen en la nube
+            if (!cloudData.settingsJson.isNullOrBlank()) {
+                UserManager.restoreProfileFromCloud(cloudData.settingsJson)
+            }
+
+            val rawData = cloudData.libraryJson ?: return@withContext true
             val rootJson = JSONObject(rawData)
             val catArray = rootJson.optJSONArray("cats")
             val backupCategories = mutableListOf<BackupCategory>()

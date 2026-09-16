@@ -720,7 +720,68 @@ object UserManager {
         }
     }
 
+    fun restoreProfileFromCloud(settingsJson: String) {
+        try {
+            val obj = JSONObject(settingsJson)
+            val current = _userState.value
+            if (!current.isLoggedIn) return
+
+            val isAdmin = if (obj.has("is_admin")) obj.getBoolean("is_admin") else current.isAdmin
+            val lvl = obj.optInt("level", current.level)
+            val rank = if (isAdmin) RankInfo("ADMIN", "ADMIN", 0xFFFF0055L, 999, 999, 0L) else getRankForLevel(lvl)
+            
+            val claimedArr = obj.optJSONArray("claimed_quests")
+            val claimedSet = mutableSetOf<String>()
+            if (claimedArr != null) {
+                for (i in 0 until claimedArr.length()) {
+                    claimedSet.add(claimedArr.getString(i))
+                }
+            } else {
+                claimedSet.addAll(current.claimedQuests)
+            }
+
+            val restored = current.copy(
+                nickname = obj.optString("nickname", current.nickname),
+                username = obj.optString("username", current.username),
+                avatarUrl = obj.optString("avatar_url", current.avatarUrl),
+                bio = obj.optString("bio", current.bio),
+                level = lvl,
+                currentXp = obj.optInt("current_xp", current.currentXp),
+                nextLevelXp = obj.optInt("next_level_xp", current.nextLevelXp),
+                rankTitle = rank.title,
+                rankTier = rank.tier,
+                rankColor = rank.color,
+                chaptersRead = obj.optInt("chapters_read", current.chaptersRead),
+                mangasCompleted = obj.optInt("mangas_completed", current.mangasCompleted),
+                streakDays = obj.optInt("streak_days", current.streakDays),
+                claimedQuests = claimedSet,
+                isAdmin = isAdmin
+            )
+
+            _userState.value = restored
+            prefs?.edit()?.apply {
+                putString(KEY_NICKNAME, restored.nickname)
+                putString(KEY_USERNAME, restored.username)
+                putString(KEY_AVATAR, restored.avatarUrl)
+                putString(KEY_BIO, restored.bio)
+                putInt(KEY_LEVEL, restored.level)
+                putInt(KEY_XP, restored.currentXp)
+                putInt(KEY_NEXT_XP, restored.nextLevelXp)
+                putString(KEY_RANK, restored.rankTitle)
+                putString(KEY_RANK_TIER, restored.rankTier)
+                putLong(KEY_RANK_COLOR, restored.rankColor)
+                putInt(KEY_CHAPTERS, restored.chaptersRead)
+                putInt(KEY_MANGAS, restored.mangasCompleted)
+                putInt(KEY_STREAK, restored.streakDays)
+                putStringSet(KEY_CLAIMED_QUESTS, restored.claimedQuests)
+                putBoolean(KEY_IS_ADMIN, restored.isAdmin)
+                apply()
+            }
+        } catch (_: Exception) {}
+    }
+
     private fun syncProfileToCloud(user: YomoriUser) {
+        YomoriSyncManager.scheduleSyncPush()
         scope.launch {
             try {
                 val jsonPayload = JSONObject().apply {
