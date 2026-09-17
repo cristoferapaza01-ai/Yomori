@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -112,73 +114,13 @@ object HomeScreen : Screen() {
         ) { tabNavigator ->
             // Provide usable navigator to content screen
             CompositionLocalProvider(LocalNavigator provides navigator) {
-                Scaffold(
-                    startBar = {
-                        if (isTabletUi()) {
-                            NavigationRail {
-                                TABS.fastForEach {
-                                    NavigationRailItem(it)
-                                }
+                if (isTabletUi()) {
+                    Row(modifier = Modifier.fillMaxSize()) {
+                        androidx.compose.material3.NavigationRail {
+                            TABS.fastForEach {
+                                NavigationRailItem(it)
                             }
                         }
-                    },
-                    bottomBar = {
-                        if (!isTabletUi()) {
-                            val bottomNavVisible by produceState(initialValue = true) {
-                                showBottomNavEvent.receiveAsFlow().collectLatest { value = it }
-                            }
-                            AnimatedVisibility(
-                                visible = bottomNavVisible,
-                                enter = expandVertically(),
-                                exit = shrinkVertically(),
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .windowInsetsPadding(NavigationBarDefaults.windowInsets)
-                                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Surface(
-                                        shape = RoundedCornerShape(26.dp),
-                                        color = Color(0xFF0E131F),
-                                        shadowElevation = 10.dp,
-                                        border = BorderStroke(
-                                            width = 1.dp,
-                                            brush = Brush.horizontalGradient(
-                                                listOf(
-                                                    YomoriTeal.copy(alpha = 0.35f),
-                                                    YomoriBorder,
-                                                    YomoriTeal.copy(alpha = 0.2f),
-                                                )
-                                            )
-                                        ),
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(56.dp)
-                                                .padding(horizontal = 6.dp),
-                                            horizontalArrangement = Arrangement.SpaceAround,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            TABS.fastForEach {
-                                                DockNavigationItem(it)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    contentWindowInsets = WindowInsets(0),
-                ) { contentPadding ->
-                    Box(
-                        modifier = Modifier
-                            .padding(contentPadding)
-                            .consumeWindowInsets(contentPadding),
-                    ) {
                         AnimatedContent(
                             targetState = tabNavigator.current,
                             transitionSpec = {
@@ -186,9 +128,74 @@ object HomeScreen : Screen() {
                                     materialFadeThroughOut(durationMillis = TabFadeDuration)
                             },
                             label = "tabContent",
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
                         ) {
                             tabNavigator.saveableState(key = "currentTab", it) {
                                 it.Content()
+                            }
+                        }
+                    }
+                } else {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        AnimatedContent(
+                            targetState = tabNavigator.current,
+                            transitionSpec = {
+                                materialFadeThroughIn(initialScale = 1f, durationMillis = TabFadeDuration) togetherWith
+                                    materialFadeThroughOut(durationMillis = TabFadeDuration)
+                            },
+                            label = "tabContent",
+                            modifier = Modifier.fillMaxSize(),
+                        ) {
+                            tabNavigator.saveableState(key = "currentTab", it) {
+                                it.Content()
+                            }
+                        }
+
+                        val bottomNavVisible by produceState(initialValue = true) {
+                            showBottomNavEvent.receiveAsFlow().collectLatest { value = it }
+                        }
+                        AnimatedVisibility(
+                            visible = bottomNavVisible,
+                            enter = expandVertically(expandFrom = Alignment.Bottom),
+                            exit = shrinkVertically(shrinkTowards = Alignment.Bottom),
+                            modifier = Modifier.align(Alignment.BottomCenter),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .windowInsetsPadding(NavigationBarDefaults.windowInsets)
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Surface(
+                                    shape = RoundedCornerShape(26.dp),
+                                    color = Color(0xF20E131F),
+                                    shadowElevation = 10.dp,
+                                    border = BorderStroke(
+                                        width = 1.dp,
+                                        brush = Brush.horizontalGradient(
+                                            listOf(
+                                                YomoriTeal.copy(alpha = 0.35f),
+                                                YomoriBorder,
+                                                YomoriTeal.copy(alpha = 0.2f),
+                                            ),
+                                        ),
+                                    ),
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(56.dp)
+                                            .padding(horizontal = 6.dp),
+                                        horizontalArrangement = Arrangement.SpaceAround,
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        TABS.fastForEach {
+                                            DockNavigationItem(it)
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
