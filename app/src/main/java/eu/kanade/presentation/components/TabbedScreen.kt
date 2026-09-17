@@ -27,6 +27,13 @@ import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.components.material.TabText
 import tachiyomi.presentation.core.i18n.stringResource
 
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import eu.kanade.tachiyomi.ui.yomori.ui.YomoriBorder
+import eu.kanade.tachiyomi.ui.yomori.ui.YomoriTeal
+import eu.kanade.tachiyomi.ui.yomori.ui.TextMuted
+
 @Composable
 fun TabbedScreen(
     titleRes: StringResource,
@@ -63,13 +70,22 @@ fun TabbedScreen(
             PrimaryTabRow(
                 selectedTabIndex = state.currentPage,
                 modifier = Modifier.zIndex(1f),
+                containerColor = Color.Transparent,
+                contentColor = YomoriTeal,
+                divider = {
+                    HorizontalDivider(
+                        color = YomoriBorder,
+                        thickness = 1.dp,
+                    )
+                },
             ) {
                 tabs.forEachIndexed { index, tab ->
                     Tab(
                         selected = state.currentPage == index,
                         onClick = { scope.launch { state.animateScrollToPage(index) } },
                         text = { TabText(text = stringResource(tab.titleRes), badgeCount = tab.badgeNumber) },
-                        unselectedContentColor = MaterialTheme.colorScheme.onSurface,
+                        selectedContentColor = YomoriTeal,
+                        unselectedContentColor = TextMuted,
                     )
                 }
             }

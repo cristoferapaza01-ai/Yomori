@@ -101,6 +101,7 @@ object HomeScreen : Screen() {
         YomoriHomeTab,
         YomoriCommunityTab,
         LibraryTab,
+        UpdatesTab,
         BrowseTab,
         MoreTab,
     )

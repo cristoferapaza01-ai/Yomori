@@ -23,6 +23,8 @@ import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.Pill
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.theme.active
+import androidx.compose.ui.text.font.FontWeight
+import eu.kanade.tachiyomi.ui.yomori.ui.YomoriTeal
 
 @Composable
 fun LibraryToolbar(
@@ -80,12 +82,17 @@ private fun LibraryRegularToolbar(
                     maxLines = 1,
                     modifier = Modifier.weight(1f, false),
                     overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.2).sp,
+                    ),
                 )
                 if (title.numberOfManga != null) {
                     Pill(
                         text = "${title.numberOfManga}",
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = pillAlpha),
-                        fontSize = 14.sp,
+                        color = YomoriTeal.copy(alpha = 0.18f),
+                        contentColor = YomoriTeal,
+                        fontSize = 12.sp,
                     )
                 }
             }

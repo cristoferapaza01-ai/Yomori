@@ -10,10 +10,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import tachiyomi.presentation.core.components.Pill
 
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+
 @Composable
 fun TabText(text: String, badgeCount: Int? = null) {
-    val pillAlpha = if (isSystemInDarkTheme()) 0.12f else 0.08f
-
     Row(
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -21,13 +22,16 @@ fun TabText(text: String, badgeCount: Int? = null) {
             text = text,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
+            fontWeight = FontWeight.SemiBold,
         )
         if (badgeCount != null) {
             Pill(
                 text = "$badgeCount",
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = pillAlpha),
-                fontSize = 10.sp,
+                color = Color(0xFF3DD6D0).copy(alpha = 0.2f),
+                contentColor = Color(0xFF3DD6D0),
+                fontSize = 11.sp,
             )
         }
     }
 }
+
