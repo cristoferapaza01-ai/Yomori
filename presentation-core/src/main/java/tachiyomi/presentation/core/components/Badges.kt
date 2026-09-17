@@ -22,10 +22,12 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
+import androidx.compose.foundation.shape.RoundedCornerShape
+
 @Composable
 fun BadgeGroup(
     modifier: Modifier = Modifier,
-    shape: Shape = MaterialTheme.shapes.extraSmall,
+    shape: Shape = RoundedCornerShape(6.dp),
     content: @Composable RowScope.() -> Unit,
 ) {
     Row(modifier = modifier.clip(shape)) {
@@ -39,16 +41,16 @@ fun Badge(
     modifier: Modifier = Modifier,
     color: Color = MaterialTheme.colorScheme.secondary,
     textColor: Color = MaterialTheme.colorScheme.onSecondary,
-    shape: Shape = RectangleShape,
+    shape: Shape = RoundedCornerShape(6.dp),
 ) {
     Text(
         text = text,
         modifier = modifier
             .clip(shape)
             .background(color)
-            .padding(horizontal = 3.dp, vertical = 1.dp),
+            .padding(horizontal = 5.dp, vertical = 2.dp),
         color = textColor,
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.Bold,
         maxLines = 1,
         style = MaterialTheme.typography.bodySmall,
     )

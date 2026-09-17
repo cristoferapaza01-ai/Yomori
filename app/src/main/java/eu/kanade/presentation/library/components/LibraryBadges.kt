@@ -9,13 +9,19 @@ import androidx.compose.ui.tooling.preview.PreviewLightDark
 import eu.kanade.presentation.theme.TachiyomiPreviewTheme
 import tachiyomi.presentation.core.components.Badge
 
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import eu.kanade.tachiyomi.ui.yomori.ui.YomoriTeal
+
 @Composable
 internal fun DownloadsBadge(count: Int) {
     if (count > 0) {
         Badge(
             text = "$count",
-            color = MaterialTheme.colorScheme.tertiary,
-            textColor = MaterialTheme.colorScheme.onTertiary,
+            color = Color(0xFF10B981),
+            textColor = Color.Black,
+            shape = RoundedCornerShape(6.dp),
         )
     }
 }
@@ -23,7 +29,12 @@ internal fun DownloadsBadge(count: Int) {
 @Composable
 internal fun UnreadBadge(count: Long) {
     if (count > 0) {
-        Badge(text = "$count")
+        Badge(
+            text = "$count",
+            color = YomoriTeal,
+            textColor = Color.Black,
+            shape = RoundedCornerShape(6.dp),
+        )
     }
 }
 

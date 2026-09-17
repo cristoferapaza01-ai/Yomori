@@ -6,17 +6,29 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -24,8 +36,16 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import eu.kanade.tachiyomi.ui.yomori.ui.YomoriBgDark
+import eu.kanade.tachiyomi.ui.yomori.ui.YomoriBorder
+import eu.kanade.tachiyomi.ui.yomori.ui.YomoriTeal
+import eu.kanade.tachiyomi.ui.yomori.ui.TextMuted
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -112,12 +132,41 @@ object HomeScreen : Screen() {
                                 enter = expandVertically(),
                                 exit = shrinkVertically(),
                             ) {
-                                NavigationBar(
-                                    containerColor = eu.kanade.tachiyomi.ui.yomori.ui.YomoriBgDark,
-                                    height = 54.dp,
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .windowInsetsPadding(NavigationBarDefaults.windowInsets)
+                                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    TABS.fastForEach {
-                                        NavigationBarItem(it)
+                                    Surface(
+                                        shape = RoundedCornerShape(26.dp),
+                                        color = Color(0xFF0E131F),
+                                        shadowElevation = 10.dp,
+                                        border = BorderStroke(
+                                            width = 1.dp,
+                                            brush = Brush.horizontalGradient(
+                                                listOf(
+                                                    YomoriTeal.copy(alpha = 0.35f),
+                                                    YomoriBorder,
+                                                    YomoriTeal.copy(alpha = 0.2f),
+                                                )
+                                            )
+                                        ),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(56.dp)
+                                                .padding(horizontal = 6.dp),
+                                            horizontalArrangement = Arrangement.SpaceAround,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            TABS.fastForEach {
+                                                DockNavigationItem(it)
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -185,6 +234,34 @@ object HomeScreen : Screen() {
     }
 
     @Composable
+    private fun RowScope.DockNavigationItem(tab: eu.kanade.presentation.util.Tab) {
+        val tabNavigator = LocalTabNavigator.current
+        val navigator = LocalNavigator.currentOrThrow
+        val scope = rememberCoroutineScope()
+        val selected = tabNavigator.current::class == tab::class
+
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(42.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(
+                    if (selected) YomoriTeal.copy(alpha = 0.18f) else Color.Transparent
+                )
+                .clickable {
+                    if (!selected) {
+                        tabNavigator.current = tab
+                    } else {
+                        scope.launch { tab.onReselect(navigator) }
+                    }
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            NavigationIconItem(tab, isSelected = selected)
+        }
+    }
+
+    @Composable
     private fun RowScope.NavigationBarItem(tab: eu.kanade.presentation.util.Tab) {
         val tabNavigator = LocalTabNavigator.current
         val navigator = LocalNavigator.currentOrThrow
@@ -199,7 +276,7 @@ object HomeScreen : Screen() {
                     scope.launch { tab.onReselect(navigator) }
                 }
             },
-            icon = { NavigationIconItem(tab) },
+            icon = { NavigationIconItem(tab, isSelected = selected) },
             alwaysShowLabel = false,
             colors = androidx.compose.material3.NavigationBarItemDefaults.colors(
                 selectedIconColor = eu.kanade.tachiyomi.ui.yomori.ui.YomoriTeal,
@@ -224,7 +301,7 @@ object HomeScreen : Screen() {
                     scope.launch { tab.onReselect(navigator) }
                 }
             },
-            icon = { NavigationIconItem(tab) },
+            icon = { NavigationIconItem(tab, isSelected = selected) },
             alwaysShowLabel = false,
             colors = androidx.compose.material3.NavigationRailItemDefaults.colors(
                 selectedIconColor = eu.kanade.tachiyomi.ui.yomori.ui.YomoriTeal,
@@ -235,7 +312,8 @@ object HomeScreen : Screen() {
     }
 
     @Composable
-    private fun NavigationIconItem(tab: eu.kanade.presentation.util.Tab) {
+    private fun NavigationIconItem(tab: eu.kanade.presentation.util.Tab, isSelected: Boolean = false) {
+        val iconColor = if (isSelected) YomoriTeal else TextMuted
         BadgedBox(
             badge = {
                 when {
@@ -249,7 +327,10 @@ object HomeScreen : Screen() {
                                 .collectLatest { value = it }
                         }
                         if (count > 0) {
-                            Badge {
+                            Badge(
+                                containerColor = YomoriTeal,
+                                contentColor = Color.Black
+                            ) {
                                 val desc = pluralStringResource(
                                     MR.plurals.notification_chapters_generic,
                                     count = count,
@@ -268,7 +349,10 @@ object HomeScreen : Screen() {
                                 .collectLatest { value = it }
                         }
                         if (count > 0) {
-                            Badge {
+                            Badge(
+                                containerColor = YomoriTeal,
+                                contentColor = Color.Black
+                            ) {
                                 val desc = pluralStringResource(
                                     MR.plurals.update_check_notification_ext_updates,
                                     count = count,
@@ -287,6 +371,8 @@ object HomeScreen : Screen() {
             Icon(
                 painter = tab.options.icon!!,
                 contentDescription = tab.options.title,
+                tint = iconColor,
+                modifier = Modifier.size(24.dp)
             )
         }
     }
