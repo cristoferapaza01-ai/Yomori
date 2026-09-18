@@ -7,8 +7,8 @@ android {
 
     defaultConfig {
         applicationId = "org.yomori.extension.es.olympusscanlation"
-        versionCode = 12
-        versionName = "1.5.2"
+        versionCode = 13
+        versionName = "1.5.3"
     }
 
     signingConfigs {

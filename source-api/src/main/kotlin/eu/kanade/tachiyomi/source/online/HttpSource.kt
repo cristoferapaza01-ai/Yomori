@@ -256,12 +256,33 @@ abstract class HttpSource : CatalogueSource {
      *
      * @param manga the manga to be updated.
      */
+    protected fun getAbsoluteUrl(orig: String): String {
+        val cleanPath = try {
+            val uri = URI(orig.replace(" ", "%20"))
+            if (uri.isAbsolute) {
+                var out = uri.rawPath ?: ""
+                if (uri.rawQuery != null) out += "?" + uri.rawQuery
+                if (uri.rawFragment != null) out += "#" + uri.rawFragment
+                out
+            } else {
+                orig
+            }
+        } catch (_: Exception) {
+            orig
+        }
+        return when {
+            cleanPath.startsWith("/") -> baseUrl + cleanPath
+            cleanPath.startsWith("http://") || cleanPath.startsWith("https://") -> cleanPath
+            else -> "$baseUrl/$cleanPath"
+        }
+    }
+
     @Deprecated(
         message = "The helper functions are inherently limiting and hides the underlying implementation. " +
             "Source developers should make their own implementation according to their needs.",
     )
     open fun mangaDetailsRequest(manga: SManga): Request {
-        return GET(baseUrl + manga.url, headers)
+        return GET(getAbsoluteUrl(manga.url), headers)
     }
 
     /**
@@ -302,7 +323,7 @@ abstract class HttpSource : CatalogueSource {
             "Source developers should make their own implementation according to their needs.",
     )
     protected open fun chapterListRequest(manga: SManga): Request {
-        return GET(baseUrl + manga.url, headers)
+        return GET(getAbsoluteUrl(manga.url), headers)
     }
 
     /**

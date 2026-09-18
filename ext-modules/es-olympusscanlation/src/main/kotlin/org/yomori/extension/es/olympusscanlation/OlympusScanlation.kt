@@ -16,6 +16,11 @@ import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Locale
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+
 class OlympusScanlation : HttpSource() {
 
     override val name = "Olympus Scanlation"
@@ -23,8 +28,105 @@ class OlympusScanlation : HttpSource() {
     override val lang = "es"
     override val supportsLatest = true
 
+    companion object {
+        private var catalogCache: List<SManga>? = null
+        private var lastFetchTime = 0L
+        private val cacheLock = Any()
+    }
+
     override fun headersBuilder(): Headers.Builder = Headers.Builder()
         .add("Referer", "$baseUrl/series")
+
+    private fun normalize(str: String): String {
+        return str.lowercase()
+            .replace(Regex("[^a-z0-9áéíóúñü]"), "")
+            .trim()
+    }
+
+    private fun parseSeriesJson(body: String): List<SManga> {
+        return try {
+            val json = JSONObject(body)
+            val dataArray = json.optJSONArray("data")
+                ?: json.optJSONObject("data")?.optJSONObject("series")?.optJSONArray("data")
+                ?: json.optJSONObject("data")?.optJSONArray("series")
+                ?: json.optJSONObject("data")?.optJSONArray("data")
+                ?: return emptyList()
+
+            val mangas = mutableListOf<SManga>()
+            for (i in 0 until dataArray.length()) {
+                val item = dataArray.getJSONObject(i)
+                val slug = item.optString("slug")
+                val title = item.optString("name").trim()
+                val cover = item.optString("cover")
+                val type = item.optString("type")
+                if (slug.isBlank() || title.isBlank()) continue
+
+                val manga = SManga.create().apply {
+                    this.url = "/series/${if (type.isNotEmpty() && type != "comic") "$type-" else "comic-"}$slug"
+                    this.title = title
+                    this.thumbnail_url = cover
+                    this.initialized = true
+                }
+                mangas.add(manga)
+            }
+            mangas
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun getFullCatalog(): List<SManga> {
+        val now = System.currentTimeMillis()
+        synchronized(cacheLock) {
+            val cached = catalogCache
+            if (cached != null && cached.isNotEmpty() && (now - lastFetchTime < 10 * 60 * 1000L)) {
+                return cached
+            }
+        }
+
+        val allMangas = mutableListOf<SManga>()
+        try {
+            val p1Req = GET("$baseUrl/api/series?page=1", headers)
+            val p1Resp = client.newCall(p1Req).execute()
+            val p1Body = p1Resp.body.string()
+            val p1List = parseSeriesJson(p1Body)
+            allMangas.addAll(p1List)
+
+            val json = JSONObject(p1Body)
+            val lastPage = (json.optJSONObject("data")?.optJSONObject("series")?.optInt("last_page", 60) ?: 60).coerceAtMost(65)
+
+            if (lastPage > 1) {
+                val executor = Executors.newFixedThreadPool(8)
+                val futures = (2..lastPage).map { page ->
+                    executor.submit<List<SManga>> {
+                        try {
+                            val req = GET("$baseUrl/api/series?page=$page", headers)
+                            val resp = client.newCall(req).execute()
+                            parseSeriesJson(resp.body.string())
+                        } catch (_: Exception) {
+                            emptyList()
+                        }
+                    }
+                }
+                for (f in futures) {
+                    try {
+                        allMangas.addAll(f.get(10, TimeUnit.SECONDS))
+                    } catch (_: Exception) {}
+                }
+                executor.shutdown()
+            }
+
+            if (allMangas.isNotEmpty()) {
+                val distinct = allMangas.distinctBy { it.url }
+                synchronized(cacheLock) {
+                    catalogCache = distinct
+                    lastFetchTime = System.currentTimeMillis()
+                }
+                return distinct
+            }
+        } catch (_: Exception) {}
+        return catalogCache ?: emptyList()
+    }
 
     override fun popularMangaRequest(page: Int): Request {
         return GET("$baseUrl/api/rankings?page=$page", headers)
@@ -87,35 +189,50 @@ class OlympusScanlation : HttpSource() {
     override fun latestUpdatesParse(response: Response): MangasPage = popularMangaParse(response)
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
-        val url = "$baseUrl/api/series".toHttpUrl().newBuilder()
-            .addQueryParameter("page", page.toString())
+        return GET("$baseUrl/api/series?page=$page", headers)
+    }
+
+    override fun searchMangaParse(response: Response): MangasPage = popularMangaParse(response)
+
+    override suspend fun getSearchManga(page: Int, query: String, filters: FilterList): MangasPage = withContext(Dispatchers.IO) {
+        if (query.isBlank() && filters.isEmpty()) {
+            return@withContext popularMangaParse(client.newCall(popularMangaRequest(page)).execute())
+        }
+
+        val allMangas = getFullCatalog()
+        var filtered = allMangas
 
         if (query.isNotBlank()) {
-            url.addQueryParameter("name", query.trim())
+            val qNorm = normalize(query)
+            filtered = filtered.filter { m ->
+                val tNorm = normalize(m.title)
+                val slugNorm = normalize(getSlugFromUrl(m.url))
+                tNorm.contains(qNorm) || slugNorm.contains(qNorm) || qNorm.contains(tNorm)
+            }
         }
 
         for (filter in filters) {
             when (filter) {
-                is SortFilter -> {
-                    val sort = filter.toUriPart()
-                    if (sort.isNotEmpty()) url.addQueryParameter("sort", sort)
-                }
                 is TypeFilter -> {
-                    val type = filter.toUriPart()
-                    if (type.isNotEmpty()) url.addQueryParameter("type", type)
-                }
-                is StatusFilter -> {
-                    val status = filter.toUriPart()
-                    if (status.isNotEmpty()) url.addQueryParameter("status", status)
+                    val t = filter.toUriPart()
+                    if (t.isNotEmpty()) {
+                        filtered = filtered.filter { getTypeFromUrl(it.url).equals(t, ignoreCase = true) }
+                    }
                 }
                 else -> {}
             }
         }
 
-        return GET(url.build().toString(), headers)
-    }
+        val pageSize = 20
+        val startIndex = (page - 1) * pageSize
+        val paginated = if (startIndex < filtered.size) {
+            filtered.subList(startIndex, minOf(startIndex + pageSize, filtered.size))
+        } else {
+            emptyList()
+        }
 
-    override fun searchMangaParse(response: Response): MangasPage = popularMangaParse(response)
+        MangasPage(paginated, startIndex + pageSize < filtered.size)
+    }
 
     private fun getSlugFromUrl(url: String): String {
         val clean = url.substringBefore('?').substringBefore('#').trimEnd('/').substringAfterLast('/')
@@ -131,8 +248,20 @@ class OlympusScanlation : HttpSource() {
         }
     }
 
+    private fun resolveCurrentSlug(rawSlug: String): String {
+        val baseSlug = rawSlug.replace(Regex("""-\d{8}-\d+.*"""), "").replace(Regex("""-\d{5,}"""), "")
+        val catalog = getFullCatalog()
+        val match = catalog.firstOrNull { 
+            val itemSlug = getSlugFromUrl(it.url)
+            val itemBaseSlug = itemSlug.replace(Regex("""-\d{8}-\d+.*"""), "").replace(Regex("""-\d{5,}"""), "")
+            itemSlug == rawSlug || itemBaseSlug == baseSlug || itemSlug.startsWith(baseSlug) || baseSlug.startsWith(itemBaseSlug)
+        }
+        return if (match != null) getSlugFromUrl(match.url) else rawSlug
+    }
+
     override fun mangaDetailsRequest(manga: SManga): Request {
-        val slug = getSlugFromUrl(manga.url)
+        val rawSlug = getSlugFromUrl(manga.url)
+        val slug = resolveCurrentSlug(rawSlug)
         return GET("$baseUrl/api/series/$slug", headers)
     }
 
@@ -172,7 +301,8 @@ class OlympusScanlation : HttpSource() {
     }
 
     override fun chapterListRequest(manga: SManga): Request {
-        val slug = getSlugFromUrl(manga.url)
+        val rawSlug = getSlugFromUrl(manga.url)
+        val slug = resolveCurrentSlug(rawSlug)
         val type = getTypeFromUrl(manga.url)
         return GET("https://panel.olympusxyz.com/api/series/$slug/chapters?page=1&direction=desc&type=$type", headers)
     }
