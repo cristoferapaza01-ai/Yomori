@@ -1227,15 +1227,9 @@ fun YomoriMessageItem(
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            msg.time,
-                            color = TextMuted,
-                            fontSize = 10.sp
-                        )
                     }
 
-                    // Acciones superiores: Responder, Reacción Emoji y 3 puntitos verticales
+                    // Acciones superiores: Responder, Reacción Emoji, Tiempo y 3 puntitos verticales
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(2.dp)
@@ -1304,6 +1298,14 @@ fun YomoriMessageItem(
                                 }
                             }
                         }
+
+                        // Tiempo de envío (entre el emoji y los 3 puntitos)
+                        Text(
+                            text = msg.time,
+                            color = TextMuted,
+                            fontSize = 10.sp,
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        )
 
                         // 3 puntitos verticales (Más opciones / Eliminar)
                         Box {

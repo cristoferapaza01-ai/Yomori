@@ -245,6 +245,9 @@ object YomoriSupabaseService {
                     }
                 }
 
+                val createdAtRaw = obj.optString("created_at", "")
+                val formattedTime = formatChatTimestamp(createdAtRaw)
+
                 list.add(
                     LiveChatMessage(
                         id = obj.optString("id", "msg-$i"),
@@ -252,7 +255,7 @@ object YomoriSupabaseService {
                         avatarInitial = obj.optString("avatar_initial", uName.take(1).uppercase()),
                         badge = badgeText,
                         badgeColor = bColor,
-                        time = "Ahora",
+                        time = formattedTime,
                         manga = obj.optString("manga_title", "General"),
                         text = obj.optString("message", ""),
                         imageUrl = imgUrl,
@@ -267,6 +270,38 @@ object YomoriSupabaseService {
             list
         } catch (_: Throwable) {
             emptyList()
+        }
+    }
+
+    private fun formatChatTimestamp(createdAt: String?): String {
+        if (createdAt.isNullOrBlank()) return "Ahora"
+        return try {
+            val isoFormat = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US).apply {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            }
+            val cleanStr = createdAt.substringBefore(".").substringBefore("+").substringBefore("Z")
+            val date = isoFormat.parse(cleanStr) ?: return "Ahora"
+
+            val diffMs = System.currentTimeMillis() - date.time
+            val diffMins = diffMs / 60000L
+            val diffHours = diffMins / 60L
+            val diffDays = diffHours / 24L
+
+            when {
+                diffMins < 1 -> "Ahora"
+                diffMins < 60 -> "${diffMins}m"
+                diffHours < 24 -> {
+                    val localFormat = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+                    localFormat.format(date)
+                }
+                diffDays < 7 -> "${diffDays}d"
+                else -> {
+                    val localFormat = java.text.SimpleDateFormat("dd/MM", java.util.Locale.getDefault())
+                    localFormat.format(date)
+                }
+            }
+        } catch (_: Exception) {
+            "Ahora"
         }
     }
 
