@@ -151,6 +151,9 @@ class MainActivity : BaseActivity() {
 
         // Prevent splash screen showing up on configuration changes
         val splashScreen = if (isLaunch) installSplashScreen() else null
+        splashScreen?.setOnExitAnimationListener { splashScreenViewProvider ->
+            splashScreenViewProvider.remove()
+        }
 
         super.onCreate(savedInstanceState)
 
