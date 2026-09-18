@@ -573,15 +573,20 @@ object UserManager {
     }
 
     suspend fun register(
+        nickname: String,
         username: String,
         email: String,
         password: String,
         rememberMe: Boolean
     ): Result<YomoriUser> = withContext(Dispatchers.IO) {
         try {
-            val cleanUser = username.trim()
+            val cleanNick = nickname.trim()
+            val cleanUser = username.trim().replace("@", "")
             val cleanEmail = email.trim()
 
+            if (cleanNick.isBlank()) {
+                return@withContext Result.failure(Exception("Por favor ingresa tu apodo / nombre para mostrar"))
+            }
             if (cleanUser.length < 3) {
                 return@withContext Result.failure(Exception("El nombre de usuario debe tener al menos 3 caracteres"))
             }
@@ -590,7 +595,7 @@ object UserManager {
             val rank = getRankForLevel(1)
             val newUser = YomoriUser(
                 id = userId,
-                nickname = cleanUser,
+                nickname = cleanNick,
                 username = cleanUser,
                 email = cleanEmail.ifBlank { "$cleanUser@yomori.app" },
                 avatarUrl = AVATAR_PRESETS[0],

@@ -58,11 +58,12 @@ fun YomoriAuthScreen(
     val coroutineScope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
 
-    var isCheckingSession by remember { mutableStateOf(true) }
+    var isCheckingSession by remember { mutableStateOf(UserManager.isAutoLoginEnabled()) }
     var isRegisterMode by remember { mutableStateOf(false) }
 
-    var usernameInput by remember { mutableStateOf("") }
     var emailInput by remember { mutableStateOf("") }
+    var usernameInput by remember { mutableStateOf("") }
+    var nicknameInput by remember { mutableStateOf("") }
     var passwordInput by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var rememberMe by remember { mutableStateOf(true) }
@@ -84,15 +85,14 @@ fun YomoriAuthScreen(
 
     // Check auto-login session on launch
     LaunchedEffect(Unit) {
-        try {
-            delay(1000)
-            if (UserManager.isAutoLoginEnabled()) {
-                delay(400)
+        if (UserManager.isAutoLoginEnabled()) {
+            try {
+                delay(300)
                 onAuthenticated()
-            } else {
+            } catch (_: Throwable) {
                 isCheckingSession = false
             }
-        } catch (_: Throwable) {
+        } else {
             isCheckingSession = false
         }
     }
@@ -111,7 +111,7 @@ fun YomoriAuthScreen(
             )
     ) {
         if (isCheckingSession) {
-            // Splash Screen con Logo Yomori
+            // Splash Screen con Logo Yomori (Solo cuando ya hay una sesión guardada activa)
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -181,7 +181,7 @@ fun YomoriAuthScreen(
                 )
             }
         } else {
-            // Pantalla de Login / Registro Centrada
+            // Pantalla de Login / Registro Directa e Instantánea
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -233,49 +233,22 @@ fun YomoriAuthScreen(
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        if (isRegisterMode) "Guarda tus lecturas, sube de nivel y desbloquea rangos" else "Inicia sesión para sincronizar tus mangas y progreso",
+                        if (isRegisterMode) "Completa los datos para guardar tus lecturas y subir de rango" else "Inicia sesión para sincronizar tus mangas y progreso",
                         color = TextMuted,
                         fontSize = 12.sp,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
 
-                    Spacer(modifier = Modifier.height(28.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
 
-                    // Formulario
+                    // Formulario Dinámico
                     Column(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        // Campo Usuario
-                        OutlinedTextField(
-                            value = usernameInput,
-                            onValueChange = {
-                                usernameInput = it
-                                errorMessage = null
-                            },
-                            label = { Text(if (isRegisterMode) "Nombre de Usuario (Apodo)" else "Usuario o Correo") },
-                            leadingIcon = {
-                                Icon(Icons.Filled.Person, contentDescription = null, tint = YomoriTeal)
-                            },
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = YomoriTeal,
-                                unfocusedBorderColor = YomoriBorder,
-                                focusedLabelColor = YomoriTeal,
-                                unfocusedLabelColor = TextMuted,
-                                focusedTextColor = TextPrimary,
-                                unfocusedTextColor = TextPrimary,
-                                focusedContainerColor = YomoriSurfaceDark,
-                                unfocusedContainerColor = YomoriSurfaceDark
-                            ),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth(),
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
-                        )
-
-                        // Campo Correo (Solo en Registro)
-                        AnimatedVisibility(visible = isRegisterMode) {
+                        if (isRegisterMode) {
+                            // 1. Correo Electrónico
                             OutlinedTextField(
                                 value = emailInput,
                                 onValueChange = {
@@ -283,6 +256,7 @@ fun YomoriAuthScreen(
                                     errorMessage = null
                                 },
                                 label = { Text("Correo Electrónico") },
+                                placeholder = { Text("ejemplo@correo.com", color = TextMuted.copy(alpha = 0.5f)) },
                                 leadingIcon = {
                                     Icon(Icons.Filled.Email, contentDescription = null, tint = YomoriTeal)
                                 },
@@ -304,9 +278,97 @@ fun YomoriAuthScreen(
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier.fillMaxWidth()
                             )
+
+                            // 2. Nombre de Usuario
+                            OutlinedTextField(
+                                value = usernameInput,
+                                onValueChange = {
+                                    usernameInput = it.replace(" ", "")
+                                    errorMessage = null
+                                },
+                                label = { Text("Usuario (@usuario)") },
+                                placeholder = { Text("ej: shadow_reader", color = TextMuted.copy(alpha = 0.5f)) },
+                                leadingIcon = {
+                                    Icon(Icons.Filled.AlternateEmail, contentDescription = null, tint = YomoriTeal)
+                                },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(
+                                    imeAction = ImeAction.Next
+                                ),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = YomoriTeal,
+                                    unfocusedBorderColor = YomoriBorder,
+                                    focusedLabelColor = YomoriTeal,
+                                    unfocusedLabelColor = TextMuted,
+                                    focusedTextColor = TextPrimary,
+                                    unfocusedTextColor = TextPrimary,
+                                    focusedContainerColor = YomoriSurfaceDark,
+                                    unfocusedContainerColor = YomoriSurfaceDark
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            // 3. Apodo / Nombre público
+                            OutlinedTextField(
+                                value = nicknameInput,
+                                onValueChange = {
+                                    nicknameInput = it
+                                    errorMessage = null
+                                },
+                                label = { Text("Apodo (Nombre para mostrar)") },
+                                placeholder = { Text("ej: El Rey de las Sombras", color = TextMuted.copy(alpha = 0.5f)) },
+                                leadingIcon = {
+                                    Icon(Icons.Filled.Badge, contentDescription = null, tint = YomoriTeal)
+                                },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(
+                                    imeAction = ImeAction.Next
+                                ),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = YomoriTeal,
+                                    unfocusedBorderColor = YomoriBorder,
+                                    focusedLabelColor = YomoriTeal,
+                                    unfocusedLabelColor = TextMuted,
+                                    focusedTextColor = TextPrimary,
+                                    unfocusedTextColor = TextPrimary,
+                                    focusedContainerColor = YomoriSurfaceDark,
+                                    unfocusedContainerColor = YomoriSurfaceDark
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        } else {
+                            // En Login: Usuario o Correo
+                            OutlinedTextField(
+                                value = usernameInput,
+                                onValueChange = {
+                                    usernameInput = it
+                                    errorMessage = null
+                                },
+                                label = { Text("Usuario o Correo") },
+                                placeholder = { Text("Ingresa tu usuario o correo", color = TextMuted.copy(alpha = 0.5f)) },
+                                leadingIcon = {
+                                    Icon(Icons.Filled.Person, contentDescription = null, tint = YomoriTeal)
+                                },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = YomoriTeal,
+                                    unfocusedBorderColor = YomoriBorder,
+                                    focusedLabelColor = YomoriTeal,
+                                    unfocusedLabelColor = TextMuted,
+                                    focusedTextColor = TextPrimary,
+                                    unfocusedTextColor = TextPrimary,
+                                    focusedContainerColor = YomoriSurfaceDark,
+                                    unfocusedContainerColor = YomoriSurfaceDark
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
 
-                        // Campo Contraseña
+                        // Campo Contraseña (Para Login y Registro)
                         OutlinedTextField(
                             value = passwordInput,
                             onValueChange = {
@@ -353,7 +415,7 @@ fun YomoriAuthScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { rememberMe = !rememberMe }
-                                .padding(vertical = 4.dp)
+                                .padding(vertical = 2.dp)
                         ) {
                             Checkbox(
                                 checked = rememberMe,
@@ -389,17 +451,39 @@ fun YomoriAuthScreen(
                             }
                         }
 
-                        // Botón Principal
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        // Botón Principal (Iniciar Sesión / Crear Cuenta)
                         Button(
                             onClick = {
                                 focusManager.clearFocus()
-                                if (usernameInput.isBlank()) {
-                                    errorMessage = "Por favor ingresa tu nombre de usuario"
-                                    return@Button
-                                }
-                                if (passwordInput.length < 4) {
-                                    errorMessage = "La contraseña debe tener al menos 4 caracteres"
-                                    return@Button
+
+                                if (isRegisterMode) {
+                                    if (emailInput.isBlank() || !emailInput.contains("@")) {
+                                        errorMessage = "Por favor ingresa un correo electrónico válido"
+                                        return@Button
+                                    }
+                                    if (usernameInput.isBlank()) {
+                                        errorMessage = "Por favor ingresa un nombre de usuario"
+                                        return@Button
+                                    }
+                                    if (nicknameInput.isBlank()) {
+                                        errorMessage = "Por favor ingresa tu apodo"
+                                        return@Button
+                                    }
+                                    if (passwordInput.length < 4) {
+                                        errorMessage = "La contraseña debe tener al menos 4 caracteres"
+                                        return@Button
+                                    }
+                                } else {
+                                    if (usernameInput.isBlank()) {
+                                        errorMessage = "Por favor ingresa tu usuario o correo"
+                                        return@Button
+                                    }
+                                    if (passwordInput.isBlank()) {
+                                        errorMessage = "Por favor ingresa tu contraseña"
+                                        return@Button
+                                    }
                                 }
 
                                 isLoading = true
@@ -408,6 +492,7 @@ fun YomoriAuthScreen(
                                 coroutineScope.launch {
                                     if (isRegisterMode) {
                                         val result = UserManager.register(
+                                            nickname = nicknameInput,
                                             username = usernameInput,
                                             email = emailInput,
                                             password = passwordInput,
@@ -417,7 +502,7 @@ fun YomoriAuthScreen(
                                         result.onSuccess {
                                             onAuthenticated()
                                         }.onFailure { err ->
-                                            errorMessage = err.message ?: "Error al registrar cuenta"
+                                            errorMessage = err.message ?: "Error al registrar la cuenta"
                                         }
                                     } else {
                                         val result = UserManager.login(
@@ -429,7 +514,7 @@ fun YomoriAuthScreen(
                                         result.onSuccess {
                                             onAuthenticated()
                                         }.onFailure { err ->
-                                            errorMessage = err.message ?: "Usuario o contraseña inválidos"
+                                            errorMessage = err.message ?: "Usuario o contraseña incorrectos"
                                         }
                                     }
                                 }
@@ -457,7 +542,7 @@ fun YomoriAuthScreen(
                             }
                         }
 
-                        // Enlace para cambiar entre Login y Registro
+                        // Enlace interactivo en texto justo debajo del botón principal
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
