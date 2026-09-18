@@ -152,7 +152,7 @@ object SettingsAppearanceScreen : SearchableSettings {
                     preference = uiPreferences.shownBottomTabs,
                     entries = mapOf(
                         "home" to "Inicio",
-                        "community" to "Comunidad",
+                        // "community" to "Comunidad", // Oculto temporalmente
                         "library" to stringResource(MR.strings.label_library),
                         "updates" to stringResource(MR.strings.label_recent_updates),
                         "history" to stringResource(MR.strings.label_recent_manga),

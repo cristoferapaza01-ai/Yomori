@@ -39,7 +39,7 @@ class UiPreferences(
 
     val shownBottomTabs: Preference<Set<String>> = preferenceStore.getStringSet(
         "pref_shown_bottom_tabs_key",
-        setOf("home", "community", "library", "updates", "history", "browse", "more"),
+        setOf("home", "library", "updates", "history", "browse", "more"),
     )
 
     companion object {

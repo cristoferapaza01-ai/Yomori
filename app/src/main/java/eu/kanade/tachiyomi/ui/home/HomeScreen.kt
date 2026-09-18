@@ -103,7 +103,7 @@ object HomeScreen : Screen() {
 
     private val ALL_TABS: List<Pair<String, AppTab>> = listOf(
         "home" to YomoriHomeTab,
-        "community" to YomoriCommunityTab,
+        // "community" to YomoriCommunityTab, // Oculto temporalmente por solicitud
         "library" to LibraryTab,
         "updates" to UpdatesTab,
         "history" to HistoryTab,
