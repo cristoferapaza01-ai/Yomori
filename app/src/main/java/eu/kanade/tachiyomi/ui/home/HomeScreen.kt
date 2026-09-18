@@ -37,38 +37,41 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
-import eu.kanade.tachiyomi.ui.yomori.ui.YomoriBgDark
-import eu.kanade.tachiyomi.ui.yomori.ui.YomoriBorder
-import eu.kanade.tachiyomi.ui.yomori.ui.YomoriTeal
-import eu.kanade.tachiyomi.ui.yomori.ui.TextMuted
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import cafe.adriel.voyager.navigator.tab.LocalTabNavigator
 import cafe.adriel.voyager.navigator.tab.TabNavigator
 import eu.kanade.domain.source.service.SourcePreferences
+import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.presentation.util.Screen
+import eu.kanade.presentation.util.Tab as AppTab
 import eu.kanade.presentation.util.isTabletUi
 import eu.kanade.tachiyomi.ui.browse.BrowseTab
-import eu.kanade.tachiyomi.ui.yomori.tabs.YomoriHomeTab
-import eu.kanade.tachiyomi.ui.yomori.tabs.YomoriCommunityTab
-import eu.kanade.tachiyomi.ui.yomori.tabs.YomoriProfileTab
 import eu.kanade.tachiyomi.ui.download.DownloadQueueScreen
 import eu.kanade.tachiyomi.ui.history.HistoryTab
 import eu.kanade.tachiyomi.ui.library.LibraryTab
 import eu.kanade.tachiyomi.ui.manga.MangaScreen
 import eu.kanade.tachiyomi.ui.more.MoreTab
 import eu.kanade.tachiyomi.ui.updates.UpdatesTab
+import eu.kanade.tachiyomi.ui.yomori.tabs.YomoriCommunityTab
+import eu.kanade.tachiyomi.ui.yomori.tabs.YomoriHomeTab
+import eu.kanade.tachiyomi.ui.yomori.tabs.YomoriProfileTab
+import eu.kanade.tachiyomi.ui.yomori.ui.TextMuted
+import eu.kanade.tachiyomi.ui.yomori.ui.YomoriBgDark
+import eu.kanade.tachiyomi.ui.yomori.ui.YomoriBorder
+import eu.kanade.tachiyomi.ui.yomori.ui.YomoriTeal
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
@@ -82,6 +85,7 @@ import tachiyomi.presentation.core.components.material.NavigationBar
 import tachiyomi.presentation.core.components.material.NavigationRail
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.i18n.pluralStringResource
+import tachiyomi.presentation.core.util.collectAsState
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
@@ -97,27 +101,42 @@ object HomeScreen : Screen() {
     @Suppress("ConstPropertyName")
     private const val TabNavigatorKey = "HomeTabs"
 
-    private val TABS = listOf(
-        YomoriHomeTab,
-        YomoriCommunityTab,
-        LibraryTab,
-        BrowseTab,
-        MoreTab,
+    private val ALL_TABS: List<Pair<String, AppTab>> = listOf(
+        "home" to YomoriHomeTab,
+        "community" to YomoriCommunityTab,
+        "library" to LibraryTab,
+        "updates" to UpdatesTab,
+        "history" to HistoryTab,
+        "browse" to BrowseTab,
+        "more" to MoreTab,
     )
 
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
+        val uiPreferences = remember { Injekt.get<UiPreferences>() }
+        val shownTabsSet by uiPreferences.shownBottomTabs.collectAsState()
+        val activeTabs: List<AppTab> = remember(shownTabsSet) {
+            val list = ALL_TABS.filter { it.first in shownTabsSet }.map { it.second }
+            if (list.isEmpty()) listOf(YomoriHomeTab, MoreTab) else list
+        }
+
         TabNavigator(
-            tab = YomoriHomeTab,
+            tab = activeTabs.firstOrNull() ?: YomoriHomeTab,
             key = TabNavigatorKey,
         ) { tabNavigator ->
+            LaunchedEffect(activeTabs) {
+                if (activeTabs.none { it.key == tabNavigator.current.key }) {
+                    tabNavigator.current = activeTabs.firstOrNull() ?: YomoriHomeTab
+                }
+            }
+
             // Provide usable navigator to content screen
             CompositionLocalProvider(LocalNavigator provides navigator) {
                 if (isTabletUi()) {
                     Row(modifier = Modifier.fillMaxSize()) {
                         androidx.compose.material3.NavigationRail {
-                            TABS.fastForEach {
+                            activeTabs.fastForEach {
                                 NavigationRailItem(it)
                             }
                         }
@@ -187,11 +206,11 @@ object HomeScreen : Screen() {
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .height(56.dp)
-                                            .padding(horizontal = 6.dp),
+                                            .padding(horizontal = 4.dp),
                                         horizontalArrangement = Arrangement.SpaceAround,
                                         verticalAlignment = Alignment.CenterVertically,
                                     ) {
-                                        TABS.fastForEach {
+                                        activeTabs.fastForEach {
                                             DockNavigationItem(it)
                                         }
                                     }
@@ -202,32 +221,24 @@ object HomeScreen : Screen() {
                 }
             }
 
-            val goToLibraryTab = { tabNavigator.current = YomoriHomeTab }
+            val defaultTab = activeTabs.firstOrNull() ?: YomoriHomeTab
+            val goToDefaultTab = { tabNavigator.current = defaultTab }
 
-            BackHandler(enabled = tabNavigator.current != YomoriHomeTab, onBack = goToLibraryTab)
+            BackHandler(enabled = tabNavigator.current != defaultTab, onBack = goToDefaultTab)
 
             LaunchedEffect(Unit) {
                 launch {
                     librarySearchEvent.receiveAsFlow().collectLatest {
-                        goToLibraryTab()
+                        tabNavigator.current = LibraryTab
                         LibraryTab.search(it)
                     }
                 }
                 launch {
                     openTabEvent.receiveAsFlow().collectLatest {
                         tabNavigator.current = when (it) {
-                            is Tab.Library -> {
-                                LibraryTab.showCollection()
-                                LibraryTab
-                            }
-                            Tab.Updates -> {
-                                LibraryTab.showUpdates()
-                                LibraryTab
-                            }
-                            Tab.History -> {
-                                LibraryTab.showHistory()
-                                LibraryTab
-                            }
+                            is Tab.Library -> LibraryTab
+                            Tab.Updates -> UpdatesTab
+                            Tab.History -> HistoryTab
                             is Tab.Browse -> {
                                 if (it.toExtensions) {
                                     BrowseTab.showExtension()
@@ -276,9 +287,9 @@ object HomeScreen : Screen() {
                 Surface(
                     shape = RoundedCornerShape(20.dp),
                     color = YomoriTeal.copy(alpha = 0.22f),
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                    modifier = Modifier.padding(horizontal = 2.dp, vertical = 4.dp)
                 ) {
-                    Box(modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)) {
+                    Box(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
                         NavigationIconItem(tab, isSelected = true)
                     }
                 }

@@ -148,6 +148,28 @@ object SettingsAppearanceScreen : SearchableSettings {
                     preference = uiPreferences.imagesInDescription,
                     title = stringResource(MR.strings.pref_display_images_description),
                 ),
+                Preference.PreferenceItem.MultiSelectListPreference(
+                    preference = uiPreferences.shownBottomTabs,
+                    entries = mapOf(
+                        "home" to "Inicio",
+                        "community" to "Comunidad",
+                        "library" to stringResource(MR.strings.label_library),
+                        "updates" to stringResource(MR.strings.label_recent_updates),
+                        "history" to stringResource(MR.strings.label_recent_manga),
+                        "browse" to stringResource(MR.strings.browse),
+                        "more" to stringResource(MR.strings.label_more),
+                    ),
+                    title = "Pestañas de la barra inferior",
+                    subtitleProvider = { values, entries ->
+                        if (values.size == entries.size) {
+                            "Todas las pestañas visibles (${values.size})"
+                        } else if (values.isEmpty()) {
+                            "Ninguna seleccionada (se mostrarán Inicio y Más)"
+                        } else {
+                            values.mapNotNull { entries[it] }.joinToString(", ")
+                        }
+                    },
+                ),
             ),
         )
     }

@@ -29,11 +29,6 @@ import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.screens.EmptyScreen
 import tachiyomi.presentation.core.screens.LoadingScreen
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.MaterialTheme
-
 @Composable
 fun HistoryScreen(
     state: HistoryViewModel.State,
@@ -43,32 +38,28 @@ fun HistoryScreen(
     onClickResume: (mangaId: Long, chapterId: Long) -> Unit,
     onClickFavorite: (mangaId: Long) -> Unit,
     onDialogChange: (HistoryViewModel.Dialog?) -> Unit,
-    headerContent: (@Composable () -> Unit)? = null,
 ) {
     Scaffold(
         topBar = { scrollBehavior ->
-            Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background)) {
-                SearchToolbar(
-                    titleContent = { AppBarTitle(stringResource(MR.strings.history)) },
-                    searchQuery = state.searchQuery,
-                    onChangeSearchQuery = onSearchQueryChange,
-                    actions = {
-                        AppBarActions(
-                            listOf(
-                                AppBar.Action(
-                                    title = stringResource(MR.strings.pref_clear_history),
-                                    icon = Icons.Outlined.DeleteSweep,
-                                    onClick = {
-                                        onDialogChange(HistoryViewModel.Dialog.DeleteAll)
-                                    },
-                                ),
+            SearchToolbar(
+                titleContent = { AppBarTitle(stringResource(MR.strings.history)) },
+                searchQuery = state.searchQuery,
+                onChangeSearchQuery = onSearchQueryChange,
+                actions = {
+                    AppBarActions(
+                        listOf(
+                            AppBar.Action(
+                                title = stringResource(MR.strings.pref_clear_history),
+                                icon = Icons.Outlined.DeleteSweep,
+                                onClick = {
+                                    onDialogChange(HistoryViewModel.Dialog.DeleteAll)
+                                },
                             ),
-                        )
-                    },
-                    scrollBehavior = scrollBehavior,
-                )
-                headerContent?.invoke()
-            }
+                        ),
+                    )
+                },
+                scrollBehavior = scrollBehavior,
+            )
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
     ) { contentPadding ->

@@ -52,11 +52,6 @@ data object UpdatesTab : Tab {
 
     @Composable
     override fun Content() {
-        Content(headerContent = null)
-    }
-
-    @Composable
-    fun Content(headerContent: (@Composable () -> Unit)? = null) {
         val context = LocalContext.current
         val navigator = LocalNavigator.currentOrThrow
         val viewModel = viewModel<UpdatesViewModel>()
@@ -83,7 +78,6 @@ data object UpdatesTab : Tab {
             onCalendarClicked = { navigator.push(UpcomingScreen()) },
             onFilterClicked = viewModel::showFilterDialog,
             hasActiveFilters = state.hasActiveFilters,
-            headerContent = headerContent,
         )
 
         val onDismissDialog = { viewModel.setDialog(null) }

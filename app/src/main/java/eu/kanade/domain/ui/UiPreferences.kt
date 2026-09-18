@@ -37,6 +37,11 @@ class UiPreferences(
 
     val imagesInDescription: Preference<Boolean> = preferenceStore.getBoolean("pref_render_images_description", true)
 
+    val shownBottomTabs: Preference<Set<String>> = preferenceStore.getStringSet(
+        "pref_shown_bottom_tabs_key",
+        setOf("home", "community", "library", "updates", "history", "browse", "more"),
+    )
+
     companion object {
         fun dateFormat(format: String): DateTimeFormatter = when (format) {
             "" -> DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
