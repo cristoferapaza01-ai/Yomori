@@ -24,7 +24,8 @@ import {
   RotateCcw,
   Flame,
   Clock,
-  Sparkles
+  Sparkles,
+  MoreVertical
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -265,8 +266,25 @@ const FILTER_TYPES = [
   "Ver todo", "Manga", "Manhua", "Manhwa", "Webtoon", "Novela", "Comic", "One shot", "Doujinshi", "OEL"
 ];
 
+const ANIME_TYPES = [
+  "Ver todo", "TV (Serie)", "Película", "OVA", "ONA", "Especial"
+];
+
 const FILTER_STATUSES = [
   "Ver todo", "En emisión", "Completado", "Finalizado", "En pausa", "Cancelado"
+];
+
+const ANIME_STATUSES = [
+  "Ver todo", "En emisión", "Finalizado", "Próximamente", "En pausa"
+];
+
+const ANIME_GENRES = [
+  "Acción", "Aventura", "Comedia", "Drama", "Fantasía", "Isekai", "Romance", 
+  "Sci-Fi", "Ciencia Ficción", "Shounen", "Seinen", "Shoujo", "Slice of Life", 
+  "Recuentos de la vida", "Sobrenatural", "Ecchi", "Mecha", "Misterio", 
+  "Psicológico", "Terror", "Horror", "Música", "Deportes", "Escolar", "Magia", 
+  "Superpoderes", "Vampiros", "Demonios", "Militar", "Harem", "Yaoi", "Yuri", 
+  "Artes Marciales", "Gore", "Suspense", "Thriller", "Histórico"
 ];
 
 const OLYMPUS_STATUSES = [
@@ -295,11 +313,18 @@ export default function ExploreView({
   activeFilters = { type: 'Ver todo', status: 'Ver todo', genres: [], query: '' },
   onRefreshCatalog,
   onSelectManga,
-  onDirectExtract,
   onRefreshInstalled,
   onInstallAllExtensions,
-  library = []
+  library = [],
+  user = null,
+  currentUser = null,
+  appMode = 'manga',
+  repositories = [],
+  onAddRepository,
+  onRemoveRepository,
+  onDirectExtract
 }) {
+  // 1. REFS & STATE
   const [activeSubTab, setActiveSubTab] = useState(exploreSubTab);
   const [searchTerm, setSearchTerm] = useState(activeFilters?.query || '');
   const [selectedSourceForCatalog, setSelectedSourceForCatalog] = useState(null);
@@ -309,14 +334,39 @@ export default function ExploreView({
   const [genreSearch, setGenreSearch] = useState('');
   const [jumpPageInput, setJumpPageInput] = useState('');
 
-  // Repositorio central Keiyoushi
+  // Repositorio central Keiyoushi / Anime
   const [repoExtensions, setRepoExtensions] = useState([]);
   const [syncingRepos, setSyncingRepos] = useState(false);
   const [installingId, setInstallingId] = useState(null);
   const [isBatchInstalling, setIsBatchInstalling] = useState(false);
+  const [newRepoUrlInput, setNewRepoUrlInput] = useState('');
+  const [isRepoModalOpen, setIsRepoModalOpen] = useState(false);
+  const [isAddRepoModalOpen, setIsAddRepoModalOpen] = useState(false);
 
   const defaultRepoUrl = 'https://raw.githubusercontent.com/cristoferapaza01-ai/yomori-extensions/main/index.json';
   const debounceRef = useRef(null);
+
+  // 2. MEMOS
+  const displayExtensions = React.useMemo(() => {
+    return installedExtensions.filter(ext => {
+      const extType = ext.type || (ext.id?.includes('anime') || ext.id?.includes('flv') || ext.id?.includes('jkanime') || ext.id?.includes('monoschinos') || ext.id?.includes('tioanime') || ext.id?.includes('fenix') || ext.id?.includes('av1') || ext.id?.includes('ninja') ? 'anime' : 'manga');
+      return extType === appMode;
+    });
+  }, [installedExtensions, appMode]);
+
+  const displayRepoExtensions = React.useMemo(() => {
+    return (repoExtensions || []).filter(ext => {
+      const extType = ext.type || (ext.id?.includes('anime') || ext.id?.includes('flv') || ext.id?.includes('jkanime') || ext.id?.includes('monoschinos') || ext.id?.includes('tioanime') || ext.id?.includes('fenix') || ext.id?.includes('av1') || ext.id?.includes('ninja') ? 'anime' : 'manga');
+      return extType === appMode;
+    });
+  }, [repoExtensions, appMode]);
+
+  const activeUser = user || currentUser;
+  const isAdmin = activeUser && (
+    activeUser.role === 'admin' || 
+    (activeUser.username || '').toLowerCase() === 'rey_palomo' || 
+    (activeUser.email || '').toLowerCase() === 'admin@yomori.com'
+  );
 
   useEffect(() => {
     setActiveSubTab(exploreSubTab || 'sources');
@@ -368,15 +418,153 @@ export default function ExploreView({
     }
   };
 
+  const normalizeRepoExtensions = (rawData, repoName = '', currentMode = 'manga') => {
+    let list = [];
+    if (Array.isArray(rawData)) {
+      list = rawData;
+    } else if (rawData && typeof rawData === 'object') {
+      if (Array.isArray(rawData.extensions)) list = rawData.extensions;
+      else if (Array.isArray(rawData.data)) list = rawData.data;
+      else if (Array.isArray(rawData.sources)) list = rawData.sources;
+      else list = Object.values(rawData).filter(v => typeof v === 'object');
+    }
+
+    const result = [];
+    for (const item of list) {
+      if (!item || typeof item !== 'object') continue;
+
+      if (Array.isArray(item.sources) && item.sources.length > 0) {
+        for (const src of item.sources) {
+          const extId = String(src.id || src.name || item.pkg || item.id || '').toLowerCase().replace(/[^a-z0-9]/g, '-');
+          const name = src.name || item.name || extId;
+          const baseUrl = src.baseUrl || item.baseUrl || '';
+          const icon = item.icon || (baseUrl ? `${baseUrl}/favicon.ico` : '');
+
+          let type = item.type || src.type;
+          if (!type) {
+            const checkStr = `${extId} ${name} ${item.apk || ''} ${repoName || ''}`.toLowerCase();
+            if (checkStr.includes('anime') || checkStr.includes('jkanime') || checkStr.includes('monoschinos') || checkStr.includes('tioanime') || checkStr.includes('fenix') || checkStr.includes('av1') || checkStr.includes('ninja')) {
+              type = 'anime';
+            } else {
+              type = currentMode || 'manga';
+            }
+          }
+
+          result.push({
+            id: extId,
+            name: name,
+            version: item.version || '1.0.0',
+            lang: src.lang || item.lang || 'es',
+            baseUrl: baseUrl,
+            icon: icon,
+            type: type,
+            scriptUrl: item.scriptUrl || item.apk || item.url || '',
+            description: item.description || (item.name ? `Extensión: ${item.name}` : ''),
+            repoName: repoName || item.repoName || 'Repositorio'
+          });
+        }
+      } else {
+        const extId = item.id || item.pkg || item.package || (item.name || '').toLowerCase().replace(/[^a-z0-9]/g, '-');
+        const name = item.name || extId;
+        let type = item.type;
+        if (!type) {
+          const checkStr = `${extId} ${name} ${item.apk || ''} ${repoName || ''}`.toLowerCase();
+          if (checkStr.includes('anime') || checkStr.includes('jkanime') || checkStr.includes('monoschinos') || checkStr.includes('tioanime') || checkStr.includes('fenix') || checkStr.includes('av1') || checkStr.includes('ninja')) {
+            type = 'anime';
+          } else {
+            type = currentMode || 'manga';
+          }
+        }
+        const baseUrl = item.baseUrl || '';
+        const icon = item.icon || (baseUrl ? `${baseUrl}/favicon.ico` : '');
+
+        result.push({
+          id: extId,
+          name: name,
+          version: item.version || '1.0.0',
+          lang: item.lang || 'es',
+          baseUrl: baseUrl,
+          icon: icon,
+          type: type,
+          scriptUrl: item.scriptUrl || item.apk || item.url || '',
+          description: item.description || (item.name ? `Extensión: ${item.name}` : ''),
+          repoName: repoName || item.repoName || 'Repositorio'
+        });
+      }
+    }
+    return result;
+  };
+
   const handleSyncRepo = async () => {
     setSyncingRepos(true);
     try {
-      const res = await axios.get(defaultRepoUrl);
-      if (Array.isArray(res.data)) {
-        setRepoExtensions(res.data);
+      if (!repositories || repositories.length === 0) {
+        setRepoExtensions([]);
+        setSyncingRepos(false);
+        return;
       }
+
+      const allExts = [];
+      for (const repo of repositories) {
+        const repoUrl = typeof repo === 'string' ? repo.trim() : (repo.url || '').trim();
+        const repoName = typeof repo === 'object' ? (repo.name || '') : '';
+        if (!repoUrl) continue;
+
+        let resolvedList = [];
+
+        // 1. Intentar con el Resolutor Universal de Backend (soporta GitHub Source Trees, Aniyomi/Tachiyomi sin CORS)
+        try {
+          const backendRes = await axios.get(`/api/repo/resolve?url=${encodeURIComponent(repoUrl)}&type=${appMode}`, { timeout: 10000 });
+          if (backendRes.data && Array.isArray(backendRes.data.data) && backendRes.data.data.length > 0) {
+            resolvedList = backendRes.data.data;
+          }
+        } catch (beErr) {
+          console.warn('[ExploreView] Fallback backend resolver:', beErr.message);
+        }
+
+        // 2. Si el backend no devolvió lista, intentar petición directa en frontend
+        if (resolvedList.length === 0) {
+          let fetchedData = null;
+          const candidateUrls = [repoUrl];
+          if (!repoUrl.endsWith('.json')) {
+            const cleanBase = repoUrl.replace(/\/$/, '');
+            candidateUrls.push(`${cleanBase}/index.min.json`);
+            candidateUrls.push(`${cleanBase}/index.json`);
+          }
+
+          for (const url of candidateUrls) {
+            try {
+              const res = await axios.get(url, { timeout: 8000 });
+              if (res.data) {
+                fetchedData = res.data;
+                break;
+              }
+            } catch (e) {
+              // continuar
+            }
+          }
+
+          if (fetchedData) {
+            resolvedList = normalizeRepoExtensions(fetchedData, repoName, appMode);
+          }
+        }
+
+        if (resolvedList.length > 0) {
+          allExts.push(...resolvedList);
+        }
+      }
+
+      const unique = [];
+      const seen = new Set();
+      for (const item of allExts) {
+        if (item && item.id && !seen.has(item.id)) {
+          seen.add(item.id);
+          unique.push(item);
+        }
+      }
+      setRepoExtensions(unique);
     } catch (err) {
-      console.error('Error sincronizando repositorio oficial:', err);
+      console.error('Error sincronizando repositorios:', err);
     } finally {
       setSyncingRepos(false);
     }
@@ -384,7 +572,7 @@ export default function ExploreView({
 
   useEffect(() => {
     handleSyncRepo();
-  }, []);
+  }, [repositories, appMode]);
 
   const handleInstallClick = async (ext) => {
     setInstallingId(ext.id);
@@ -396,7 +584,8 @@ export default function ExploreView({
         scriptUrl: ext.scriptUrl,
         baseUrl: ext.baseUrl,
         icon: ext.icon,
-        lang: ext.lang
+        lang: ext.lang,
+        type: ext.type || appMode || 'manga'
       });
       if (res.data?.success) {
         await onRefreshInstalled();
@@ -527,10 +716,17 @@ export default function ExploreView({
     return count;
   };
 
+  const isAnimeMode = appMode === 'anime' || selectedSourceForCatalog?.type === 'anime';
   const isOlympusActive = (selectedSourceForCatalog?.id === 'olympus-scanlation' || selectedExtension === 'olympus-scanlation');
   const isManhwaLatinoActive = (selectedSourceForCatalog?.id === 'manhwalatino' || selectedExtension === 'manhwalatino');
-  const activeGenresList = isOlympusActive ? OLYMPUS_GENRES : (isManhwaLatinoActive ? MANHWALATINO_GENRES : ALL_GENRES);
-  const activeStatusList = isOlympusActive ? OLYMPUS_STATUSES : FILTER_STATUSES;
+
+  const activeTypesList = isAnimeMode ? ANIME_TYPES : FILTER_TYPES;
+  const activeGenresList = isAnimeMode
+    ? ANIME_GENRES
+    : (isOlympusActive ? OLYMPUS_GENRES : (isManhwaLatinoActive ? MANHWALATINO_GENRES : ALL_GENRES));
+  const activeStatusList = isAnimeMode
+    ? ANIME_STATUSES
+    : (isOlympusActive ? OLYMPUS_STATUSES : FILTER_STATUSES);
 
   const filteredGenreList = activeGenresList.filter(g => 
     g.toLowerCase().includes(genreSearch.toLowerCase().trim())
@@ -636,26 +832,36 @@ export default function ExploreView({
         <div className="flex items-center gap-2 self-end sm:self-auto">
           {activeSubTab === 'extensions' && (
             <>
-              <a
-                href="http://localhost:5000/admin"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-3 py-1.5 rounded-xl bg-purple-950/60 hover:bg-purple-900/60 border border-purple-800/60 text-purple-300 text-xs font-semibold flex items-center gap-1.5 transition"
-                title="Abrir Panel de Administrador para agregar nuevas páginas o scans"
-              >
-                <PlusCircle className="w-3.5 h-3.5" />
-                <span>Panel Administrador</span>
-                <ExternalLink className="w-3 h-3 ml-0.5" />
-              </a>
+              {isAdmin && (
+                <a
+                  href="http://localhost:5000/admin"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 rounded-xl bg-purple-950/60 hover:bg-purple-900/60 border border-purple-800/60 text-purple-300 text-xs font-semibold flex items-center gap-1.5 transition"
+                  title="Abrir Panel de Administrador para agregar nuevas páginas o scans"
+                >
+                  <PlusCircle className="w-3.5 h-3.5" />
+                  <span>Panel Administrador</span>
+                  <ExternalLink className="w-3 h-3 ml-0.5" />
+                </a>
+              )}
 
               <button
                 onClick={handleSyncRepo}
                 disabled={syncingRepos}
-                className="p-2 rounded-xl bg-[#141824] hover:bg-gray-800 border border-gray-800 text-gray-300 text-xs font-semibold flex items-center gap-1.5 transition"
+                className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-[#141824] hover:bg-gray-800 border border-gray-800 text-gray-300 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
                 title="Actualizar catálogo de extensiones"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${syncingRepos ? 'animate-spin text-purple-400' : ''}`} />
                 <span className="hidden sm:inline">Actualizar</span>
+              </button>
+
+              <button
+                onClick={() => setIsRepoModalOpen(true)}
+                className="p-2 rounded-xl bg-[#141824] hover:bg-gray-800 border border-gray-800 text-gray-300 hover:text-white text-xs font-semibold flex items-center justify-center transition cursor-pointer"
+                title="Gestionar Repositorios"
+              >
+                <MoreVertical className="w-4 h-4" />
               </button>
             </>
           )}
@@ -845,7 +1051,9 @@ export default function ExploreView({
                     <div className="py-20 flex flex-col items-center justify-center text-center p-6 rounded-2xl bg-[#0f121a] border border-gray-800/80 animate-fadeInScale">
                       <BookOpen className="w-12 h-12 text-gray-600 mb-3" />
                       <h4 className="text-base font-bold text-white mb-1">
-                        {catalogPage > 1 ? 'No hay más mangas en esta página' : 'No se encontraron mangas'}
+                        {catalogPage > 1
+                          ? (isAnimeMode ? 'No hay más animes en esta página' : 'No hay más mangas en esta página')
+                          : (isAnimeMode ? 'No se encontraron animes' : 'No se encontraron mangas')}
                       </h4>
                       <p className="text-xs text-gray-400 max-w-sm mb-4">
                         {catalogPage > 1
@@ -1124,10 +1332,10 @@ export default function ExploreView({
                     {/* SECCIÓN: TIPO */}
                     <div>
                       <h5 className="text-xs font-bold uppercase tracking-wider text-purple-400 mb-2">
-                        Tipo de Obra
+                        {isAnimeMode ? 'Tipo de Formato' : 'Tipo de Obra'}
                       </h5>
                       <div className="flex flex-wrap gap-1.5">
-                        {FILTER_TYPES.map((t) => (
+                        {activeTypesList.map((t) => (
                           <button
                             key={t}
                             onClick={() => handleTypeChange(t)}
@@ -1223,13 +1431,13 @@ export default function ExploreView({
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
                   <Globe className="w-4 h-4 text-purple-400" />
-                  <span>Fuentes Disponibles ({installedExtensions.length})</span>
+                  <span>Fuentes de {appMode === 'anime' ? 'Anime' : 'Manga'} Disponibles ({displayExtensions.length})</span>
                 </h3>
               </div>
 
-              {installedExtensions.length > 0 ? (
+              {displayExtensions.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3.5">
-                  {installedExtensions.map((ext) => (
+                  {displayExtensions.map((ext) => (
                     <div
                       key={ext.id}
                       className="p-4 rounded-2xl bg-[#121622] border border-gray-800/80 hover:border-purple-800/60 transition flex flex-col justify-between gap-3 shadow-sm hover:shadow-purple-950/20"
@@ -1292,20 +1500,20 @@ export default function ExploreView({
       {/* 2. SUB-PESTAÑA: EXTENSIONES (GRID MULTI-COLUMNA)           */}
       {/* ========================================================= */}
       {activeSubTab === 'extensions' && (
-        <div className="space-y-4">
+        <div className="space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-3 pb-2">
             <div>
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <Puzzle className="w-4 h-4 text-purple-400" />
-                <span>Extensiones Disponibles ({repoExtensions.length})</span>
+                <span>Extensiones Disponibles ({displayRepoExtensions.length})</span>
               </h3>
               <p className="text-xs text-gray-400 mt-0.5">
-                Sincronizadas automáticamente desde el Repositorio Central de tu servidor.
+                Sincronizadas desde los repositorios añadidos en tu aplicación.
               </p>
             </div>
 
             {/* Botón Descargar todas de golpe */}
-            {repoExtensions.length > 0 && (
+            {displayRepoExtensions.length > 0 && (
               <button
                 onClick={async () => {
                   setIsBatchInstalling(true);
@@ -1332,73 +1540,86 @@ export default function ExploreView({
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-            {repoExtensions.map((ext) => {
-              const installed = isInstalled(ext.id);
-              const isDownloading = installingId === ext.id;
+          {displayRepoExtensions.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              {displayRepoExtensions.map((ext) => {
+                const installed = isInstalled(ext.id);
+                const isDownloading = installingId === ext.id;
 
-              return (
-                <div
-                  key={ext.id}
-                  className="p-4 rounded-2xl bg-[#121622] border border-gray-800/80 hover:border-purple-800/50 transition flex flex-col justify-between gap-3 shadow-sm"
-                >
-                  <div className="flex items-start gap-3 min-w-0">
-                    <div className="w-11 h-11 rounded-xl bg-[#171c2a] border border-gray-700 flex items-center justify-center font-black text-purple-400 text-base shrink-0">
-                      {ext.name.charAt(0)}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <h4 className="text-sm font-bold text-white truncate">{ext.name}</h4>
-                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-950 text-purple-300 border border-purple-800/50 font-mono">
-                          v{ext.version}
-                        </span>
-                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-400 font-semibold border border-emerald-800">
-                          {ext.status || 'online'}
-                        </span>
+                return (
+                  <div
+                    key={ext.id}
+                    className="p-4 rounded-2xl bg-[#121622] border border-gray-800/80 hover:border-purple-800/50 transition flex flex-col justify-between gap-3 shadow-sm"
+                  >
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div className="w-11 h-11 rounded-xl bg-[#171c2a] border border-gray-700 flex items-center justify-center font-black text-purple-400 text-base shrink-0">
+                        {ext.name.charAt(0)}
                       </div>
-                      <p className="text-xs text-gray-400 truncate mt-1">{ext.description || ext.baseUrl}</p>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <h4 className="text-sm font-bold text-white truncate">{ext.name}</h4>
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-950 text-purple-300 border border-purple-800/50 font-mono">
+                            v{ext.version}
+                          </span>
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-400 font-semibold border border-emerald-800">
+                            {ext.status || 'online'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-400 truncate mt-1">{ext.description || ext.baseUrl}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-end pt-2 border-t border-gray-800/60">
+                      {installed ? (
+                        <button
+                          onClick={() => handleUninstallClick(ext.id)}
+                          className="w-full py-1.5 rounded-xl bg-red-950/40 hover:bg-red-900/60 border border-red-800/60 text-red-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Desinstalar</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleInstallClick(ext)}
+                          disabled={isDownloading}
+                          className="w-full py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-md shadow-purple-600/30 transition cursor-pointer"
+                        >
+                          {isDownloading ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Descargando...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Download className="w-3.5 h-3.5" />
+                              <span>Instalar</span>
+                            </>
+                          )}
+                        </button>
+                      )}
                     </div>
                   </div>
-
-                  <div className="flex items-center justify-end pt-2 border-t border-gray-800/60">
-                    {installed ? (
-                      <button
-                        onClick={() => handleUninstallClick(ext.id)}
-                        className="w-full py-1.5 rounded-xl bg-red-950/40 hover:bg-red-900/60 border border-red-800/60 text-red-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Desinstalar</span>
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleInstallClick(ext)}
-                        disabled={isDownloading}
-                        className="w-full py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-md shadow-purple-600/30 transition"
-                      >
-                        {isDownloading ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Descargando...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Download className="w-3.5 h-3.5" />
-                            <span>Instalar</span>
-                          </>
-                        )}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-
-            {repoExtensions.length === 0 && !syncingRepos && (
-              <div className="py-16 text-center text-gray-500 col-span-full">
-                <p className="text-xs text-gray-400">No hay extensiones en el repositorio.</p>
-              </div>
-            )}
-          </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="py-16 text-center text-gray-500 max-w-md mx-auto flex flex-col items-center bg-[#121622] rounded-2xl border border-gray-800 p-8 shadow-md">
+              <Puzzle className="w-14 h-14 text-purple-500/40 mb-3" />
+              <h4 className="text-sm font-bold text-gray-200">
+                No hay extensiones de {appMode === 'anime' ? 'Anime' : 'Manga'} disponibles
+              </h4>
+              <p className="text-xs text-gray-400 mt-2 mb-4 leading-relaxed">
+                Haz clic en el botón de los <strong>3 puntos (⋮)</strong> en la esquina superior derecha para abrir <strong>REPOSITORIOS</strong> y añadir el enlace de tu repositorio.
+              </p>
+              <button
+                onClick={() => setIsRepoModalOpen(true)}
+                className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-purple-600/30 transition cursor-pointer active:scale-95"
+              >
+                <MoreVertical className="w-4 h-4" />
+                <span>Gestionar Repositorios</span>
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -1461,6 +1682,170 @@ export default function ExploreView({
                 <p className="text-xs text-gray-400">No tienes mangas en tu biblioteca para migrar.</p>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL 1: REPOSITORIOS (ABIERTO CON EL BOTÓN ⋮ 3 PUNTITOS) */}
+      {/* ========================================================= */}
+      {isRepoModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="bg-[#0f131f] border border-gray-800 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl animate-scaleUp">
+            {/* Header del Modal */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800 bg-[#121624]">
+              <div className="flex items-center gap-2">
+                <Globe className="w-4 h-4 text-purple-400" />
+                <h3 className="text-sm font-bold uppercase tracking-wider text-white">REPOSITORIOS</h3>
+              </div>
+              <button
+                onClick={() => setIsRepoModalOpen(false)}
+                className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Contenido */}
+            <div className="p-5 space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                  Repositorios Conectados ({repositories.length})
+                </label>
+                {repositories && repositories.length > 0 ? (
+                  <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+                    {repositories.map((r) => (
+                      <div
+                        key={r.url}
+                        className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[#151926] border border-gray-800 hover:border-purple-800/50 transition"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs font-bold text-white truncate">
+                            {r.name || 'Repositorio de Extensiones'}
+                          </div>
+                          <div className="text-[11px] text-gray-400 font-mono truncate mt-0.5" title={r.url}>
+                            {r.url}
+                          </div>
+                        </div>
+                        {onRemoveRepository && (
+                          <button
+                            onClick={() => {
+                              onRemoveRepository(r.url);
+                            }}
+                            className="p-1.5 rounded-lg bg-red-950/40 hover:bg-red-900/60 border border-red-800/60 text-red-400 hover:text-red-200 transition cursor-pointer shrink-0"
+                            title="Eliminar repositorio"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-8 text-center bg-[#151926]/50 rounded-xl border border-dashed border-gray-800 p-4">
+                    <Globe className="w-8 h-8 text-gray-600 mx-auto mb-2" />
+                    <p className="text-xs text-gray-400">No hay repositorios configurados.</p>
+                    <p className="text-[11px] text-gray-500 mt-1">Añade uno para cargar las extensiones.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Botón Añadir listado de extensiones */}
+              <div className="pt-2">
+                <button
+                  onClick={() => {
+                    setNewRepoUrlInput('');
+                    setIsAddRepoModalOpen(true);
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-purple-600/30 transition cursor-pointer active:scale-95"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  <span>Añadir listado de extensiones</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL 2: AÑADIR LISTADO DE EXTENSIONES (SUB-VENTANA)      */}
+      {/* ========================================================= */}
+      {isAddRepoModalOpen && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="bg-[#0f131f] border border-purple-900/80 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-scaleUp">
+            {/* Header del Sub-modal */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800 bg-[#121624]">
+              <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-white">
+                AÑADIR LISTADO DE EXTENSIONES
+              </h3>
+              <button
+                onClick={() => {
+                  setIsAddRepoModalOpen(false);
+                  setNewRepoUrlInput('');
+                }}
+                className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Formulario */}
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-300 mb-2">
+                  URL del repositorio
+                </label>
+                <input
+                  type="url"
+                  autoFocus
+                  value={newRepoUrlInput}
+                  onChange={(e) => setNewRepoUrlInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newRepoUrlInput.trim()) {
+                      if (onAddRepository) {
+                        onAddRepository(newRepoUrlInput.trim());
+                      }
+                      setNewRepoUrlInput('');
+                      setIsAddRepoModalOpen(false);
+                    }
+                  }}
+                  placeholder="https://raw.githubusercontent.com/.../index.min.json"
+                  className="w-full bg-[#151926] border border-gray-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition shadow-inner font-mono"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAddRepoModalOpen(false);
+                    setNewRepoUrlInput('');
+                  }}
+                  className="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold transition cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={!newRepoUrlInput.trim()}
+                  onClick={() => {
+                    if (newRepoUrlInput.trim() && onAddRepository) {
+                      onAddRepository(newRepoUrlInput.trim());
+                      setNewRepoUrlInput('');
+                      setIsAddRepoModalOpen(false);
+                    }
+                  }}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                    newRepoUrlInput.trim()
+                      ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-600/30 active:scale-95'
+                      : 'bg-gray-800 text-gray-500 cursor-not-allowed opacity-50'
+                  }`}
+                >
+                  Añadir
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

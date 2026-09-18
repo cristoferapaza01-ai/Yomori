@@ -9,6 +9,7 @@ import {
   Minimize, 
   Sliders, 
   List,
+  MessageSquare,
   X
 } from 'lucide-react';
 
@@ -23,6 +24,7 @@ export default function FloatingControls({
   onBack,
   onNavigateChapter,
   onOpenSettings,
+  onOpenComments,
   isFullscreen,
   onToggleFullscreen,
   isAutoScrolling,
@@ -48,31 +50,46 @@ export default function FloatingControls({
     return clean.length > 15 ? clean.substring(0, 15) + '...' : (clean || `Capítulo ${currentPage}`);
   };
 
-  // Resolver URLs anterior y siguiente de forma infalible
-  let resolvedPrevUrl = chapterData?.prevChapterUrl;
-  let resolvedNextUrl = chapterData?.nextChapterUrl;
+  // Resolver URLs anterior y siguiente de forma matemática e infalible
+  let resolvedPrevUrl = chapterData?.prevChapterUrl || chapterData?.prevUrl || null;
+  let resolvedNextUrl = chapterData?.nextChapterUrl || chapterData?.nextUrl || null;
 
   if (chapters && chapters.length > 0 && chapterData?.currentUrl) {
-    const currentIndex = chapters.findIndex(c => c.url === chapterData.currentUrl);
-    if (currentIndex !== -1) {
-      const firstNum = parseFloat(chapters[0]?.chapterNumber || 0);
-      const lastNum = parseFloat(chapters[chapters.length - 1]?.chapterNumber || 0);
-      const isDesc = firstNum >= lastNum;
+    const parseChapterNum = (ch) => {
+      if (ch?.chapterNumber !== undefined && ch.chapterNumber !== null && ch.chapterNumber !== '') {
+        const n = parseFloat(ch.chapterNumber);
+        if (!isNaN(n)) return n;
+      }
+      const raw = (ch?.name || ch?.title || ch?.url || '');
+      const match = raw.match(/(?:cap[íi]tulo|cap\.?|ch\.?|episodio|ep\.?)\s*(\d+(?:\.\d+)?)/i) || raw.match(/\/(\d+(?:\.\d+)?)(?:\/|\?|$)/) || raw.match(/\b(\d+(?:\.\d+)?)\b/);
+      return match ? parseFloat(match[1]) : 0;
+    };
 
-      if (isDesc) {
-        if (!resolvedNextUrl && currentIndex > 0) {
-          resolvedNextUrl = chapters[currentIndex - 1]?.url;
-        }
-        if (!resolvedPrevUrl && currentIndex < chapters.length - 1) {
-          resolvedPrevUrl = chapters[currentIndex + 1]?.url;
-        }
+    // Ordenar numéricamente de menor a mayor: [Cap 1, Cap 2, Cap 3 ... Cap N]
+    const sortedChapters = [...chapters].sort((a, b) => parseChapterNum(a) - parseChapterNum(b));
+    
+    // Buscar índice del capítulo actual
+    let currentIndex = sortedChapters.findIndex(c => c.url === chapterData.currentUrl);
+    if (currentIndex === -1) {
+      const currentChNum = parseChapterNum({ name: chapterData.chapterTitle, url: chapterData.currentUrl });
+      if (currentChNum > 0) {
+        currentIndex = sortedChapters.findIndex(c => parseChapterNum(c) === currentChNum);
+      }
+    }
+
+    if (currentIndex !== -1) {
+      // Siguiente capítulo = índice + 1 (numéricamente mayor)
+      if (currentIndex < sortedChapters.length - 1) {
+        resolvedNextUrl = sortedChapters[currentIndex + 1]?.url;
       } else {
-        if (!resolvedNextUrl && currentIndex < chapters.length - 1) {
-          resolvedNextUrl = chapters[currentIndex + 1]?.url;
-        }
-        if (!resolvedPrevUrl && currentIndex > 0) {
-          resolvedPrevUrl = chapters[currentIndex - 1]?.url;
-        }
+        resolvedNextUrl = null;
+      }
+
+      // Anterior capítulo = índice - 1 (numéricamente menor)
+      if (currentIndex > 0) {
+        resolvedPrevUrl = sortedChapters[currentIndex - 1]?.url;
+      } else {
+        resolvedPrevUrl = null;
       }
     }
   }
@@ -140,7 +157,7 @@ export default function FloatingControls({
           <button
             onClick={() => resolvedPrevUrl && onNavigateChapter(resolvedPrevUrl)}
             disabled={!resolvedPrevUrl}
-            className="p-2.5 rounded-full bg-gray-800/80 hover:bg-purple-600 text-gray-300 hover:text-white active:scale-95 disabled:opacity-25 disabled:hover:bg-gray-800/80 disabled:pointer-events-none transition"
+            className="p-2.5 rounded-full bg-gray-800/80 hover:bg-purple-600 text-gray-300 hover:text-white active:scale-95 disabled:opacity-25 disabled:hover:bg-gray-800/80 disabled:pointer-events-none transition cursor-pointer"
             title={resolvedPrevUrl ? 'Capítulo anterior' : 'No hay capítulo anterior'}
           >
             <SkipBack className="w-4 h-4 fill-current" />
@@ -151,7 +168,7 @@ export default function FloatingControls({
           {/* 2. Botón Auto-Scroll (Play / Pause) */}
           <button
             onClick={onToggleAutoScroll}
-            className={`p-2.5 rounded-full transition active:scale-95 ${
+            className={`p-2.5 rounded-full transition active:scale-95 cursor-pointer ${
               isAutoScrolling
                 ? 'bg-purple-600 text-white shadow-md shadow-purple-600/40'
                 : 'bg-gray-800/80 hover:bg-purple-600 text-gray-300 hover:text-white'
@@ -168,7 +185,7 @@ export default function FloatingControls({
           {/* 3. Botón Pantalla Completa */}
           <button
             onClick={onToggleFullscreen}
-            className="p-2.5 rounded-full bg-gray-800/80 hover:bg-purple-600 text-gray-300 hover:text-white active:scale-95 transition"
+            className="p-2.5 rounded-full bg-gray-800/80 hover:bg-purple-600 text-gray-300 hover:text-white active:scale-95 transition cursor-pointer"
             title={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
           >
             {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
@@ -179,7 +196,7 @@ export default function FloatingControls({
           {/* 4. Pastilla Central con Capítulo */}
           <button
             onClick={() => setShowChaptersDrawer(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-lg shadow-purple-600/30 active:scale-95 transition"
+            className="flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-lg shadow-purple-600/30 active:scale-95 transition cursor-pointer"
             title="Ver lista de capítulos al lado derecho"
           >
             <List className="w-3.5 h-3.5 shrink-0" />
@@ -189,7 +206,7 @@ export default function FloatingControls({
           {/* 5. Botón Ajustes */}
           <button
             onClick={onOpenSettings}
-            className="p-2.5 rounded-full bg-gray-800/80 hover:bg-purple-600 text-gray-300 hover:text-white active:scale-95 transition"
+            className="p-2.5 rounded-full bg-gray-800/80 hover:bg-purple-600 text-gray-300 hover:text-white active:scale-95 transition cursor-pointer"
             title="Ajustes (Ancho, Fondo, Velocidad, Controles)"
           >
             <Sliders className="w-4 h-4" />
@@ -197,11 +214,11 @@ export default function FloatingControls({
 
           <div className="h-4 w-px bg-gray-800/80 mx-0.5" />
 
-          {/* 6. Botón Siguiente Capítulo */}
+          {/* 7. Botón Siguiente Capítulo */}
           <button
             onClick={() => resolvedNextUrl && onNavigateChapter(resolvedNextUrl)}
             disabled={!resolvedNextUrl}
-            className="p-2.5 rounded-full bg-gray-800/80 hover:bg-purple-600 text-gray-300 hover:text-white active:scale-95 disabled:opacity-25 disabled:hover:bg-gray-800/80 disabled:pointer-events-none transition"
+            className="p-2.5 rounded-full bg-gray-800/80 hover:bg-purple-600 text-gray-300 hover:text-white active:scale-95 disabled:opacity-25 disabled:hover:bg-gray-800/80 disabled:pointer-events-none transition cursor-pointer"
             title={resolvedNextUrl ? 'Siguiente capítulo' : 'No hay siguiente capítulo'}
           >
             <SkipForward className="w-4 h-4 fill-current" />

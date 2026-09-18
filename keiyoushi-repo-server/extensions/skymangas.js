@@ -101,42 +101,101 @@ export class SkyMangasExtension extends BaseExtension {
   async getMangaDetails(mangaUrl) {
     try {
       console.log(`[SkyMangas] Obteniendo ficha real: ${mangaUrl}`);
-      const res = await axios.get(mangaUrl, { headers: this.headers, timeout: 15000 });
-      const $ = cheerio.load(res.data);
-
       const slug = mangaUrl.replace(/\/+$/, '').split('/').pop();
-      const title = $('h1').first().text().trim() || slug.replace(/-/g, ' ');
-      const cover = `https://api.skymangas.com/uploads/covers/${slug}/${slug}_cover.webp`;
+      let title = slug.replace(/-/g, ' ');
+      let cover = `https://api.skymangas.com/uploads/covers/${slug}/${slug}_cover.webp`;
+      let synopsis = 'Disfruta de este manhua/manga en SkyMangas.';
+      let genres = ['Acción', 'Manhua', 'Cultivo', 'Aventura'];
+      let mangaMeta = null;
 
-      let synopsis = $('p, .synopsis, .description, .summary').slice(0, 3).map((_, el) => $(el).text().trim()).get().join(' ') || 'Disfruta de este manhua/manga en SkyMangas.';
+      // 1. Obtener metadata fresca desde API oficial
+      try {
+        const metaRes = await axios.get(`https://api.skymangas.com/api/v1/manhuas/${slug}`, { headers: this.headers, timeout: 12000 });
+        if (metaRes.data?.data) {
+          mangaMeta = metaRes.data.data;
+          if (mangaMeta.title) title = mangaMeta.title;
+          if (mangaMeta.synopsis) synopsis = mangaMeta.synopsis;
+          if (mangaMeta.coverUrl) {
+            cover = mangaMeta.coverUrl.startsWith('http') ? mangaMeta.coverUrl : `https://api.skymangas.com${mangaMeta.coverUrl}`;
+          }
+          if (Array.isArray(mangaMeta.genres) && mangaMeta.genres.length > 0) {
+            genres = mangaMeta.genres.map(g => typeof g === 'string' ? g : g.name).filter(Boolean);
+          }
+        }
+      } catch (e) {
+        console.warn(`[SkyMangas] API v1 manhuas/${slug} error, fallback to HTML:`, e.message);
+      }
 
-      const genres = ['Acción', 'Manhua', 'Cultivo', 'Aventura'];
-      $('a[href*="/genero/"], a[href*="/genre/"], .badge, .tag').each((_, el) => {
-        const g = $(el).text().trim();
-        if (g && !genres.includes(g) && g.length < 25) genres.push(g);
-      });
-
+      // 2. Obtener 100% de los capítulos paginados de la API
       const chapters = [];
-      const seenCh = new Set();
-      $('a[href*="/leer/"]').each((_, el) => {
-        const href = $(el).attr('href');
-        if (!href) return;
-        const fullUrl = href.startsWith('http') ? href : `${this.baseUrl}${href}`;
-        if (seenCh.has(fullUrl)) return;
-        seenCh.add(fullUrl);
+      if (mangaMeta?.id) {
+        let page = 1;
+        let hasMore = true;
+        while (hasMore && page <= 40) {
+          try {
+            const chRes = await axios.get(`https://api.skymangas.com/api/v1/chapters/manhua/${mangaMeta.id}?page=${page}`, { headers: this.headers, timeout: 10000 });
+            const list = chRes.data?.data || [];
+            if (list.length === 0) {
+              hasMore = false;
+            } else {
+              for (const item of list) {
+                const chNum = String(item.chapterNumber ?? '');
+                const chSlug = item.slug || `cap-${chNum}`;
+                chapters.push({
+                  id: `${slug}-${chSlug}`,
+                  name: item.title ? `Capítulo ${chNum} - ${item.title}` : `Capítulo ${chNum}`,
+                  chapterNumber: chNum,
+                  url: `https://skymangas.com/leer/${slug}/${chNum}`,
+                  date: item.publishedAt ? new Date(item.publishedAt).toLocaleDateString('es-ES') : 'Disponible'
+                });
+              }
+              if (list.length < 50) {
+                hasMore = false;
+              } else {
+                page++;
+              }
+            }
+          } catch (err) {
+            console.warn(`[SkyMangas] Error en página de capítulos ${page}:`, err.message);
+            hasMore = false;
+          }
+        }
+      }
 
-        const text = $(el).text().trim().replace(/\s+/g, ' ');
-        const numMatch = fullUrl.match(/\/(\d+(\.\d+)?)$/) || text.match(/Cap[^\d]*(\d+(\.\d+)?)/i);
-        const chapterNumber = numMatch ? String(numMatch[1]) : String(chapters.length + 1);
+      // 3. Si la API no devolvió capítulos o falló, fallback por raspado HTML
+      if (chapters.length === 0) {
+        const res = await axios.get(mangaUrl, { headers: this.headers, timeout: 15000 });
+        const $ = cheerio.load(res.data);
+        if ($('h1').first().text().trim()) title = $('h1').first().text().trim();
+        const synText = $('p, .synopsis, .description, .summary').slice(0, 3).map((_, el) => $(el).text().trim()).get().join(' ');
+        if (synText) synopsis = synText;
 
-        chapters.push({
-          id: `${slug}-cap-${chapterNumber}`,
-          name: `Capítulo ${chapterNumber}`,
-          chapterNumber: chapterNumber,
-          url: fullUrl,
-          date: 'Disponible'
+        $('a[href*="/genero/"], a[href*="/genre/"], .badge, .tag').each((_, el) => {
+          const g = $(el).text().trim();
+          if (g && !genres.includes(g) && g.length < 25) genres.push(g);
         });
-      });
+
+        const seenCh = new Set();
+        $('a[href*="/leer/"]').each((_, el) => {
+          const href = $(el).attr('href');
+          if (!href) return;
+          const fullUrl = href.startsWith('http') ? href : `${this.baseUrl}${href}`;
+          if (seenCh.has(fullUrl)) return;
+          seenCh.add(fullUrl);
+
+          const text = $(el).text().trim().replace(/\s+/g, ' ');
+          const numMatch = fullUrl.match(/\/(\d+(\.\d+)?)$/) || text.match(/Cap[^\d]*(\d+(\.\d+)?)/i);
+          const chapterNumber = numMatch ? String(numMatch[1]) : String(chapters.length + 1);
+
+          chapters.push({
+            id: `${slug}-cap-${chapterNumber}`,
+            name: `Capítulo ${chapterNumber}`,
+            chapterNumber: chapterNumber,
+            url: fullUrl,
+            date: 'Disponible'
+          });
+        });
+      }
 
       chapters.sort((a, b) => parseFloat(b.chapterNumber || 0) - parseFloat(a.chapterNumber || 0));
 
@@ -147,9 +206,9 @@ export class SkyMangasExtension extends BaseExtension {
         cover,
         synopsis,
         genres,
-        status: 'En emisión',
-        author: 'SkyMangas',
-        artist: 'SkyMangas',
+        status: mangaMeta?.statusId === 1 ? 'En emisión' : 'Finalizado',
+        author: mangaMeta?.author || 'SkyMangas',
+        artist: mangaMeta?.artist || 'SkyMangas',
         demography: 'Shounen',
         type: 'Manhua',
         totalChapters: chapters.length,

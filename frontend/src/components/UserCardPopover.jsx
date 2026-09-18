@@ -72,11 +72,29 @@ export default function UserCardPopover({
 
     if (currentUser) {
       axios.get('/api/social/friends-and-dms', {
-        headers: { Authorization: `Bearer ${currentUser.token}` }
+        headers: { 
+          Authorization: `Bearer ${currentUser.token || ''}`,
+          'x-user-id': currentUser.id,
+          'x-username': currentUser.username
+        }
       }).then(res => {
         if (isMounted && res.data?.success) {
           const friends = res.data.friends || [];
-          setIsFriend(friends.some(f => f.id === userId || f.username?.toLowerCase() === (usernameFallback || '').toLowerCase()));
+          const outgoing = res.data.sentRequests || res.data.pendingRequests?.outgoing || [];
+          const targetId = userId || profile?.id;
+          const targetUser = usernameFallback || profile?.username;
+          
+          const matchedFriend = friends.some(f => 
+            (targetId && (f.id === targetId || f.username?.toLowerCase() === targetId.toLowerCase())) ||
+            (targetUser && (f.username?.toLowerCase() === targetUser.toLowerCase() || f.id === targetUser))
+          );
+          setIsFriend(matchedFriend);
+
+          const matchedPending = outgoing.some(r => 
+            (targetId && (r.toUserId === targetId || r.toUsername?.toLowerCase() === targetId.toLowerCase())) ||
+            (targetUser && (r.toUsername?.toLowerCase() === targetUser.toLowerCase() || r.toUserId === targetUser))
+          );
+          setRequestSent(matchedPending);
         }
       }).catch(() => {});
     }
@@ -89,7 +107,7 @@ export default function UserCardPopover({
   const [requestSent, setRequestSent] = useState(false);
 
   const handleToggleFriend = async () => {
-    if (!currentUser || isMe || !profile) return;
+    if (!currentUser || isMe || !profile || isFriend || requestSent) return;
     try {
       const res = await axios.post('/api/social/friends/request', {
         targetUserId: profile.id,
@@ -174,17 +192,26 @@ export default function UserCardPopover({
     }
   };
 
-  const p = profile || {
+  const p = isMe && currentUser ? {
+    ...currentUser,
+    badge: currentUser.rank || currentUser.badge || 'Lector Novato 🌱',
+    stats: {
+      ...currentUser.stats,
+      totalMangas: Array.isArray(currentUser.library) ? currentUser.library.length : 0,
+      totalChaptersRead: currentUser.totalChaptersRead || currentUser.stats?.totalChaptersRead || 0,
+      level: currentUser.level || currentUser.stats?.level || 1
+    }
+  } : (profile || {
     id: userId,
     username: usernameFallback || 'Usuario',
     avatar: userAvatarFallback || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(usernameFallback || 'User')}`,
     banner: 'linear-gradient(135deg, #065f46 0%, #059669 50%, #10b981 100%)',
     bio: 'Leyendo en Yomori...',
-    badge: 'Lector Élite',
+    badge: 'Lector Novato 🌱',
     isLibraryPublic: true,
     library: [],
     stats: { totalMangas: 0, totalChaptersRead: 0, readingHours: 0, level: 1 }
-  };
+  });
 
   const isLibraryPublic = p.isLibraryPublic !== false;
   const libraryList = Array.isArray(p.library) ? p.library : [];
@@ -221,17 +248,23 @@ export default function UserCardPopover({
 
               <button
                 onClick={handleToggleFriend}
-                disabled={requestSent}
-                className={`p-1.5 rounded-xl transition active:scale-90 cursor-pointer ${
+                disabled={isFriend || requestSent}
+                className={`p-1.5 rounded-xl transition ${
                   isFriend 
-                    ? 'bg-emerald-600 text-white' 
+                    ? 'bg-gray-800/80 text-gray-400 border border-gray-700/60 cursor-default opacity-80' 
                     : requestSent 
-                      ? 'bg-amber-600/80 text-white' 
-                      : 'hover:bg-white/20 text-gray-200 hover:text-white'
+                      ? 'bg-amber-950/70 text-amber-300 border border-amber-800/60 cursor-default' 
+                      : 'hover:bg-white/20 text-gray-200 hover:text-white active:scale-90 cursor-pointer'
                 }`}
-                title={isFriend ? 'Amigos' : requestSent ? 'Solicitud enviada' : 'Añadir a mis amigos'}
+                title={isFriend ? 'Ya son amigos' : requestSent ? 'Solicitud enviada' : 'Añadir a mis amigos'}
               >
-                {isFriend ? <UserCheck className="w-3.5 h-3.5" /> : requestSent ? <Clock className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5 text-emerald-300" />}
+                {isFriend ? (
+                  <UserCheck className="w-3.5 h-3.5 text-gray-400" />
+                ) : requestSent ? (
+                  <Clock className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+                ) : (
+                  <UserPlus className="w-3.5 h-3.5 text-emerald-300" />
+                )}
               </button>
 
               <button

@@ -14,17 +14,469 @@
     "id": "usr_1788991964318_s09yt",
     "username": "Rey_Palomo",
     "email": "cristofer.apaza01@gmail.com",
-    "avatar": "https://api.dicebear.com/7.x/bottts/svg?seed=Rey_Palomo",
+    "avatar": "https://api.dicebear.com/7.x/bottts/svg?seed=KitsuneSage",
+    "role": "admin",
     "salt": "6f7b1582b6daa22cfe6763519ff7b1a6",
     "password": "e1ca2796eb5acc656f5ecf64e32f625452a93ff964b6f645190c969c0fdd50882cf233d392029e049faaaa68330bdf4c3138b82e05c0d6ba5a82d0cecc5a76c1",
-    "token": "d7d5c34168fdff4e750da24b904a4e1503da82b00f6c388eb3eddf0f3d94f8e7",
+    "token": "555ccf316c5c8237e94ee085dfe709b85b2344bce54b39ab5246607df8d72e75",
     "createdAt": "2026-09-09T22:12:44.319Z",
     "banner": "linear-gradient(135deg, #b91c1c 0%, #ea580c 50%, #f59e0b 100%)",
-    "bio": "Leyendo en Yomori 📖✨",
-    "badge": "Lector Élite ⚡",
+    "bio": "👑 Administrador Global de Yomori",
+    "badge": "🌱 Lector Novato",
     "isLibraryPublic": true,
-    "updatedAt": "2026-09-09T23:36:49.887Z",
-    "lastLogin": "2026-09-09T23:36:49.886Z"
+    "updatedAt": "2026-09-16T04:25:20.544Z",
+    "lastLogin": "2026-09-15T08:46:37.756Z",
+    "library": [
+      {
+        "title": "La venganza del sabueso de sangre de hierro",
+        "url": "https://olympusxyz.com/series/comic-20-225-2sabueso13424",
+        "cover": "https://media.imagesolymp.xyz/comics/covers/743/sabueso-venganza-xl.webp",
+        "extensionId": "olympus-scanlation",
+        "categories": [
+          "Todos"
+        ],
+        "category": "Todos",
+        "status": "Ongoing",
+        "inLibrary": true,
+        "addedAt": "2026-09-10T14:27:33.856Z"
+      },
+      {
+        "title": "Loco Frontera",
+        "url": "https://olympusxyz.com/series/comic-loco-frontera-20260909-080444755",
+        "cover": "https://media.imagesolymp.xyz/comics/covers/463/tmpncgwpvr3-xl.webp",
+        "extensionId": "olympus-scanlation",
+        "categories": [
+          "Todos"
+        ],
+        "category": "Todos",
+        "status": "Ongoing",
+        "inLibrary": true,
+        "addedAt": "2026-09-10T14:27:33.857Z"
+      },
+      {
+        "title": "El hijo menor del maestro de la espada",
+        "url": "https://olympusxyz.com/series/comic-el-hijo20-225-de-la-espada13424",
+        "cover": "https://media.imagesolymp.xyz/comics/covers/86/tmpizpqgl2f-xl.webp",
+        "extensionId": "olympus-scanlation",
+        "categories": [
+          "Todos"
+        ],
+        "category": "Todos",
+        "status": "Ongoing",
+        "inLibrary": true,
+        "addedAt": "2026-09-10T14:27:33.857Z"
+      },
+      {
+        "title": "Subiendo de Nivel 10.000 años en el futuro",
+        "url": "https://rncalation.online/comics/subiendo-de-nivel-10000-anos-en-el-futuro",
+        "cover": "https://rncalation.online/uploads/covers/subiendo-de-nivel-10000-anos-en-el-futuro/1780562389357-158da0ad-163d-4984-8e2d-7b1458040bc2.png",
+        "extensionId": "rn-scanlation",
+        "categories": [
+          "Todos"
+        ],
+        "category": "Todos",
+        "status": "Ongoing",
+        "inLibrary": true,
+        "addedAt": "2026-09-10T14:27:33.857Z"
+      },
+      {
+        "title": " Iniciando sesión en 10,000 años en el futuro",
+        "url": "https://olympusxyz.com/series/comic-isecaikr20-225-arochino13424",
+        "cover": "https://media.imagesolymp.xyz/comics/covers/18/XTPSnDxOUPhotoauto_scaleLevel3width_800-xl.webp",
+        "coverProxy": "http://localhost:4000/api/proxy-image?url=https%3A%2F%2Fmedia.imagesolymp.xyz%2Fcomics%2Fcovers%2F18%2FXTPSnDxOUPhotoauto_scaleLevel3width_800-xl.webp&extensionId=olympus-scanlation",
+        "extension": "Olympus Scanlation",
+        "category": "MANHUAS",
+        "readChapters": [],
+        "totalChapters": 374,
+        "lastReadChapter": {
+          "url": "https://olympusxyz.com/capitulo/1495/comic-isecaikr20-225-arochino13424",
+          "name": "Capítulo 1"
+        },
+        "addedAt": "2026-09-10T08:12:04.983Z"
+      },
+      {
+        "title": "Jugador que regresó 10.000 años después",
+        "url": "https://olympusxyz.com/series/comic-jugad20-225-reso-10000-anos-despues13424",
+        "cover": "https://media.imagesolymp.xyz/comics/covers/197/tmp22mbo18z-lg.webp",
+        "coverProxy": "http://localhost:4000/api/proxy-image?url=https%3A%2F%2Fmedia.imagesolymp.xyz%2Fcomics%2Fcovers%2F197%2Ftmp22mbo18z-lg.webp&referer=https%3A%2F%2Folympusxyz.com",
+        "extension": "Olympus Scanlation",
+        "category": "MANHWAS",
+        "readChapters": [],
+        "totalChapters": 1,
+        "lastReadChapter": null,
+        "addedAt": "2026-09-10T08:11:55.483Z"
+      },
+      {
+        "title": "El Asesino Yu Ijin",
+        "url": "https://olympusxyz.com/series/comic-el-asesino-yu-ijin-20260909-080429976",
+        "cover": "https://media.imagesolymp.xyz/comics/covers/142/tmpt79xoj_3-xl.webp",
+        "coverProxy": "http://localhost:4000/api/proxy-image?url=https%3A%2F%2Fmedia.imagesolymp.xyz%2Fcomics%2Fcovers%2F142%2Ftmpt79xoj_3-xl.webp&extensionId=olympus-scanlation",
+        "extension": "Olympus Scanlation",
+        "category": "MANHWAS",
+        "readChapters": [],
+        "totalChapters": 287,
+        "lastReadChapter": {
+          "url": "https://olympusxyz.com/capitulo/126324/comic-el-asesino-yu-ijin-20260910-080332880",
+          "name": "Capítulo 279.5"
+        },
+        "addedAt": "2026-09-10T08:11:31.812Z"
+      },
+      {
+        "title": "Loco Frontera",
+        "url": "https://olympusxyz.com/series/comic-loco-frontera-20260911-080346183",
+        "cover": "https://media.imagesolymp.xyz/comics/covers/463/tmpncgwpvr3-xl.webp",
+        "coverProxy": "http://localhost:4000/api/proxy-image?url=https%3A%2F%2Fmedia.imagesolymp.xyz%2Fcomics%2Fcovers%2F463%2Ftmpncgwpvr3-xl.webp&extensionId=olympus-scanlation",
+        "extension": "Olympus Scanlation",
+        "extensionId": "olympus-scanlation",
+        "category": "MANHWAS",
+        "readChapters": [],
+        "totalChapters": 233,
+        "initialChapterCount": 233,
+        "lastKnownLatestChapterUrl": "https://olympusxyz.com/capitulo/125824/comic-loco-frontera-20260911-080346183",
+        "lastKnownLatestChapterName": "Capítulo 223",
+        "lastReadChapter": null,
+        "addedAt": "2026-09-11T23:18:47.028Z"
+      }
+    ],
+    "history": [
+      {
+        "mangaTitle": "456 Endfield!?",
+        "chapterTitle": "Capítulo 1: Prólogo [🇪🇸 Castellano] (Poderosa Ñ)",
+        "cover": "http://localhost:4000/api/proxy-image?url=https%3A%2F%2Fuploads.mangadex.org%2Fcovers%2F228bc28d-2307-46f1-b7cb-a519228ecbb6%2F55943de6-bc24-4111-8ce5-9034dc2ecf96.png.512.jpg&extensionId=mangadex",
+        "coverProxy": "http://localhost:4000/api/proxy-image?url=https%3A%2F%2Fuploads.mangadex.org%2Fcovers%2F228bc28d-2307-46f1-b7cb-a519228ecbb6%2F55943de6-bc24-4111-8ce5-9034dc2ecf96.png.512.jpg&extensionId=mangadex",
+        "extension": "MangaDex",
+        "url": "https://mangadex.org/chapter/d5cddea9-bc39-4c09-b1a5-72073a16baa3",
+        "mangaUrl": "https://mangadex.org/title/228bc28d-2307-46f1-b7cb-a519228ecbb6",
+        "page": 1,
+        "timestamp": "2026-09-10T20:09:33.861Z"
+      },
+      {
+        "mangaTitle": "El Asesino Yu Ijin",
+        "chapterTitle": "Capítulo 279.5",
+        "cover": "http://localhost:4000/api/proxy-image?url=https%3A%2F%2Fmedia.imagesolymp.xyz%2Fcomics%2Fcovers%2F142%2Ftmpt79xoj_3-xl.webp&extensionId=olympus-scanlation",
+        "coverProxy": "http://localhost:4000/api/proxy-image?url=https%3A%2F%2Fmedia.imagesolymp.xyz%2Fcomics%2Fcovers%2F142%2Ftmpt79xoj_3-xl.webp&extensionId=olympus-scanlation",
+        "extension": "Olympus Scanlation",
+        "url": "https://olympusxyz.com/capitulo/126324/comic-el-asesino-yu-ijin-20260910-080332880",
+        "mangaUrl": "https://olympusxyz.com/series/comic-el-asesino-yu-ijin-20260909-080429976",
+        "page": 1,
+        "timestamp": "2026-09-10T19:33:48.777Z"
+      },
+      {
+        "mangaTitle": "El hijo menor del maestro de la espada",
+        "chapterTitle": "Capítulo 2",
+        "cover": "http://localhost:4000/api/proxy-image?url=https%3A%2F%2Fmedia.imagesolymp.xyz%2Fcomics%2Fcovers%2F86%2Ftmpizpqgl2f-xl.webp&extensionId=olympus-scanlation",
+        "coverProxy": "http://localhost:4000/api/proxy-image?url=https%3A%2F%2Fmedia.imagesolymp.xyz%2Fcomics%2Fcovers%2F86%2Ftmpizpqgl2f-xl.webp&extensionId=olympus-scanlation",
+        "extension": "Olympus Scanlation",
+        "url": "https://olympusxyz.com/capitulo/41087/comic-el-hijo20-225-de-la-espada13424",
+        "mangaUrl": "https://olympusxyz.com/series/comic-el-hijo20-225-de-la-espada13424",
+        "page": 1,
+        "timestamp": "2026-09-10T18:44:37.654Z"
+      },
+      {
+        "mangaTitle": "Rey De Los Saqueadores De Tumbas",
+        "chapterTitle": "Capítulo 84",
+        "cover": "http://localhost:4000/api/proxy-image?url=https%3A%2F%2Fleemiau.com%2Fwp-content%2Fuploads%2F2026%2F07%2Frey-de-los-saqueadores-de-tumbas-d7dc458ada.webp&extensionId=miauscan",
+        "coverProxy": "http://localhost:4000/api/proxy-image?url=https%3A%2F%2Fleemiau.com%2Fwp-content%2Fuploads%2F2026%2F07%2Frey-de-los-saqueadores-de-tumbas-d7dc458ada.webp&extensionId=miauscan",
+        "extension": "MiauScan",
+        "url": "https://leemiau.com/rey-de-los-saqueadores-de-tumbas-capitulo-84/",
+        "mangaUrl": "https://leemiau.com/manga/rey-de-los-saqueadores-de-tumbas/",
+        "page": 1,
+        "timestamp": "2026-09-10T15:23:50.320Z"
+      },
+      {
+        "mangaTitle": " Iniciando sesión en 10,000 años en el futuro",
+        "chapterTitle": "Capítulo 1",
+        "cover": "http://localhost:4000/api/proxy-image?url=https%3A%2F%2Fmedia.imagesolymp.xyz%2Fcomics%2Fcovers%2F18%2FXTPSnDxOUPhotoauto_scaleLevel3width_800-xl.webp&extensionId=olympus-scanlation",
+        "coverProxy": "http://localhost:4000/api/proxy-image?url=https%3A%2F%2Fmedia.imagesolymp.xyz%2Fcomics%2Fcovers%2F18%2FXTPSnDxOUPhotoauto_scaleLevel3width_800-xl.webp&extensionId=olympus-scanlation",
+        "extension": "Olympus Scanlation",
+        "url": "https://olympusxyz.com/capitulo/1495/comic-isecaikr20-225-arochino13424",
+        "mangaUrl": "https://olympusxyz.com/series/comic-isecaikr20-225-arochino13424",
+        "page": 1,
+        "timestamp": "2026-09-10T14:57:25.460Z"
+      },
+      {
+        "mangaTitle": "Subiendo de Nivel 10.000 años en el futuro",
+        "chapterTitle": "Capítulo 2",
+        "cover": "http://localhost:4000/api/proxy-image?url=https%3A%2F%2Frncalation.online%2Fuploads%2Fcovers%2Fsubiendo-de-nivel-10000-anos-en-el-futuro%2F1780562389357-158da0ad-163d-4984-8e2d-7b1458040bc2.png&extensionId=rn-scanlation",
+        "coverProxy": "http://localhost:4000/api/proxy-image?url=https%3A%2F%2Frncalation.online%2Fuploads%2Fcovers%2Fsubiendo-de-nivel-10000-anos-en-el-futuro%2F1780562389357-158da0ad-163d-4984-8e2d-7b1458040bc2.png&extensionId=rn-scanlation",
+        "extension": "RN Scanlation",
+        "url": "https://rncalation.online/leer/186d5a98e62ef11691cf4",
+        "mangaUrl": "https://rncalation.online/comics/subiendo-de-nivel-10000-anos-en-el-futuro",
+        "page": 1,
+        "timestamp": "2026-09-10T07:45:55.033Z"
+      },
+      {
+        "mangaTitle": "Loco Frontera",
+        "chapterTitle": "Capítulo 2",
+        "cover": "https://media.imagesolymp.xyz/comics/covers/463/tmpncgwpvr3-xl.webp",
+        "coverProxy": "http://localhost:4000/api/proxy-image?url=https%3A%2F%2Fmedia.imagesolymp.xyz%2Fcomics%2Fcovers%2F463%2Ftmpncgwpvr3-xl.webp&extensionId=olympus-scanlation",
+        "extension": "Olympus Scanlation",
+        "url": "https://olympusxyz.com/capitulo/39945/comic-loco-frontera-20260909-080444755",
+        "mangaUrl": "https://olympusxyz.com/series/comic-loco-frontera-20260909-080444755",
+        "page": 1,
+        "timestamp": "2026-09-10T07:35:11.559Z"
+      },
+      {
+        "mangaTitle": "Subiendo De Nivel 10.000 Años En el Futuro. Chapter 1 En Línea",
+        "chapterTitle": "Subiendo De Nivel 10.000 Años En el Futuro. Chapter 1 En Línea",
+        "cover": "https://leercapitulo.com/covers/b1/31265b4e9277b26ac8c0fe7296c1d3.jpg?v1762641074242",
+        "coverProxy": "http://localhost:4000/api/proxy-image?url=https%3A%2F%2Fleercapitulo.com%2Fcovers%2Fb1%2F31265b4e9277b26ac8c0fe7296c1d3.jpg%3Fv1762641074242&extensionId=zonatmo",
+        "extension": "ZonaTMO",
+        "url": "https://leercapitulo.com/leer/wjjmh6cpwz/subiendo-de-nivel-10-000-anos-en-el-futuro/1/",
+        "mangaUrl": "https://leercapitulo.com/manga/wjjmh6cpwz/subiendo-de-nivel-10-000-anos-en-el-futuro/",
+        "timestamp": "2026-09-10T04:24:46.657Z"
+      },
+      {
+        "mangaTitle": "Subiendo De Nivel 10.000 Años En el Futuro. Chapter 64.1 En Línea",
+        "chapterTitle": "Subiendo De Nivel 10.000 Años En el Futuro. Chapter 64.1 En Línea",
+        "cover": "https://leercapitulo.com/covers/b1/31265b4e9277b26ac8c0fe7296c1d3.jpg?v1762641074242",
+        "coverProxy": "http://localhost:4000/api/proxy-image?url=https%3A%2F%2Fleercapitulo.com%2Fcovers%2Fb1%2F31265b4e9277b26ac8c0fe7296c1d3.jpg%3Fv1762641074242&extensionId=zonatmo",
+        "extension": "ZonaTMO",
+        "url": "https://leercapitulo.com/leer/wjjmh6cpwz/subiendo-de-nivel-10-000-anos-en-el-futuro/64.1/",
+        "mangaUrl": "https://leercapitulo.com/manga/wjjmh6cpwz/subiendo-de-nivel-10-000-anos-en-el-futuro/",
+        "timestamp": "2026-09-10T04:12:17.521Z"
+      },
+      {
+        "mangaTitle": "ManhwaLatino",
+        "chapterTitle": "Capítulo",
+        "cover": "https://media.manhwaweb.xyz/wp-content/uploads/2026/06/cover-1781049385600.webp",
+        "coverProxy": "http://localhost:4000/api/proxy-image?url=https%3A%2F%2Fmedia.manhwaweb.xyz%2Fwp-content%2Fuploads%2F2026%2F06%2Fcover-1781049385600.webp&extensionId=manhwalatino",
+        "extension": "ManhwaLatino",
+        "url": "https://manhwalatino.lat/fight-delivery-capitulo-1/",
+        "mangaUrl": "https://manhwalatino.lat/manga/fight-delivery/",
+        "timestamp": "2026-09-10T04:04:13.904Z"
+      },
+      {
+        "mangaTitle": "Crié a Una Preciosa Cenicienta\n\t\t\t\t\t\tCapítulo 1",
+        "chapterTitle": "Crié a Una Preciosa Cenicienta\n\t\t\t\t\t\tCapítulo 1",
+        "cover": "https://leemiau.com/wp-content/uploads/2026/08/crie-a-una-preciosa-cenicienta-312faa4085.webp",
+        "coverProxy": "http://localhost:4000/api/proxy-image?url=https%3A%2F%2Fleemiau.com%2Fwp-content%2Fuploads%2F2026%2F08%2Fcrie-a-una-preciosa-cenicienta-312faa4085.webp&extensionId=miauscan",
+        "extension": "MiauScan",
+        "url": "https://leemiau.com/crie-a-una-preciosa-cenicienta-capitulo-1/",
+        "mangaUrl": "https://leemiau.com/manga/crie-a-una-preciosa-cenicienta/",
+        "timestamp": "2026-09-10T03:45:59.260Z"
+      },
+      {
+        "mangaTitle": "Capítulo 1 de El Sentido Absoluto de las Espadas",
+        "chapterTitle": "Capítulo 1 de El Sentido Absoluto de las Espadas",
+        "cover": "https://media.imagesolymp.xyz/comics/covers/116/tmpwtcdbab0-xl.webp",
+        "coverProxy": "http://localhost:4000/api/proxy-image?url=https%3A%2F%2Fmedia.imagesolymp.xyz%2Fcomics%2Fcovers%2F116%2Ftmpwtcdbab0-xl.webp&extensionId=olympus-scanlation",
+        "extension": "Olympus Scanlation",
+        "url": "https://olympusxyz.com/capitulo/20900/comic-el-sentido-absoluto-de-las-espadas-20260909-080420481",
+        "mangaUrl": "https://olympusxyz.com/series/comic-el-sentido-absoluto-de-las-espadas-20260909-080420481",
+        "timestamp": "2026-09-09T22:00:30.409Z"
+      },
+      {
+        "mangaTitle": "ManhwaLatino",
+        "chapterTitle": "Capítulo",
+        "cover": "https://media.manhwaweb.xyz/wp-content/uploads/2026/06/B0ERE.jpg",
+        "coverProxy": "http://localhost:4000/api/proxy-image?url=https%3A%2F%2Fmedia.manhwaweb.xyz%2Fwp-content%2Fuploads%2F2026%2F06%2FB0ERE.jpg&extensionId=manhwalatino",
+        "extension": "ManhwaLatino",
+        "url": "https://manhwalatino.lat/como-me-converti-en-un-hombre-casado-en-otro-mundo-capitulo-1/",
+        "mangaUrl": "https://manhwalatino.lat/manga/como-me-converti-en-un-hombre-casado-en-otro-mundo/",
+        "timestamp": "2026-09-09T22:00:02.160Z"
+      },
+      {
+        "mangaTitle": "El retorno de una leyenda\n\t\t\t\t\t\tCapítulo 1",
+        "chapterTitle": "El retorno de una leyenda\n\t\t\t\t\t\tCapítulo 1",
+        "cover": "https://leemiau.com/wp-content/uploads/2026/08/el-retorno-de-una-leyenda-97a8e8f92f.webp",
+        "coverProxy": "http://localhost:4000/api/proxy-image?url=https%3A%2F%2Fleemiau.com%2Fwp-content%2Fuploads%2F2026%2F08%2Fel-retorno-de-una-leyenda-97a8e8f92f.webp&extensionId=miauscan",
+        "extension": "MiauScan",
+        "url": "https://leemiau.com/el-retorno-de-una-leyenda-capitulo-1/",
+        "mangaUrl": "https://leemiau.com/manga/el-retorno-de-una-leyenda/",
+        "timestamp": "2026-09-09T21:59:09.513Z"
+      },
+      {
+        "title": "La venganza del sabueso de sangre de hierro",
+        "mangaTitle": "La venganza del sabueso de sangre de hierro",
+        "mangaUrl": "https://olympusxyz.com/series/comic-20-225-2sabueso13424",
+        "chapterTitle": "Capítulo 2",
+        "chapterUrl": "https://olympusxyz.com/capitulo/58810/comic-20-225-2sabueso13424",
+        "url": "https://olympusxyz.com/capitulo/58810/comic-20-225-2sabueso13424",
+        "cover": "https://media.imagesolymp.xyz/comics/covers/743/sabueso-venganza-xl.webp",
+        "extensionId": "olympus-scanlation",
+        "lastReadAt": 1789025471090,
+        "coverProxy": ""
+      },
+      {
+        "title": "La venganza del sabueso de sangre de hierro",
+        "mangaTitle": "La venganza del sabueso de sangre de hierro",
+        "mangaUrl": "https://olympusxyz.com/series/comic-20-225-2sabueso13424",
+        "chapterTitle": "Capítulo 1",
+        "chapterUrl": "https://olympusxyz.com/capitulo/58809/comic-20-225-2sabueso13424",
+        "url": "https://olympusxyz.com/capitulo/58809/comic-20-225-2sabueso13424",
+        "cover": "https://media.imagesolymp.xyz/comics/covers/743/sabueso-venganza-xl.webp",
+        "extensionId": "olympus-scanlation",
+        "lastReadAt": 1789023726584,
+        "coverProxy": ""
+      },
+      {
+        "title": "El hijo menor del maestro de la espada",
+        "mangaTitle": "El hijo menor del maestro de la espada",
+        "mangaUrl": "https://olympusxyz.com/series/comic-el-hijo20-225-de-la-espada13424",
+        "chapterTitle": "Capítulo 1",
+        "chapterUrl": "https://olympusxyz.com/series/comic-el-hijo20-225-de-la-espada13424",
+        "url": "https://olympusxyz.com/series/comic-el-hijo20-225-de-la-espada13424",
+        "cover": "https://media.imagesolymp.xyz/comics/covers/86/tmpizpqgl2f-xl.webp",
+        "extensionId": "olympus-scanlation",
+        "lastReadAt": 1789025607305,
+        "coverProxy": ""
+      },
+      {
+        "title": "Subiendo de Nivel 10.000 años en el futuro",
+        "mangaTitle": "Subiendo de Nivel 10.000 años en el futuro",
+        "mangaUrl": "https://rncalation.online/comics/subiendo-de-nivel-10000-anos-en-el-futuro",
+        "chapterTitle": "Capítulo 1",
+        "chapterUrl": "https://rncalation.online/comics/subiendo-de-nivel-10000-anos-en-el-futuro",
+        "url": "https://rncalation.online/comics/subiendo-de-nivel-10000-anos-en-el-futuro",
+        "cover": "https://rncalation.online/uploads/covers/subiendo-de-nivel-10000-anos-en-el-futuro/1780562389357-158da0ad-163d-4984-8e2d-7b1458040bc2.png",
+        "extensionId": "rn-scanlation",
+        "lastReadAt": 1789026358410,
+        "coverProxy": ""
+      }
+    ],
+    "chapterProgress": {
+      "https://olympusxyz.com/capitulo/58809/comic-20-225-2sabueso13424": {
+        "page": 31,
+        "totalPages": 31,
+        "updatedAt": 1789023726582
+      },
+      "https://olympusxyz.com/capitulo/58810/comic-20-225-2sabueso13424": {
+        "page": 20,
+        "totalPages": 46,
+        "updatedAt": 1789023731539
+      },
+      "https://olympusxyz.com/capitulo/39935/comic-loco-frontera-20260909-080444755": {
+        "page": 18,
+        "totalPages": 77,
+        "updatedAt": 1789025626389
+      },
+      "https://olympusxyz.com/capitulo/39945/comic-loco-frontera-20260909-080444755": {
+        "page": 3,
+        "totalPages": 52,
+        "updatedAt": 1789025713802
+      },
+      "https://leemiau.com/el-retorno-de-una-leyenda-capitulo-1/": {
+        "page": 27,
+        "totalPages": 97,
+        "updatedAt": 1788991162109
+      },
+      "https://olympusxyz.com/capitulo/20900/comic-el-sentido-absoluto-de-las-espadas-20260909-080420481": {
+        "page": 2,
+        "totalPages": 94,
+        "updatedAt": 1788991231908
+      },
+      "https://leercapitulo.com/leer/wjjmh6cpwz/subiendo-de-nivel-10-000-anos-en-el-futuro/1/": {
+        "page": 3,
+        "totalPages": 3,
+        "updatedAt": 1789014312010
+      },
+      "https://manhwalatino.lat/fight-delivery-capitulo-1/": {
+        "page": 78,
+        "totalPages": 78,
+        "updatedAt": 1789013080227
+      },
+      "https://manhwalatino.lat/fight-delivery-capitulo-2/": {
+        "page": 56,
+        "totalPages": 56,
+        "updatedAt": 1789013092923
+      },
+      "https://leercapitulo.com/leer/wjjmh6cpwz/subiendo-de-nivel-10-000-anos-en-el-futuro/64.1/": {
+        "page": 4,
+        "totalPages": 4,
+        "updatedAt": 1789013540481
+      },
+      "https://rncalation.online/leer/7744ad61ffcb07cadc648": {
+        "page": 1,
+        "totalPages": 100,
+        "updatedAt": 1789015679318
+      },
+      "https://rncalation.online/leer/14a032cefa01bb2b18338": {
+        "page": 13,
+        "totalPages": 132,
+        "updatedAt": 1789026353205
+      },
+      "https://plotnofansub.com/manga/grand-blue/1/": {
+        "page": 57,
+        "totalPages": 57,
+        "updatedAt": 1789016689556
+      },
+      "https://plotnofansub.com/manga/grand-blue/2/": {
+        "page": 17,
+        "totalPages": 48,
+        "updatedAt": 1789025463798
+      },
+      "https://olympusxyz.com/capitulo/58811/comic-20-225-2sabueso13424": {
+        "page": 3,
+        "totalPages": 69,
+        "updatedAt": 1789025467999
+      },
+      "https://olympusxyz.com/capitulo/41126/comic-el-hijo20-225-de-la-espada13424": {
+        "page": 7,
+        "totalPages": 98,
+        "updatedAt": 1789052565906
+      },
+      "https://rncalation.online/leer/186d5a98e62ef11691cf4": {
+        "page": 3,
+        "totalPages": 99,
+        "updatedAt": 1789026358364
+      },
+      "https://olympusxyz.com/capitulo/1495/comic-isecaikr20-225-arochino13424": {
+        "page": 2,
+        "totalPages": 68,
+        "updatedAt": 1789052246707
+      },
+      "https://leemiau.com/rey-de-los-saqueadores-de-tumbas-capitulo-1/": {
+        "page": 2,
+        "totalPages": 10,
+        "updatedAt": 1789053821422
+      },
+      "https://leemiau.com/rey-de-los-saqueadores-de-tumbas-capitulo-84/": {
+        "page": 3,
+        "totalPages": 16,
+        "updatedAt": 1789053834344
+      },
+      "https://olympusxyz.com/capitulo/41087/comic-el-hijo20-225-de-la-espada13424": {
+        "page": 21,
+        "totalPages": 65,
+        "updatedAt": 1789065886319
+      }
+    },
+    "categories": [
+      "Todos",
+      "MANHWAS",
+      "MANHUAS",
+      "MANGAS"
+    ],
+    "settings": {
+      "theme": "custom",
+      "accentColor": "#F59E0B",
+      "defaultStartTab": "home",
+      "language": "es",
+      "confirmExitReader": false,
+      "showSidebarBadges": true,
+      "highQualityCovers": true,
+      "readerMode": "webtoon",
+      "maxWidth": "100%",
+      "brightness": 100,
+      "pageGap": 0,
+      "invertTaps": false,
+      "gridSize": "normal",
+      "showUnreadBadge": true,
+      "autoDownloadNewChapters": false,
+      "autoDownloadNextWhileReading": false,
+      "concurrentDownloads": 2,
+      "downloadOnlyOnWifi": false,
+      "readingMode": "webtoon",
+      "readerWidth": "850px",
+      "imageGap": 0,
+      "invertColors": false,
+      "useProxy": true,
+      "backgroundColor": "#07080b",
+      "autoScrollSpeed": 3,
+      "floatingControlsMode": "visible"
+    },
+    "shareReadingActivity": true
   },
   {
     "id": "usr_1788992187506_842dcdae",

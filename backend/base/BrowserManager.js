@@ -1,6 +1,3 @@
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 
@@ -10,8 +7,11 @@ export class BrowserManager {
   static sharedBrowser = null;
   static isLaunching = false;
 
+  /**
+   * Obtiene o inicializa la instancia caliente del navegador (Pool Singleton)
+   */
   static async getSharedBrowser() {
-    if (this.sharedBrowser && (this.sharedBrowser.connected || (typeof this.sharedBrowser.isConnected === 'function' && this.sharedBrowser.isConnected()))) {
+    if (this.sharedBrowser && this.sharedBrowser.isConnected()) {
       return this.sharedBrowser;
     }
 
@@ -19,18 +19,18 @@ export class BrowserManager {
       while (this.isLaunching) {
         await new Promise(r => setTimeout(r, 100));
       }
-      if (this.sharedBrowser && (this.sharedBrowser.connected || (typeof this.sharedBrowser.isConnected === 'function' && this.sharedBrowser.isConnected()))) {
+      if (this.sharedBrowser && this.sharedBrowser.isConnected()) {
         return this.sharedBrowser;
       }
     }
 
     this.isLaunching = true;
     try {
-      console.log('[Tachiyomi BrowserPool] 🚀 Inicializando Chromium caliente...');
+      console.log('[BrowserManager] 🚀 Inicializando instancia caliente de Chromium...');
       this.sharedBrowser = await this.launchBrowser();
       
       this.sharedBrowser.on('disconnected', () => {
-        console.warn('[Tachiyomi BrowserPool] Chromium desconectado. Se reanudará en la siguiente petición.');
+        console.warn('[BrowserManager] Chromium se ha desconectado. Se reiniciará en la próxima petición.');
         this.sharedBrowser = null;
       });
 
@@ -41,40 +41,21 @@ export class BrowserManager {
   }
 
   static async launchBrowser(customArgs = []) {
-    let executablePath = undefined;
-    const candidates = [
-      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-      'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-      'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
-      'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe'
-    ];
-    for (const c of candidates) {
-      try {
-        if (fs.existsSync(c)) {
-          executablePath = c;
-          break;
-        }
-      } catch (e) {}
-    }
-
     const defaultArgs = [
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-infobars',
-      '--window-position=-2400,-2400',
+      '--window-position=0,0',
       '--window-size=1366,768',
       '--disable-blink-features=AutomationControlled',
       '--disable-features=IsolateOrigins,site-per-process',
       '--disable-dev-shm-usage',
+      '--disable-gpu',
       ...customArgs
     ];
 
-    const profileDir = path.join(os.tmpdir(), `tachiyomi_chrome_${process.pid}`);
-
     return await puppeteer.launch({
-      executablePath,
-      userDataDir: profileDir,
-      headless: false,
+      headless: 'new',
       args: defaultArgs,
       ignoreHTTPSErrors: true,
       defaultViewport: {
@@ -85,8 +66,16 @@ export class BrowserManager {
     });
   }
 
+  /**
+   * Abre una nueva pestaña optimizada usando el navegador en caliente
+   */
   static async createWarmPage(options = {}) {
     const browser = await this.getSharedBrowser();
+    const page = await this.setupPage(browser, options);
+    return { browser, page };
+  }
+
+  static async setupPage(browser, options = {}) {
     const page = await browser.newPage();
 
     const userAgent = options.userAgent || 
@@ -105,32 +94,10 @@ export class BrowserManager {
       ...(options.headers || {})
     });
 
-    if (options.blockMedia !== false) {
-      await page.setRequestInterception(true);
-      page.on('request', req => {
-        const type = req.resourceType();
-        const url = req.url().toLowerCase();
-        if (
-          type === 'font' || 
-          type === 'media' || 
-          (options.blockImages && type === 'image') ||
-          url.includes('google-analytics') || 
-          url.includes('doubleclick') || 
-          url.includes('securepubads') || 
-          url.includes('disqus') ||
-          url.includes('recaptcha')
-        ) {
-          req.abort();
-        } else {
-          req.continue();
-        }
-      });
-    }
+    page.setDefaultNavigationTimeout(options.timeout || 35000);
+    page.setDefaultTimeout(options.timeout || 25000);
 
-    page.setDefaultNavigationTimeout(options.timeout || 25000);
-    page.setDefaultTimeout(options.timeout || 15000);
-
-    return { browser, page };
+    return page;
   }
 
   static async autoScroll(page, maxScrolls = 15, delayMs = 150) {
@@ -155,6 +122,9 @@ export class BrowserManager {
     }, maxScrolls, delayMs);
   }
 
+  /**
+   * Cierra únicamente la pestaña para reciclar memoria sin tumbar el navegador
+   */
   static async closePage(page) {
     if (page && !page.isClosed()) {
       try {
@@ -165,5 +135,7 @@ export class BrowserManager {
     }
   }
 
-  static async safeClose(browser) {}
+  static async safeClose(browser) {
+    // En modo pool, no cerramos el navegador global para mantener la velocidad
+  }
 }

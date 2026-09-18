@@ -57,15 +57,15 @@ const isBLManga = (item) => {
   return BL_REGEX.test(combined);
 };
 
-// Mangas destacados iniciales para el Hero Slider y secciones con los mejores scans
+// Mangas destacados iniciales para el Hero Slider y secciones con los mejores scans (Portadas 100% canónicas de los scans)
 const DEFAULT_HERO_SLIDES = [
   {
     id: 'hero-1',
     title: 'Subiendo De Nivel 10.000 Años En el Futuro',
     originalTitle: 'Logging 10,000 Years into the Future',
     synopsis: 'Al comienzo de la era de las artes marciales, monstruos aterradores invadieron la tierra. Diez mil años en el futuro, la humanidad perfeccionó técnicas divinas. Un joven viaja en sueños al futuro para aprenderlas.',
-    cover: 'https://uploads.mangadex.org/covers/f11d9d5c-bc4c-4552-8ac1-33e158c5a2c2/bad4dd56-1d39-47a3-aa3f-e613a302bb0f.jpg.512.jpg',
-    backdrop: 'https://uploads.mangadex.org/covers/f11d9d5c-bc4c-4552-8ac1-33e158c5a2c2/bad4dd56-1d39-47a3-aa3f-e613a302bb0f.jpg.512.jpg',
+    cover: 'https://rncalation.online/uploads/covers/subiendo-de-nivel-10000-anos-en-el-futuro/1780562389357-158da0ad-163d-4984-8e2d-7b1458040bc2.png',
+    backdrop: 'https://rncalation.online/uploads/covers/subiendo-de-nivel-10000-anos-en-el-futuro/1780562389357-158da0ad-163d-4984-8e2d-7b1458040bc2.png',
     rating: '9.9',
     year: '2026',
     status: 'Activo',
@@ -77,27 +77,27 @@ const DEFAULT_HERO_SLIDES = [
   },
   {
     id: 'hero-2',
-    title: 'Grand Blue',
-    originalTitle: 'Grand Blue Dreaming',
-    synopsis: 'Iori Kitahara se muda a la costera ciudad de Izu para iniciar su vida universitaria. Al instalarse en la tienda de buceo de su tío, "Grand Blue", descubre un mundo hilarante y salvaje de buceo, fiestas y amistades inolvidables.',
-    cover: 'https://uploads.mangadex.org/covers/fffbfac3-b7ad-41ee-9581-b4d90ecec941/0c6c8758-6819-4262-9671-30d5989c0fb8.jpg.512.jpg',
-    backdrop: 'https://uploads.mangadex.org/covers/fffbfac3-b7ad-41ee-9581-b4d90ecec941/0c6c8758-6819-4262-9671-30d5989c0fb8.jpg.512.jpg',
+    title: 'La venganza del sabueso de sangre de hierro',
+    originalTitle: 'Revenge of the Iron-Blooded Sword Hound',
+    synopsis: 'Vikir fue el fiel perro de caza de la familia Baskerville, pero fue ejecutado bajo acusaciones falsas. Al reencarnar conservando sus memorias, desatará su venganza implacable.',
+    cover: 'https://media.imagesolymp.xyz/comics/covers/743/sabueso-venganza-lg.webp',
+    backdrop: 'https://media.imagesolymp.xyz/comics/covers/743/sabueso-venganza-lg.webp',
     rating: '9.9',
     year: '2026',
     status: 'Activo',
-    genres: ['Comedia', 'Recuentos de la Vida', 'Seinen', 'Buceo'],
-    scanSource: 'Plot Twist No Fansub',
-    extensionId: 'plot-twist-no-fansub',
-    url: 'https://plotnofansub.com/manga/grand-blue/',
-    latestChapter: '132 capítulos'
+    genres: ['Acción', 'Venganza', 'Fantasía', 'Reencarnación'],
+    scanSource: 'Olympus Scanlation',
+    extensionId: 'olympus-scanlation',
+    url: 'https://olympusxyz.com/series/comic-20-225-2sabueso13424',
+    latestChapter: '115 capítulos'
   },
   {
     id: 'hero-3',
     title: 'Academia de la Ascensión',
     originalTitle: 'Ascension Academy',
     synopsis: 'En un mundo donde los elegidos entrenan en academias dimensionales para despertar sus mayores dones, un joven decidido supera las adversidades para convertirse en el guerrero supremo de su generación.',
-    cover: 'https://uploads.mangadex.org/covers/a92cf9fc-b6b7-4415-9400-72cddf30ac3e/d815f1cc-de6a-45b7-ae5e-8e8f07ff5e20.png.512.jpg',
-    backdrop: 'https://uploads.mangadex.org/covers/a92cf9fc-b6b7-4415-9400-72cddf30ac3e/d815f1cc-de6a-45b7-ae5e-8e8f07ff5e20.png.512.jpg',
+    cover: 'https://media.imagesolymp.xyz/comics/covers/11/tmpedu9scno-lg.webp',
+    backdrop: 'https://media.imagesolymp.xyz/comics/covers/11/tmpedu9scno-lg.webp',
     rating: '9.9',
     year: '2026',
     status: 'Activo',
@@ -105,15 +105,15 @@ const DEFAULT_HERO_SLIDES = [
     scanSource: 'Olympus Scanlation',
     extensionId: 'olympus-scanlation',
     url: 'https://olympusxyz.com/series/comic-academia-de-la-ascension-20260909-080419413',
-    latestChapter: '40 capítulos'
+    latestChapter: '201 capítulos'
   },
   {
     id: 'hero-4',
     title: 'Contra los dioses',
     originalTitle: 'Against the Gods',
     synopsis: 'Un joven que posee la mística Perla de Veneno Celestial es acorralado y cae al abismo. Al renacer en otro cuerpo, emprende la senda del cultivo supremo para desafiar a los clanes y conquistar el firmamento.',
-    cover: 'https://uploads.mangadex.org/covers/00ac6bbf-6d31-4706-8ec4-56a0b721d572/e5f7f56b-26ac-4f20-a028-e161881e432b.jpg.512.jpg',
-    backdrop: 'https://uploads.mangadex.org/covers/00ac6bbf-6d31-4706-8ec4-56a0b721d572/e5f7f56b-26ac-4f20-a028-e161881e432b.jpg.512.jpg',
+    cover: 'https://api.skymangas.com/uploads/covers/contra-los-dioses/contra-los-dioses_cover.webp',
+    backdrop: 'https://api.skymangas.com/uploads/covers/contra-los-dioses/contra-los-dioses_cover.webp',
     rating: '9.8',
     year: '2026',
     status: 'Activo',
@@ -125,35 +125,35 @@ const DEFAULT_HERO_SLIDES = [
   },
   {
     id: 'hero-5',
-    title: 'Las 100 novias que te quieren mucho mucho mucho mucho mucho',
-    originalTitle: 'The 100 Girlfriends Who Really, Really, Really, Really, Really Love You',
-    synopsis: 'Aijou Rentarou ha sido rechazado 100 veces. El Dios del Amor le revela que en la preparatoria conocerá a sus 100 almas gemelas destinadas, pero si no las hace felices a todas, ¡el destino les deparará una tragedia!',
-    cover: 'https://uploads.mangadex.org/covers/efb4278c-a761-406b-9d69-19603c5e4c8b/fd2c6a48-810e-4cb4-bd35-e90cef71e337.jpg.512.jpg',
-    backdrop: 'https://uploads.mangadex.org/covers/efb4278c-a761-406b-9d69-19603c5e4c8b/fd2c6a48-810e-4cb4-bd35-e90cef71e337.jpg.512.jpg',
-    rating: '9.8',
+    title: 'El hijo menor del maestro de la espada',
+    originalTitle: 'Swordmaster’s Youngest Son',
+    synopsis: 'Jin Runcandel, desterrado por su propia familia por su falta de talento, recibe una segunda oportunidad otorgada por el dios de las sombras. Ahora empuñará la espada y la magia como ningún otro.',
+    cover: 'https://media.imagesolymp.xyz/comics/covers/86/tmpizpqgl2f-lg.webp',
+    backdrop: 'https://media.imagesolymp.xyz/comics/covers/86/tmpizpqgl2f-lg.webp',
+    rating: '9.9',
     year: '2026',
     status: 'Activo',
-    genres: ['Romance', 'Comedia', 'Harem', 'Manga'],
-    scanSource: 'Plot Twist No Fansub',
-    extensionId: 'plot-twist-no-fansub',
-    url: 'https://plotnofansub.com/manga/las-100-novias-que-te-quieren-mucho-mucho-mucho-mucho-mucho/',
-    latestChapter: '296 capítulos'
+    genres: ['Acción', 'Fantasía', 'Magia', 'Espadas'],
+    scanSource: 'Olympus Scanlation',
+    extensionId: 'olympus-scanlation',
+    url: 'https://olympusxyz.com/series/comic-el-hijo20-225-de-la-espada13424',
+    latestChapter: '142 capítulos'
   },
   {
     id: 'hero-6',
-    title: 'Lookism',
-    originalTitle: 'Lookism',
-    synopsis: 'Park Hyung Suk, un joven víctima de constante acoso escolar, despierta un día en un segundo cuerpo alto, atlético y carismático. Alternando entre ambos cuerpos, desentraña los oscuros secretos del bajo mundo.',
-    cover: 'https://uploads.mangadex.org/covers/596191eb-69ee-4401-983e-cc07e277fa17/6df15145-f15b-43f0-b87b-22fd3694eaca.jpg.512.jpg',
-    backdrop: 'https://uploads.mangadex.org/covers/596191eb-69ee-4401-983e-cc07e277fa17/6df15145-f15b-43f0-b87b-22fd3694eaca.jpg.512.jpg',
+    title: 'Loco Frontera',
+    originalTitle: 'Crazy Leveling Border',
+    synopsis: 'En una frontera desolada donde monstruos y tribus salvajes acechan sin cesar, un guerrero despiadado forja su leyenda a base de sangre, coraje y una voluntad inquebrantable.',
+    cover: 'https://media.imagesolymp.xyz/comics/covers/463/tmpncgwpvr3-lg.webp',
+    backdrop: 'https://media.imagesolymp.xyz/comics/covers/463/tmpncgwpvr3-lg.webp',
     rating: '9.8',
     year: '2026',
     status: 'Activo',
-    genres: ['Drama', 'Acción', 'Vida Escolar', 'Webtoon'],
-    scanSource: 'ZonaTMO',
-    extensionId: 'zonatmo',
-    url: 'https://leercapitulo.com/manga/lptcna0l9q/lookism/',
-    latestChapter: '601 capítulos'
+    genres: ['Acción', 'Aventura', 'Supervivencia', 'Webtoon'],
+    scanSource: 'Olympus Scanlation',
+    extensionId: 'olympus-scanlation',
+    url: 'https://olympusxyz.com/series/comic-loco-frontera-20260909-080444755',
+    latestChapter: '98 capítulos'
   }
 ];
 
@@ -161,7 +161,7 @@ const INITIAL_POPULAR = [
   {
     id: 'pop-1',
     title: 'Subiendo De Nivel 10.000 Años En el Futuro',
-    cover: 'https://uploads.mangadex.org/covers/f11d9d5c-bc4c-4552-8ac1-33e158c5a2c2/bad4dd56-1d39-47a3-aa3f-e613a302bb0f.jpg.512.jpg',
+    cover: 'https://rncalation.online/uploads/covers/subiendo-de-nivel-10000-anos-en-el-futuro/1780562389357-158da0ad-163d-4984-8e2d-7b1458040bc2.png',
     status: 'Activo',
     rank: 1,
     extensionId: 'rn-scanlation',
@@ -172,20 +172,20 @@ const INITIAL_POPULAR = [
   },
   {
     id: 'pop-2',
-    title: 'Grand Blue',
-    cover: 'https://uploads.mangadex.org/covers/fffbfac3-b7ad-41ee-9581-b4d90ecec941/0c6c8758-6819-4262-9671-30d5989c0fb8.jpg.512.jpg',
+    title: 'La venganza del sabueso de sangre de hierro',
+    cover: 'https://media.imagesolymp.xyz/comics/covers/743/sabueso-venganza-lg.webp',
     status: 'Activo',
     rank: 2,
-    extensionId: 'plot-twist-no-fansub',
-    url: 'https://plotnofansub.com/manga/grand-blue/',
-    views: '1.5M',
+    extensionId: 'olympus-scanlation',
+    url: 'https://olympusxyz.com/series/comic-20-225-2sabueso13424',
+    views: '22.0M',
     rating: '9.9',
-    scanSource: 'Plot Twist No Fansub'
+    scanSource: 'Olympus Scanlation'
   },
   {
     id: 'pop-3',
     title: 'Academia de la Ascensión',
-    cover: 'https://uploads.mangadex.org/covers/a92cf9fc-b6b7-4415-9400-72cddf30ac3e/d815f1cc-de6a-45b7-ae5e-8e8f07ff5e20.png.512.jpg',
+    cover: 'https://media.imagesolymp.xyz/comics/covers/11/tmpedu9scno-lg.webp',
     status: 'Activo',
     rank: 3,
     extensionId: 'olympus-scanlation',
@@ -197,7 +197,7 @@ const INITIAL_POPULAR = [
   {
     id: 'pop-4',
     title: 'Contra los dioses',
-    cover: 'https://uploads.mangadex.org/covers/00ac6bbf-6d31-4706-8ec4-56a0b721d572/e5f7f56b-26ac-4f20-a028-e161881e432b.jpg.512.jpg',
+    cover: 'https://api.skymangas.com/uploads/covers/contra-los-dioses/contra-los-dioses_cover.webp',
     status: 'Activo',
     rank: 4,
     extensionId: 'skymangas',
@@ -208,66 +208,66 @@ const INITIAL_POPULAR = [
   },
   {
     id: 'pop-5',
-    title: 'Las 100 novias que te quieren mucho',
-    cover: 'https://uploads.mangadex.org/covers/efb4278c-a761-406b-9d69-19603c5e4c8b/fd2c6a48-810e-4cb4-bd35-e90cef71e337.jpg.512.jpg',
+    title: 'El hijo menor del maestro de la espada',
+    cover: 'https://media.imagesolymp.xyz/comics/covers/86/tmpizpqgl2f-lg.webp',
     status: 'Activo',
     rank: 5,
-    extensionId: 'plot-twist-no-fansub',
-    url: 'https://plotnofansub.com/manga/las-100-novias-que-te-quieren-mucho-mucho-mucho-mucho-mucho/',
-    views: '1.1M',
-    rating: '9.8',
-    scanSource: 'Plot Twist No Fansub'
+    extensionId: 'olympus-scanlation',
+    url: 'https://olympusxyz.com/series/comic-el-hijo20-225-de-la-espada13424',
+    views: '17.9M',
+    rating: '9.9',
+    scanSource: 'Olympus Scanlation'
   },
   {
     id: 'pop-6',
-    title: 'Lookism',
-    cover: 'https://uploads.mangadex.org/covers/596191eb-69ee-4401-983e-cc07e277fa17/6df15145-f15b-43f0-b87b-22fd3694eaca.jpg.512.jpg',
+    title: 'Loco Frontera',
+    cover: 'https://media.imagesolymp.xyz/comics/covers/463/tmpncgwpvr3-lg.webp',
     status: 'Activo',
     rank: 6,
-    extensionId: 'zonatmo',
-    url: 'https://leercapitulo.com/manga/lptcna0l9q/lookism/',
-    views: '980K',
-    rating: '9.9',
-    scanSource: 'ZonaTMO'
+    extensionId: 'olympus-scanlation',
+    url: 'https://olympusxyz.com/series/comic-loco-frontera-20260909-080444755',
+    views: '14.0M',
+    rating: '9.8',
+    scanSource: 'Olympus Scanlation'
   }
 ];
 
 const INITIAL_RELEASES = [
   {
     id: 'rel-1',
-    title: 'Grand Blue',
-    chapter: 'Capítulo 111',
+    title: 'La venganza del sabueso de sangre de hierro',
+    chapter: 'Capítulo 115',
     time: 'Hace 5 min',
-    type: 'Manga',
-    scan: 'Plot Twist No Fansub',
-    extensionId: 'plot-twist-no-fansub',
-    url: 'https://plotnofansub.com/manga/grand-blue/',
-    chapterUrl: 'https://plotnofansub.com/manga/grand-blue/',
-    cover: 'https://uploads.mangadex.org/covers/fffbfac3-b7ad-41ee-9581-b4d90ecec941/0c6c8758-6819-4262-9671-30d5989c0fb8.jpg.512.jpg'
+    type: 'Manhwa',
+    scan: 'Olympus Scanlation',
+    extensionId: 'olympus-scanlation',
+    url: 'https://olympusxyz.com/series/comic-20-225-2sabueso13424',
+    chapterUrl: 'https://olympusxyz.com/capitulo/115/comic-20-225-2sabueso13424',
+    cover: 'https://media.imagesolymp.xyz/comics/covers/743/sabueso-venganza-lg.webp'
   },
   {
     id: 'rel-2',
     title: 'Subiendo De Nivel 10.000 Años En el Futuro',
-    chapter: 'Capítulo 357',
+    chapter: 'Capítulo 248',
     time: 'Hace 12 min',
     type: 'Manhua',
-    scan: 'ZonaTMO',
-    extensionId: 'zonatmo',
-    url: 'https://leercapitulo.com/manga/wjjmh6cpwz/subiendo-de-nivel-10-000-anos-en-el-futuro/',
-    chapterUrl: 'https://leercapitulo.com/leer/wjjmh6cpwz/subiendo-de-nivel-10-000-anos-en-el-futuro/357/',
-    cover: 'https://leercapitulo.com/covers/b1/31265b4e9277b26ac8c0fe7296c1d3.jpg'
+    scan: 'RN Scanlation',
+    extensionId: 'rn-scanlation',
+    url: 'https://rncalation.online/comics/subiendo-de-nivel-10000-anos-en-el-futuro',
+    chapterUrl: 'https://rncalation.online/comics/subiendo-de-nivel-10000-anos-en-el-futuro',
+    cover: 'https://rncalation.online/uploads/covers/subiendo-de-nivel-10000-anos-en-el-futuro/1780562389357-158da0ad-163d-4984-8e2d-7b1458040bc2.png'
   },
   {
     id: 'rel-3',
     title: 'Academia de la Ascensión',
-    chapter: 'Capítulo 40',
+    chapter: 'Capítulo 201',
     time: 'Hace 25 min',
     type: 'Manhwa',
     scan: 'Olympus Scanlation',
     extensionId: 'olympus-scanlation',
     url: 'https://olympusxyz.com/series/comic-academia-de-la-ascension-20260909-080419413',
-    chapterUrl: 'https://olympusxyz.com/capitulo/41724/comic-academia-de-la-ascension-20260909-080419413',
-    cover: 'https://media.imagesolymp.xyz/comics/covers/11/11-lg.webp'
+    chapterUrl: 'https://olympusxyz.com/capitulo/201/comic-academia-de-la-ascension-20260909-080419413',
+    cover: 'https://media.imagesolymp.xyz/comics/covers/11/tmpedu9scno-lg.webp'
   },
   {
     id: 'rel-4',
@@ -353,6 +353,7 @@ const SIMULATED_COMMUNITY_POOL = [
 export default function HomeView({
   onSelectManga,
   onSelectChapter,
+  onRegisterMangaMeta,
   catalog = [],
   library = [],
   onToggleLibrary,
@@ -360,11 +361,66 @@ export default function HomeView({
   onOpenAuth,
   onOpenUserCard,
   installedExtensions = [],
+  loadingExtensions = false,
   onInstallAllExtensions,
-  onGoToExplore
+  onGoToExplore,
+  appMode = 'manga'
 }) {
-  // Si no hay extensiones instaladas, mostrar bienvenida limpia estilo Tachiyomi
-  if (!installedExtensions || installedExtensions.length === 0) {
+  const installedAnimeExts = React.useMemo(() => {
+    return (installedExtensions || []).filter(ext => {
+      return ext.type === 'anime' || ext.id?.includes('anime') || ext.id?.includes('flv') || ext.id?.includes('jkanime') || ext.id?.includes('monoschinos') || ext.id?.includes('tioanime') || ext.id?.includes('fenix') || ext.id?.includes('av1') || ext.id?.includes('ninja');
+    });
+  }, [installedExtensions]);
+
+  // 1. Si estamos en Modo Anime y no hay extensiones de anime instaladas, mostrar bienvenida de anime
+  if (appMode === 'anime' && installedAnimeExts.length === 0) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center p-6 animate-fadeIn">
+        <div className="max-w-md w-full text-center space-y-6 bg-[#0f131f] border border-orange-900/50 rounded-3xl p-8 sm:p-10 shadow-2xl">
+          <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center shadow-xl shadow-orange-600/40">
+            <Play className="w-10 h-10 text-white fill-white" />
+          </div>
+          
+          <div className="space-y-2">
+            <span className="px-3 py-1 rounded-full bg-orange-950 text-orange-400 border border-orange-800 text-[10px] font-black uppercase tracking-widest">
+              Modo Anime Activo
+            </span>
+            <h1 className="text-2xl font-black text-white tracking-tight pt-2">Sección de Anime Vacía</h1>
+            <p className="text-xs sm:text-sm text-gray-400 leading-relaxed">
+              El Modo Anime está completamente separado de tu biblioteca de Manga. Para ver animes, ve a Explorar, añade tu repositorio de anime e instala tus plataformas de anime preferidas.
+            </p>
+          </div>
+
+          <div className="pt-2">
+            <button
+              onClick={onGoToExplore}
+              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-black font-black text-xs sm:text-sm flex items-center justify-center gap-2.5 shadow-xl shadow-orange-600/30 transition transform hover:scale-105 active:scale-95 cursor-pointer"
+            >
+              <Puzzle className="w-4 h-4" />
+              <span>Añadir Repositorio de Anime</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Si aún está cargando extensiones del backend y no hay caché, mostrar skeleton de carga
+  if (loadingExtensions && (!installedExtensions || installedExtensions.length === 0)) {
+    return (
+      <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-10 py-6 space-y-9 animate-pulse">
+        <div className="w-full h-[440px] sm:h-[500px] lg:h-[560px] rounded-3xl bg-[#0f131f] border border-gray-800/60" />
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="aspect-[3/4] rounded-2xl bg-[#0f131f] border border-gray-800/40" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // 3. Si definitivamente no hay extensiones instaladas tras cargar, mostrar bienvenida limpia
+  if (!loadingExtensions && (!installedExtensions || installedExtensions.length === 0)) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-6 animate-fadeIn">
         <div className="max-w-md w-full text-center space-y-6 bg-[#0f131f] border border-gray-800 rounded-3xl p-8 sm:p-10 shadow-2xl">
@@ -548,9 +604,42 @@ export default function HomeView({
     };
   }, []);
 
-  // Lista de populares filtrada EXCLUSIVAMENTE por extensiones instaladas
+  // Auto-registrar todos los mangas conocidos en memoria para navegación instantánea (0ms)
+  useEffect(() => {
+    if (!onRegisterMangaMeta) return;
+    const allKnown = [
+      ...DEFAULT_HERO_SLIDES,
+      ...INITIAL_POPULAR,
+      ...INITIAL_RELEASES,
+      ...(liveFeed.latestReleases || []),
+      ...(liveFeed.topRankings || [])
+    ];
+    allKnown.forEach(item => {
+      if (item && item.url) {
+        onRegisterMangaMeta(item.url, item);
+      }
+    });
+  }, [liveFeed, onRegisterMangaMeta]);
+
+  // Lista de populares filtrada EXCLUSIVAMENTE por extensiones instaladas (priorizando rankings en vivo de los scans)
   const popularMangas = React.useMemo(() => {
-    let list = INITIAL_POPULAR.filter(m => installedIds.includes(m.extensionId));
+    let list = [];
+    if (liveFeed.topRankings && liveFeed.topRankings.length > 0) {
+      list = [...liveFeed.topRankings];
+    }
+
+    // Fusionar con INITIAL_POPULAR como respaldo y para completar la cuadrícula sin duplicados
+    for (const item of INITIAL_POPULAR) {
+      const isAlreadyInList = list.some(x => 
+        (x.title && item.title && x.title.toLowerCase().trim() === item.title.toLowerCase().trim()) || 
+        (x.url && item.url && x.url === item.url)
+      );
+      if (!isAlreadyInList) {
+        list.push(item);
+      }
+    }
+
+    list = list.filter(m => installedIds.includes(m.extensionId));
 
     if (!allowAdult) {
       list = list.filter(m => !isAdultManga(m));
@@ -558,8 +647,12 @@ export default function HomeView({
     if (!allowBL) {
       list = list.filter(m => !isBLManga(m));
     }
-    return list;
-  }, [installedIds, allowAdult, allowBL]);
+
+    return list.slice(0, 6).map((m, idx) => ({
+      ...m,
+      rank: m.rank || (idx + 1)
+    }));
+  }, [liveFeed.topRankings, installedIds, allowAdult, allowBL]);
 
   // Lista de nuevos lanzamientos en vivo o iniciales filtrados EXCLUSIVAMENTE por extensiones instaladas
   const recentReleases = React.useMemo(() => {
@@ -893,7 +986,7 @@ export default function HomeView({
   const currentHero = heroSlides[currentSlide] || heroSlides[0];
 
   return (
-    <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-10 py-6 pb-28 space-y-9 animate-fadeIn select-none">
+    <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-10 py-6 pb-6 space-y-9 animate-fadeIn select-none">
 
       {/* 1. HERO SLIDER BANNER PRINCIPAL (Estilo Cinemático Widescreen) */}
       <div 
@@ -1005,7 +1098,7 @@ export default function HomeView({
             {/* Botones de Acción */}
             <div className="flex flex-wrap items-center gap-3">
               <button
-                onClick={() => onSelectManga(currentHero.url, currentHero.extensionId)}
+                onClick={() => onSelectManga(currentHero, currentHero.extensionId)}
                 className="px-6 py-3 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-xl shadow-purple-600/40 transition transform active:scale-95 cursor-pointer"
               >
                 <Play className="w-4 h-4 fill-white" />
@@ -1013,7 +1106,7 @@ export default function HomeView({
               </button>
 
               <button
-                onClick={() => onSelectManga(currentHero.url, currentHero.extensionId)}
+                onClick={() => onSelectManga(currentHero, currentHero.extensionId)}
                 className="px-5 py-3 rounded-2xl bg-gray-900/80 hover:bg-gray-800 text-gray-200 border border-gray-700 text-xs sm:text-sm font-semibold flex items-center gap-2 backdrop-blur-md transition cursor-pointer"
               >
                 <BookOpen className="w-4 h-4 text-purple-400" />
@@ -1078,7 +1171,7 @@ export default function HomeView({
           {popularMangas.map((manga) => (
             <div
               key={manga.id}
-              onClick={() => onSelectManga(manga.url, manga.extensionId)}
+              onClick={() => onSelectManga(manga, manga.extensionId)}
               className="group relative bg-[#121622] border border-gray-800/80 hover:border-purple-600/70 rounded-2xl overflow-hidden shadow-lg transition-all duration-300 hover:-translate-y-1.5 hover:shadow-purple-950/50 cursor-pointer flex flex-col"
             >
               {/* Contenedor de Portada */}
@@ -1252,7 +1345,7 @@ export default function HomeView({
                     onClick={() => {
                       if (hasDraggedRef.current) return;
                       if (isCenter) {
-                        onSelectManga(rel.url, rel.extensionId);
+                        onSelectManga(rel, rel.extensionId);
                       } else {
                         setActiveReleaseIndex(idx);
                       }
@@ -1359,7 +1452,7 @@ export default function HomeView({
 
                 {/* Nombre del Manga */}
                 <h3 
-                  onClick={() => onSelectManga(currentReleaseManga.url, currentReleaseManga.extensionId)}
+                  onClick={() => onSelectManga(currentReleaseManga, currentReleaseManga.extensionId)}
                   className="text-base sm:text-lg font-black text-white hover:text-purple-300 transition-colors cursor-pointer truncate"
                   title={currentReleaseManga.title}
                 >
@@ -1384,7 +1477,7 @@ export default function HomeView({
                   if (onSelectChapter && (currentReleaseManga.chapterUrl || currentReleaseManga.url)) {
                     onSelectChapter(currentReleaseManga.chapterUrl || currentReleaseManga.url, currentReleaseManga.url);
                   } else {
-                    onSelectManga(currentReleaseManga.url, currentReleaseManga.extensionId);
+                    onSelectManga(currentReleaseManga, currentReleaseManga.extensionId);
                   }
                 }}
                 className="w-full sm:w-auto shrink-0 px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-purple-900/50 hover:shadow-purple-700/60 transition-all duration-300 cursor-pointer group hover:scale-[1.02]"
@@ -1422,7 +1515,7 @@ export default function HomeView({
             {topRankingsList.slice(0, 5).map((item, index) => (
               <div
                 key={item.id || item.rank || index}
-                onClick={() => onSelectManga(item.url, item.extensionId)}
+                onClick={() => onSelectManga(item, item.extensionId)}
                 className={`relative flex items-center gap-3.5 p-3 rounded-2xl border transition-all duration-300 group cursor-pointer shadow-lg hover:-translate-y-0.5 ${
                   index === 0
                     ? 'bg-gradient-to-r from-amber-950/40 via-[#131828] to-[#101422] border-amber-500/50 hover:border-amber-400 shadow-amber-950/30'
@@ -1498,8 +1591,8 @@ export default function HomeView({
         </div>
       </div>
 
-      {/* 4. CHAT GLOBAL EN VIVO (Comunidad de Yomori - Ancho Completo e Integrado) */}
-      <section className="w-full pt-8 border-t border-gray-800/80">
+      {/* 4. CHAT GLOBAL EN VIVO (Comunidad de Yomori - Altura inicial de 9 comentarios con scroll para ver todos los anteriores) */}
+      <section className="w-full pt-6 pb-2 border-t border-gray-800/80">
         <LiveChatRoom
           roomId="global"
           title="Chat de la Comunidad"
@@ -1507,6 +1600,7 @@ export default function HomeView({
           currentUser={currentUser}
           onOpenAuth={onOpenAuth}
           onOpenUserCard={onOpenUserCard}
+          className="h-[620px] max-h-[640px] min-h-[460px]"
         />
       </section>
 

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { 
   Download, 
-  Monitor, 
   Smartphone, 
   ShieldCheck, 
   Zap, 
@@ -9,486 +8,645 @@ import {
   Puzzle, 
   BookOpen, 
   CheckCircle2, 
-  ChevronRight, 
-  Sparkles, 
-  ExternalLink,
-  Layers,
-  Flame,
-  ArrowDown,
-  Code2,
-  Globe
+  Copy, 
+  Check, 
+  Layers, 
+  ArrowRight, 
+  ChevronDown, 
+  Cloud, 
+  MessageSquare, 
+  Settings, 
+  Search,
+  Sparkles,
+  ExternalLink
 } from 'lucide-react';
 
-export default function OfficialLandingPage({ onOpenWebReader }) {
+export default function OfficialLandingPage() {
   const [activeFaq, setActiveFaq] = useState(null);
+  const [copiedRepo, setCopiedRepo] = useState(false);
+  const [activeNav, setActiveNav] = useState('home');
+
+  const repoUrl = 'https://raw.githubusercontent.com/keiyoushi/extensions/repo/index.min.json';
+
+  const handleCopyRepo = () => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(repoUrl);
+      setCopiedRepo(true);
+      setTimeout(() => setCopiedRepo(false), 3500);
+    }
+  };
+
+  const highlights = [
+    { value: '100%', label: 'Gratis & Sin Publicidad' },
+    { value: 'Android', label: '8.0 o Superior' },
+    { value: 'Cloud Sync', label: 'Historial y Biblioteca' },
+    { value: '10+ Scans', label: 'Fuentes en Español' }
+  ];
+
+  const scans = [
+    { name: 'Olympus Scanlation', lang: 'Español', type: 'Manhwas & Cómics', status: 'Activo' },
+    { name: 'SkyMangas', lang: 'Español', type: 'Manhuas & Acción', status: 'Activo' },
+    { name: 'ZonaTMO (VisorTMO)', lang: 'Español', type: 'Catálogo Masivo', status: 'Activo' },
+    { name: 'Ikigai Mangas', lang: 'Español', type: 'Manhwas & Novelas', status: 'Activo' },
+    { name: 'MangaDex', lang: 'Multilenguaje', type: 'Comunidad Global', status: 'Activo' },
+    { name: 'MiauScan (LeeMiau)', lang: 'Español', type: 'Romance & Shojo', status: 'Activo' },
+    { name: 'ManhwaLatino', lang: 'Español', type: 'Webtoons HD', status: 'Activo' },
+    { name: 'Plot Twist No Fansub', lang: 'Español', type: 'Shonen & Seinen', status: 'Activo' },
+    { name: 'RN Scanlation', lang: 'Español', type: 'Manhwas & Cómics', status: 'Activo' }
+  ];
 
   const features = [
     {
-      icon: HardDrive,
-      color: 'from-purple-500 to-indigo-500',
-      title: 'Lectura 100% Offline Real',
-      desc: 'Descarga capítulos y tomos completos directamente a tu disco duro. Lee en aviones, viajes o sin conexión a Internet con carga instantánea.'
+      icon: Smartphone,
+      title: 'Diseñado para Android',
+      desc: 'Interfaz nativa, rápida y fluida optimizada para teléfonos y tablets con soporte de navegación gestual y pantalla completa a 120Hz.'
+    },
+    {
+      icon: Cloud,
+      title: 'Sincronización en la Nube',
+      desc: 'Inicia sesión con tu cuenta de Yomori y mantén tu biblioteca, capítulos leídos y favoritos respaldados en tiempo real.'
     },
     {
       icon: Zap,
-      color: 'from-amber-500 to-orange-500',
-      title: 'Cero Anuncios ni Acortadores',
-      desc: 'Olvídate de la publicidad molesta, captchas y redirecciones. Una experiencia de lectura limpia, fluida y enfocada solo en el arte.'
+      title: 'Lectura Limpia sin Anuncios',
+      desc: 'Cero publicidad intrusiva, sin ventanas emergentes ni acortadores molestos. Enfoque total en una lectura cómoda.'
     },
     {
-      icon: Puzzle,
-      color: 'from-emerald-500 to-teal-500',
-      title: '9+ Scans Oficiales Sincronizados',
-      desc: 'Conexión en tiempo real con Olympus, ZonaTMO, MangaDex, MiauScan, SkyMangas, Plot Twist, Ikigai, ManhwaLatino y RN Scanlation.'
+      icon: HardDrive,
+      title: 'Descargas Offline Reales',
+      desc: 'Descarga capítulos completos en el almacenamiento de tu móvil para leer tus series favoritas en cualquier lugar sin conexión.'
     },
     {
       icon: BookOpen,
-      color: 'from-sky-500 to-blue-500',
-      title: 'Visor Cascada & Webtoon HD',
-      desc: 'Optimizado para scroll continuo vertical, doble página y zoom inteligente de alta definición sin recargar la pantalla.'
+      title: 'Visor Cascada & Doble Página',
+      desc: 'Modo webtoon vertical continuo, visor horizontal manga clásico, filtros de color, brillo inteligente y recorte de márgenes.'
     },
     {
-      icon: Layers,
-      color: 'from-pink-500 to-rose-500',
-      title: 'Biblioteca & Categorías',
-      desc: 'Organiza tus mangas por categorías personalizadas, seguimiento automático de capítulos leídos y guardado de historial.'
-    },
-    {
-      icon: ShieldCheck,
-      color: 'from-violet-500 to-purple-500',
-      title: 'Código Abierto & Seguro',
-      desc: 'Sin telemetría invasiva ni recolección de datos personales. Todo se almacena localmente en tu propio dispositivo.'
+      icon: MessageSquare,
+      title: 'Comentarios en Vivo',
+      desc: 'Debate cada capítulo y reacciona con emojis en tiempo real junto a otros lectores de la comunidad de Yomori.'
     }
-  ];
-
-  const extensions = [
-    { name: 'Olympus Scanlation', lang: 'ES', type: 'Manhwas & Cómics', status: 'Online' },
-    { name: 'ZonaTMO (TuMangaOnline)', lang: 'ES', type: 'Catálogo Masivo', status: 'Online' },
-    { name: 'MangaDex', lang: 'ES / Global', type: 'Multilenguaje', status: 'Online' },
-    { name: 'MiauScan (LeeMiau)', lang: 'ES', type: 'Romance / Shojo', status: 'Online' },
-    { name: 'SkyMangas', lang: 'ES', type: 'Manhuas & Cultivo', status: 'Online' },
-    { name: 'Plot Twist No Fansub', lang: 'ES', type: 'Shonen & Seinen', status: 'Online' },
-    { name: 'Ikigai Mangas', lang: 'ES', type: 'Manhwas & Novelas', status: 'Online' },
-    { name: 'ManhwaLatino', lang: 'ES', type: 'Webtoons HD', status: 'Online' },
-    { name: 'RN Scanlation', lang: 'ES', type: 'Manhwas & Acción', status: 'Online' }
   ];
 
   const faqs = [
     {
+      q: '¿Por qué la aplicación no trae mangas nada más instalarla?',
+      a: 'Yomori es una aplicación modular de código abierto. Para acceder a tus scans favoritos, solo necesitas agregar la URL del Repositorio de Extensiones (indicada arriba) en Ajustes > Explorar > Repositorios, e instalar las extensiones que desees con un solo toque.'
+    },
+    {
+      q: '¿Cómo instalo el archivo APK en mi teléfono Android?',
+      a: 'Descarga el APK pulsando en "Descargar APK". Una vez descargado, ábrelo en las notificaciones de tu teléfono. Si Android te pide confirmación, activa la opción "Permitir instalar aplicaciones de orígenes desconocidos" en tu navegador o explorador de archivos.'
+    },
+    {
       q: '¿Yomori es completamente gratuito?',
-      a: 'Sí, Yomori es 100% gratuito y de código abierto. No contiene compras dentro de la aplicación, suscripciones ni publicidad.'
+      a: 'Sí, Yomori es 100% gratuito y de código abierto. No contiene compras integradas, suscripciones premium ni publicidad molesta.'
     },
     {
-      q: '¿Cómo funciona la lectura offline en mi PC?',
-      a: 'Al hacer clic en el botón de descargar capítulo en la aplicación de PC, todas las imágenes se guardan directamente en tu disco duro (C:/...). Puedes apagar el Wi-Fi o desconectar el cable de red y leer todos tus mangas descargados sin ningún problema.'
+      q: '¿Qué versión de APK debo descargar (Universal vs ARM64)?',
+      a: 'Si tu teléfono es moderno (procesador de 64 bits), la versión ARM64 es más ligera (aprox. 26 MB) y rápida. Si tienes dudas o un dispositivo antiguo, descarga la versión Universal (compatible con cualquier Android).'
     },
     {
-      q: '¿Cómo instalo la aplicación en Windows?',
-      a: 'Solo debes descargar el archivo Yomori-Windows-x64.zip, descomprimirlo en tu carpeta preferida y hacer doble clic en Yomori.exe (o en Abrir_YOMORI_PC.bat). ¡No requiere instalaciones complicadas!'
-    },
-    {
-      q: '¿Cuándo estará disponible la versión para celulares (Android)?',
-      a: 'La versión para Android en formato .apk está actualmente en fase de desarrollo activo y estará disponible para descarga en esta misma página web.'
-    },
-    {
-      q: '¿Puedo agregar mis propias extensiones o scans?',
-      a: '¡Por supuesto! El repositorio de extensiones de Yomori es abierto. Puedes vincular cualquier manifest compatible o crear tus propios scrapers en JavaScript.'
+      q: '¿Mis lecturas y favoritos se guardan si cambio de teléfono?',
+      a: '¡Sí! Al iniciar sesión con tu cuenta de Yomori dentro de la app, tu biblioteca, historial de lectura y progreso se sincronizan en la nube automáticamente.'
     }
   ];
 
   return (
-    <div className="min-h-screen bg-[#07090e] text-gray-100 font-sans selection:bg-purple-600 selection:text-white relative overflow-x-hidden">
+    <div className="min-h-screen bg-[#07090E] text-[#E2E8F0] font-sans antialiased selection:bg-[#3DD6D0] selection:text-[#07090E] relative overflow-x-hidden">
       
-      {/* Luces de fondo ambientales */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[550px] bg-gradient-to-b from-purple-600/15 via-indigo-600/10 to-transparent blur-3xl pointer-events-none" />
-      <div className="absolute top-[800px] -left-40 w-[600px] h-[600px] bg-purple-900/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute top-[1400px] -right-40 w-[600px] h-[600px] bg-indigo-900/10 rounded-full blur-3xl pointer-events-none" />
+      {/* Luces de Fondo Ambientales */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-b from-[#3DD6D0]/10 via-[#3DD6D0]/3 to-transparent blur-3xl pointer-events-none -z-10" />
+      <div className="absolute top-[800px] right-0 w-[500px] h-[500px] bg-purple-600/5 blur-3xl pointer-events-none -z-10" />
 
-      {/* HEADER PRINCIPAL DE LA LANDING */}
-      <header className="sticky top-0 z-50 bg-[#07090e]/90 backdrop-blur-xl border-b border-gray-800/60">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between">
+      {/* NAVBAR SUPERIOR TEMA OSCURO */}
+      <header className="sticky top-0 z-50 bg-[#07090E]/90 backdrop-blur-md border-b border-[#161D2B]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           
-          {/* Logo Brand */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-purple-600/40">
-              <BookOpen className="w-5 h-5 text-white" />
+          {/* Logo Circular con Kanji */}
+          <a href="#" className="flex items-center gap-3 group">
+            <div className="w-12 h-12 rounded-2xl bg-[#0F141C] border-2 border-[#3DD6D0] flex items-center justify-center shadow-lg shadow-[#3DD6D0]/20 text-[#3DD6D0] font-black text-xl tracking-tighter group-hover:scale-105 group-hover:shadow-[#3DD6D0]/40 transition duration-300">
+              <span>夜</span>
             </div>
             <div>
-              <span className="font-black text-xl tracking-tight text-white block leading-tight">
+              <span className="font-extrabold text-xl tracking-tight text-white block leading-none">
                 Yomori
               </span>
-              <span className="text-[10px] font-bold tracking-widest uppercase text-purple-400 font-mono">
-                Manga & Manhwa Desktop
+              <span className="text-[11px] font-bold text-[#3DD6D0] tracking-wide flex items-center gap-1 mt-0.5">
+                <Smartphone className="w-3 h-3 text-[#3DD6D0]" />
+                App para Android
               </span>
             </div>
-          </div>
+          </a>
 
-          {/* Enlaces de Navegación */}
-          <nav className="hidden md:flex items-center gap-8 text-sm font-semibold text-gray-400">
-            <a href="#caracteristicas" className="hover:text-white transition">Características</a>
-            <a href="#extensiones" className="hover:text-white transition">Scans & Fuentes</a>
-            <a href="#descargar" className="hover:text-white transition">Descargar</a>
-            <a href="#faq" className="hover:text-white transition">Preguntas Frecuentes</a>
+          {/* Menú de Navegación */}
+          <nav className="hidden lg:flex items-center gap-1.5 text-sm font-semibold text-gray-300">
+            <button 
+              onClick={() => setActiveNav('home')}
+              className={`px-4 py-2 rounded-xl transition ${activeNav === 'home' ? 'bg-[#3DD6D0] text-[#07090E] font-extrabold shadow-md shadow-[#3DD6D0]/20' : 'hover:bg-[#161D2B] hover:text-white'}`}
+            >
+              Inicio
+            </button>
+            <a href="#manual-extensiones" className="px-3.5 py-2 rounded-xl hover:bg-[#161D2B] text-[#3DD6D0] hover:text-white transition font-bold flex items-center gap-1.5">
+              <Puzzle className="w-4 h-4 text-[#3DD6D0]" />
+              Manual Extensiones
+            </a>
+            <a href="#caracteristicas" className="px-3.5 py-2 rounded-xl hover:bg-[#161D2B] hover:text-white transition">
+              Características
+            </a>
+            <a href="#scans" className="px-3.5 py-2 rounded-xl hover:bg-[#161D2B] hover:text-white transition">
+              Scans en Español
+            </a>
+            <a href="#faq" className="px-3.5 py-2 rounded-xl hover:bg-[#161D2B] hover:text-white transition">
+              Preguntas
+            </a>
+          </nav>
+
+          {/* Botón GitHub & Descarga */}
+          <div className="flex items-center gap-3">
             <a 
               href="https://github.com/cristoferapaza01-ai/Yomori" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 hover:text-white transition"
+              className="hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#121824] hover:bg-[#1A2333] text-gray-300 hover:text-white font-semibold text-xs transition border border-[#1E293B]"
             >
               <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
                 <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
               </svg>
               <span>GitHub</span>
             </a>
-          </nav>
 
-          {/* Botón CTA Superior */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={onOpenWebReader}
-              className="px-4 py-2.5 rounded-xl bg-purple-900/60 hover:bg-purple-800/70 border border-purple-500/40 text-purple-200 hover:text-white font-bold text-xs flex items-center gap-2 shadow-md transition transform hover:scale-105 active:scale-95 cursor-pointer"
-            >
-              <Globe className="w-4 h-4 text-purple-400" />
-              <span>Abrir en Web / Móvil</span>
-            </button>
             <a
-              href="/downloads/Yomori-Windows-x64.zip"
-              download="Yomori-Windows-x64.zip"
-              className="hidden sm:flex px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs items-center gap-2 shadow-lg shadow-purple-600/30 transition transform hover:scale-105 active:scale-95 cursor-pointer"
+              href="/downloads/yomori.apk"
+              download="Yomori-Android.apk"
+              className="px-5 py-2.5 rounded-xl bg-[#3DD6D0] hover:bg-[#4AE3B5] text-[#07090E] font-black text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-[#3DD6D0]/20 transition transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
             >
               <Download className="w-4 h-4" />
-              <span>Descargar para PC</span>
+              <span>Descargar APK</span>
             </a>
           </div>
         </div>
       </header>
 
-      {/* HERO SECTION DE PRESENTACIÓN */}
-      <section className="relative pt-16 pb-20 sm:pt-24 sm:pb-32 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto text-center space-y-8">
-        
-        {/* Badge de Lanzamiento */}
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-950/80 border border-purple-500/50 shadow-md shadow-purple-950/50 backdrop-blur-md">
-          <Sparkles className="w-3.5 h-3.5 text-purple-400 animate-spin" />
-          <span className="text-xs font-mono font-bold uppercase tracking-wider text-purple-200">
-            Yomori Desktop v1.0 • Ya Disponible para Windows
-          </span>
-        </div>
-
-        {/* Título Principal */}
-        <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-white tracking-tight leading-[1.1] max-w-5xl mx-auto">
-          Lee Manga y Manhwa sin Límites, <br />
-          <span className="bg-gradient-to-r from-purple-400 via-indigo-300 to-sky-400 bg-clip-text text-transparent">
-            100% Offline en tu Computadora
-          </span>
-        </h1>
-
-        {/* Subtítulo Descriptivo */}
-        <p className="text-base sm:text-lg text-gray-300 max-w-3xl mx-auto leading-relaxed font-normal">
-          La aplicación de escritorio definitiva para descargar y leer mangas directo a tu disco duro. 
-          Conecta más de 9 scans oficiales en español, disfruta de lectura continua en cascada y olvídate de la publicidad molesta.
-        </p>
-
-        {/* Botonera de Descarga y Acceso Web Principal */}
-        <div id="descargar" className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4 max-w-2xl mx-auto">
-          <a
-            href="/downloads/Yomori-Windows-x64.zip"
-            download="Yomori-Windows-x64.zip"
-            className="w-full sm:w-auto px-7 py-4 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-700 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-base flex items-center justify-center gap-3 shadow-2xl shadow-purple-600/50 hover:shadow-purple-600/80 transition transform hover:-translate-y-1 active:scale-95 cursor-pointer"
-          >
-            <Download className="w-5 h-5 animate-bounce" />
-            <div className="text-left">
-              <span className="block text-[10px] font-semibold text-purple-200 uppercase tracking-widest">Windows 10 / 11 (x64)</span>
-              <span>Descargar Yomori para PC</span>
+      {/* HERO SECTION DE 2 COLUMNAS (TEMA OSCURO CYBER) */}
+      <section className="py-12 sm:py-20 lg:py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+          
+          {/* Columna Izquierda: Textos y Botones de Descarga */}
+          <div className="lg:col-span-6 space-y-6 text-left">
+            
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#121824] border border-[#1E293B] text-xs font-bold text-[#3DD6D0]">
+              <span className="w-2 h-2 rounded-full bg-[#3DD6D0] animate-pulse" />
+              <span>Versión 1.0 Oficial para Android</span>
             </div>
-          </a>
 
-          <button
-            onClick={onOpenWebReader}
-            className="w-full sm:w-auto px-7 py-4 rounded-2xl bg-gray-900/90 hover:bg-gray-800 border border-purple-500/50 hover:border-purple-400 text-purple-200 hover:text-white font-black text-base flex items-center justify-center gap-3 shadow-xl transition transform hover:-translate-y-1 active:scale-95 cursor-pointer"
-          >
-            <Globe className="w-5 h-5 text-purple-400" />
-            <div className="text-left">
-              <span className="block text-[10px] font-semibold text-purple-400 uppercase tracking-widest">Móvil y Navegador Web</span>
-              <span>Abrir App en el Navegador</span>
-            </div>
-          </button>
-        </div>
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-[1.12]">
+              <span className="text-[#3DD6D0] drop-shadow-[0_0_20px_rgba(61,214,208,0.3)]">Yomori</span> App para Android
+            </h1>
 
-        {/* Garantías Rápidas */}
-        <div className="pt-4 flex flex-wrap items-center justify-center gap-6 text-xs text-gray-400 font-medium">
-          <div className="flex items-center gap-1.5">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            <span>100% Gratuito y de Código Abierto</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            <span>Sin Anuncios ni Ventanas Emergentes</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            <span>Descarga Directa a Disco Local</span>
-          </div>
-        </div>
+            <p className="text-base sm:text-lg text-gray-300 leading-relaxed font-normal">
+              El lector definitivo de <strong>Mangas, Manhwas y Novelas</strong> para tu teléfono o tablet Android. 100% gratuito, sin anuncios, sincronización en la nube con tu cuenta y lectura offline de alta velocidad.
+            </p>
 
-        {/* MOCKUP / PREVIEW VISUAL DE LA APP */}
-        <div className="pt-12 max-w-5xl mx-auto">
-          <div className="relative rounded-3xl p-2 sm:p-3 bg-gradient-to-b from-purple-500/30 via-gray-800/40 to-transparent shadow-2xl shadow-purple-950/70 border border-purple-500/40">
-            <div className="rounded-2xl bg-[#0d1017] border border-gray-800 overflow-hidden shadow-inner">
-              
-              {/* Barra de ventana de la app */}
-              <div className="h-9 px-4 bg-[#141824] border-b border-gray-800 flex items-center justify-between text-xs text-gray-400 select-none">
-                <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded-full bg-rose-500/80" />
-                  <span className="w-3 h-3 rounded-full bg-amber-500/80" />
-                  <span className="w-3 h-3 rounded-full bg-emerald-500/80" />
-                </div>
-                <span className="font-mono text-[11px] text-purple-300 font-bold">Yomori Desktop Reader • Modo Offline</span>
-                <div className="w-12" />
+            {/* Opciones de Descarga */}
+            <div className="pt-2 space-y-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <a
+                  href="/downloads/yomori.apk"
+                  download="Yomori-Universal.apk"
+                  className="px-7 py-3.5 rounded-xl bg-[#3DD6D0] hover:bg-[#4AE3B5] text-[#07090E] font-black text-sm sm:text-base flex items-center gap-2.5 shadow-xl shadow-[#3DD6D0]/25 transition transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                >
+                  <Download className="w-5 h-5" />
+                  <span>Descargar APK (Universal)</span>
+                </a>
+
+                <a
+                  href="/downloads/yomori-arm64-v8a.apk"
+                  download="Yomori-ARM64.apk"
+                  className="px-5 py-3.5 rounded-xl bg-[#121824] hover:bg-[#1A2333] text-gray-200 hover:text-white font-bold text-sm flex items-center gap-2 transition border border-[#1E293B] cursor-pointer"
+                  title="Versión optimizada y más ligera para teléfonos de 64 bits"
+                >
+                  <Smartphone className="w-4 h-4 text-[#3DD6D0]" />
+                  <span>ARM64 (26 MB)</span>
+                </a>
               </div>
 
-              {/* Vista interna simulada */}
-              <div className="p-6 sm:p-8 bg-gradient-to-b from-[#0f131f] to-[#0a0d14] space-y-6 text-left">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-gray-800/80 pb-5">
-                  <div className="space-y-1">
-                    <span className="text-[11px] font-mono text-emerald-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                      Disco Duro Local • 14 Capítulos Guardados
-                    </span>
-                    <h3 className="text-xl font-black text-white">Biblioteca Offline de Mangas</h3>
+              <div className="flex flex-wrap items-center gap-4 text-xs text-gray-400 font-mono pt-1">
+                <span className="flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#3DD6D0]" />
+                  Android 8.0+
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#3DD6D0]" />
+                  Sin Anuncios
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#3DD6D0]" />
+                  Código Abierto
+                </span>
+              </div>
+            </div>
+
+            {/* Botón directo al manual de extensiones */}
+            <div className="pt-2">
+              <a
+                href="#manual-extensiones"
+                className="inline-flex items-center gap-2 text-sm font-bold text-[#3DD6D0] hover:text-[#4AE3B5] transition"
+              >
+                <span>¿Primera vez? Revisa cómo agregar las fuentes y extensiones</span>
+                <ArrowRight className="w-4 h-4" />
+              </a>
+            </div>
+
+          </div>
+
+          {/* Columna Derecha: Mockup de Teléfono Android con Yomori */}
+          <div className="lg:col-span-6 flex justify-center">
+            <div className="w-full max-w-[340px] sm:max-w-[380px] bg-[#0E131E] rounded-[42px] p-3 shadow-2xl shadow-[#3DD6D0]/10 border-4 border-[#1E2838] relative transform hover:scale-[1.02] transition duration-300">
+              
+              {/* Notificación / Notch superior del móvil */}
+              <div className="absolute top-5 left-1/2 -translate-x-1/2 w-28 h-4 bg-[#07090E] rounded-full z-20 flex items-center justify-center">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#161D2B] inline-block" />
+              </div>
+
+              {/* Pantalla Interna del Teléfono */}
+              <div className="rounded-[34px] bg-[#07090E] border border-[#161D2B] overflow-hidden text-left shadow-inner flex flex-col h-[580px]">
+                
+                {/* Barra de Estado Android */}
+                <div className="h-8 px-6 bg-[#07090E] flex items-center justify-between text-[11px] font-mono text-gray-500 select-none">
+                  <span>12:00</span>
+                  <div className="flex items-center gap-2 text-[10px]">
+                    <span>5G</span>
+                    <span>100%</span>
+                  </div>
+                </div>
+
+                {/* Header de la App Yomori Android */}
+                <div className="px-4 py-3 bg-[#0F1420] border-b border-[#1A2233] flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-[#0B1118] border border-[#3DD6D0] flex items-center justify-center text-[#3DD6D0] font-black text-xs shadow-sm">
+                      夜
+                    </div>
+                    <span className="font-black text-white text-sm tracking-wide">Yomori</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="px-3 py-1 rounded-xl bg-purple-950 border border-purple-700/60 text-purple-300 text-xs font-bold font-mono">
-                      9 Scans Conectados
+                    <span className="px-2 py-0.5 rounded-md bg-[#132A32] text-[10px] font-mono text-[#3DD6D0] font-bold border border-[#3DD6D0]/30">
+                      Cloud Sync
                     </span>
                   </div>
                 </div>
 
-                {/* Grid de portadas simuladas */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  {[
-                    { title: 'El Lord que sube de nivel', scan: 'Olympus', cap: 'Cap. 112 (Descargado)', tag: 'Guardado' },
-                    { title: 'Lookism', scan: 'ZonaTMO', cap: 'Cap. 601 (Descargado)', tag: 'Guardado' },
-                    { title: 'Grand Blue', scan: 'Plot Twist', cap: 'Cap. 92 (Descargado)', tag: 'Guardado' },
-                    { title: 'Secta de la Montaña', scan: 'SkyMangas', cap: 'Cap. 192 (Descargado)', tag: 'Guardado' }
-                  ].map((m, i) => (
-                    <div key={i} className="p-3 rounded-2xl bg-[#171b29] border border-gray-800 space-y-2 hover:border-purple-600/50 transition">
-                      <div className="h-36 sm:h-44 rounded-xl bg-gradient-to-tr from-purple-950/60 to-indigo-900/40 border border-gray-700/40 flex flex-col justify-between p-2.5">
-                        <span className="self-end text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                          {m.tag}
-                        </span>
-                        <span className="text-[10px] font-mono text-purple-300 bg-black/60 px-2 py-0.5 rounded-md self-start">
-                          {m.scan}
-                        </span>
+                {/* Feed / Biblioteca de Mangas en Android */}
+                <div className="p-3.5 space-y-3 flex-1 overflow-hidden bg-gradient-to-b from-[#0C101A] to-[#07090E]">
+                  
+                  {/* Categorías en Chips */}
+                  <div className="flex items-center gap-1.5 overflow-x-hidden pb-1">
+                    <span className="px-3 py-1 rounded-full bg-[#3DD6D0] text-[#07090E] text-[11px] font-black shrink-0">
+                      Leyendo (4)
+                    </span>
+                    <span className="px-3 py-1 rounded-full bg-[#161D2B] text-gray-300 text-[11px] font-medium shrink-0">
+                      Completados
+                    </span>
+                    <span className="px-3 py-1 rounded-full bg-[#161D2B] text-gray-300 text-[11px] font-medium shrink-0">
+                      Favoritos
+                    </span>
+                  </div>
+
+                  {/* Grid de Portadas */}
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {[
+                      { title: 'Iron-Blooded Hound', cap: 'Cap. 114', scan: 'Olympus', color: 'from-purple-900/80 to-indigo-950' },
+                      { title: 'Lookism', cap: 'Cap. 602', scan: 'ZonaTMO', color: 'from-blue-900/80 to-slate-950' },
+                      { title: 'Mount Hua Sect', cap: 'Cap. 195', scan: 'SkyMangas', color: 'from-emerald-900/80 to-teal-950' },
+                      { title: 'Grand Blue', cap: 'Cap. 92', scan: 'Plot Twist', color: 'from-amber-900/80 to-stone-950' }
+                    ].map((m, idx) => (
+                      <div key={idx} className="rounded-xl bg-[#121824] border border-[#1E293B] p-2 space-y-1.5">
+                        <div className={`h-28 rounded-lg bg-gradient-to-tr ${m.color} p-2 flex flex-col justify-between border border-white/5`}>
+                          <span className="self-end text-[7px] font-bold px-1.5 py-0.5 rounded bg-[#3DD6D0] text-[#07090E]">
+                            HD
+                          </span>
+                          <span className="text-[10px] font-extrabold text-white leading-tight line-clamp-2">
+                            {m.title}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-[9px] text-gray-400 font-mono px-0.5">
+                          <span>{m.scan}</span>
+                          <span className="text-[#3DD6D0] font-bold">{m.cap}</span>
+                        </div>
                       </div>
-                      <h4 className="text-xs font-bold text-white truncate">{m.title}</h4>
-                      <p className="text-[10px] text-gray-400 font-mono">{m.cap}</p>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+
                 </div>
+
+                {/* Barra Inferior de Navegación Android */}
+                <div className="h-14 px-4 bg-[#0B0E16] border-t border-[#161D2B] flex items-center justify-around text-gray-400 text-[10px] font-medium">
+                  <div className="flex flex-col items-center text-[#3DD6D0] font-bold">
+                    <BookOpen className="w-4 h-4" />
+                    <span>Inicio</span>
+                  </div>
+                  <div className="flex flex-col items-center hover:text-white">
+                    <Layers className="w-4 h-4" />
+                    <span>Biblioteca</span>
+                  </div>
+                  <div className="flex flex-col items-center hover:text-white">
+                    <Search className="w-4 h-4" />
+                    <span>Explorar</span>
+                  </div>
+                  <div className="flex flex-col items-center hover:text-white">
+                    <Settings className="w-4 h-4" />
+                    <span>Ajustes</span>
+                  </div>
+                </div>
+
               </div>
+
             </div>
           </div>
+
         </div>
       </section>
 
-      {/* SECCIÓN: CARACTERÍSTICAS DESTACADAS */}
-      <section id="caracteristicas" className="py-20 bg-[#0a0d15] border-t border-b border-gray-800/80 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto space-y-16">
-          <div className="text-center space-y-3 max-w-3xl mx-auto">
-            <span className="text-xs font-mono font-bold text-purple-400 uppercase tracking-widest">
-              Potencia & Rendimiento
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-              Diseñado Exclusivamente para Lectores de Manga
-            </h2>
-            <p className="text-sm text-gray-400">
-              Todas las herramientas que necesitas para disfrutar de tus obras favoritas sin limitaciones.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map((f, i) => {
-              const Icon = f.icon;
-              return (
-                <div 
-                  key={i} 
-                  className="p-7 rounded-3xl bg-[#111522] border border-gray-800/90 hover:border-purple-600/50 transition-all duration-300 space-y-4 hover:-translate-y-1 shadow-xl"
-                >
-                  <div className={`w-12 h-12 rounded-2xl bg-gradient-to-tr ${f.color} flex items-center justify-center text-white shadow-lg`}>
-                    <Icon className="w-6 h-6" />
-                  </div>
-                  <h3 className="text-lg font-bold text-white">{f.title}</h3>
-                  <p className="text-xs text-gray-400 leading-relaxed">{f.desc}</p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* SECCIÓN: SCANS Y EXTENSIONES INCLUIDAS */}
-      <section id="extensiones" className="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-12">
-        <div className="text-center space-y-3 max-w-3xl mx-auto">
-          <span className="text-xs font-mono font-bold text-purple-400 uppercase tracking-widest">
-            Fuentes Conectadas
-          </span>
-          <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-            Los Mejores Scans en un Solo Lugar
-          </h2>
-          <p className="text-sm text-gray-400">
-            Yomori incluye soporte nativo y sincronización automática con las fuentes más populares de la comunidad.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {extensions.map((ext, idx) => (
+      {/* FILA DE DESTACADOS / STATS */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 sm:pb-24">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          {highlights.map((item, idx) => (
             <div 
               key={idx}
-              className="p-4 rounded-2xl bg-[#101420] border border-gray-800 flex items-center justify-between gap-3 hover:border-purple-700/60 transition"
+              className="rounded-2xl border border-[#1E293B] bg-[#0E131E] p-6 text-center shadow-lg hover:border-[#3DD6D0]/60 transition duration-300"
             >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-xl bg-gray-800 border border-gray-700 flex items-center justify-center font-bold text-purple-400 text-sm shrink-0">
-                  {ext.name.charAt(0)}
-                </div>
-                <div className="min-w-0">
-                  <h4 className="text-xs font-bold text-white truncate">{ext.name}</h4>
-                  <p className="text-[10px] text-gray-400 font-mono truncate">{ext.type}</p>
-                </div>
+              <div className="text-3xl sm:text-4xl font-black text-white tracking-tight mb-1">
+                {item.value}
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-[10px] font-mono font-bold text-purple-300 px-2 py-0.5 rounded bg-purple-950/80 border border-purple-800/60">
-                  {ext.lang}
-                </span>
-                <span className="w-2 h-2 rounded-full bg-emerald-400" title="Online" />
+              <div className="text-xs sm:text-sm font-semibold text-gray-400">
+                {item.label}
               </div>
             </div>
           ))}
         </div>
+      </section>
 
-        <div className="text-center pt-4">
-          <a
-            href="https://github.com/cristoferapaza01-ai/yomori-extensions"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 text-xs font-bold text-purple-400 hover:text-purple-300 transition"
-          >
-            <span>Ver repositorio público de extensiones en GitHub</span>
-            <ExternalLink className="w-3.5 h-3.5" />
-          </a>
+      {/* SECCIÓN CRUCIAL: EL MANUAL DE EXTENSIONES */}
+      <section id="manual-extensiones" className="py-16 sm:py-24 bg-[#0A0E17] border-y border-[#161D2B]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+          
+          {/* Cabecera del Manual */}
+          <div className="text-center space-y-3 max-w-3xl mx-auto">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#132A32] border border-[#3DD6D0]/40 text-[#3DD6D0] font-mono text-xs font-bold tracking-wider uppercase">
+              <Puzzle className="w-3.5 h-3.5" />
+              Guía Paso a Paso
+            </div>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight">
+              Cómo Activar las Fuentes y Scans en Yomori
+            </h2>
+            <p className="text-base text-gray-400 leading-relaxed">
+              Por arquitectura de código abierto, la aplicación <strong>no incluye extensiones preinstaladas por defecto</strong>. Solo debes añadir el repositorio oficial una sola vez para tener acceso a todos los scans en español.
+            </p>
+          </div>
+
+          {/* Caja Interactiva para Copiar la URL del Repositorio */}
+          <div className="max-w-3xl mx-auto rounded-3xl bg-[#0E1422] p-6 sm:p-8 border-2 border-[#3DD6D0]/50 shadow-2xl shadow-[#3DD6D0]/10 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <span className="text-xs font-mono font-black uppercase text-[#3DD6D0] tracking-widest block">
+                  URL del Repositorio Oficial
+                </span>
+                <h4 className="text-lg font-black text-white mt-0.5">
+                  Repositorio de Extensiones (Keiyoushi / Yomori)
+                </h4>
+              </div>
+              <button
+                onClick={handleCopyRepo}
+                className="px-5 py-3 rounded-xl bg-[#3DD6D0] hover:bg-[#4AE3B5] text-[#07090E] font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#3DD6D0]/20 transition transform active:scale-95 cursor-pointer shrink-0"
+              >
+                {copiedRepo ? (
+                  <>
+                    <Check className="w-4 h-4" />
+                    <span>¡URL Copiada al Portapapeles!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4" />
+                    <span>Copiar URL del Repositorio</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            <div className="p-3.5 bg-[#070A10] rounded-xl border border-[#1E293B] flex items-center justify-between gap-2 overflow-x-auto">
+              <code className="text-xs sm:text-sm font-mono text-[#3DD6D0] font-bold select-all break-all">
+                {repoUrl}
+              </code>
+            </div>
+
+            <p className="text-xs text-gray-400 leading-normal">
+              💡 Esta dirección conecta tu aplicación con más de 100 extensiones actualizadas constantemente (Olympus Scanlation, SkyMangas, ZonaTMO, Ikigai, MangaDex, etc.).
+            </p>
+          </div>
+
+          {/* 4 Pasos Visuales */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            
+            <div className="p-6 rounded-2xl bg-[#0E131E] border border-[#1E293B] space-y-3 text-left shadow-md hover:border-[#3DD6D0]/60 transition">
+              <span className="w-10 h-10 rounded-xl bg-[#132A32] text-[#3DD6D0] border border-[#3DD6D0]/40 font-black text-base flex items-center justify-center shadow-md">
+                1
+              </span>
+              <h3 className="text-base font-bold text-white">Instala el APK</h3>
+              <p className="text-sm text-gray-400 leading-relaxed">
+                Descarga <a href="/downloads/yomori.apk" className="text-[#3DD6D0] font-bold underline">yomori.apk</a> en tu teléfono e instálalo permitiendo la instalación de orígenes desconocidos.
+              </p>
+            </div>
+
+            <div className="p-6 rounded-2xl bg-[#0E131E] border border-[#1E293B] space-y-3 text-left shadow-md hover:border-[#3DD6D0]/60 transition">
+              <span className="w-10 h-10 rounded-xl bg-[#132A32] text-[#3DD6D0] border border-[#3DD6D0]/40 font-black text-base flex items-center justify-center shadow-md">
+                2
+              </span>
+              <h3 className="text-base font-bold text-white">Ve a Ajustes</h3>
+              <p className="text-sm text-gray-400 leading-relaxed">
+                Abre Yomori, toca en <strong>Ajustes</strong> (icono de engranaje) &gt; <strong>Explorar</strong> &gt; <strong>Repositorios de extensiones</strong>.
+              </p>
+            </div>
+
+            <div className="p-6 rounded-2xl bg-[#0E131E] border border-[#1E293B] space-y-3 text-left shadow-md hover:border-[#3DD6D0]/60 transition">
+              <span className="w-10 h-10 rounded-xl bg-[#132A32] text-[#3DD6D0] border border-[#3DD6D0]/40 font-black text-base flex items-center justify-center shadow-md">
+                3
+              </span>
+              <h3 className="text-base font-bold text-white">Pega el Repositorio</h3>
+              <p className="text-sm text-gray-400 leading-relaxed">
+                Toca el botón <strong>"+"</strong> o <strong>"Añadir Repositorio"</strong> y pega la URL que copiaste arriba. Guarda los cambios.
+              </p>
+            </div>
+
+            <div className="p-6 rounded-2xl bg-[#0E131E] border border-[#1E293B] space-y-3 text-left shadow-md hover:border-[#3DD6D0]/60 transition">
+              <span className="w-10 h-10 rounded-xl bg-[#132A32] text-[#3DD6D0] border border-[#3DD6D0]/40 font-black text-base flex items-center justify-center shadow-md">
+                4
+              </span>
+              <h3 className="text-base font-bold text-white">¡Instala y Lee!</h3>
+              <p className="text-sm text-gray-400 leading-relaxed">
+                Ve a la pestaña <strong>Explorar &gt; Extensiones</strong>, pulsa <strong>Instalar</strong> en tus scans favoritos y comienza a disfrutar.
+              </p>
+            </div>
+
+          </div>
+
         </div>
       </section>
 
-      {/* SECCIÓN: CÓMO INSTALAR EN WINDOWS */}
-      <section className="py-20 bg-[#0a0d15] border-t border-b border-gray-800/80 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-5xl mx-auto space-y-12">
-          <div className="text-center space-y-3">
-            <span className="text-xs font-mono font-bold text-purple-400 uppercase tracking-widest">
-              Instalación Rápida
+      {/* SECCIÓN: CARACTERÍSTICAS PRINCIPALES */}
+      <section id="caracteristicas" className="py-20 sm:py-28 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center space-y-4 max-w-3xl mx-auto mb-16">
+          <span className="text-xs font-mono font-bold uppercase tracking-widest text-[#3DD6D0]">
+            Lo Mejor de Yomori Android
+          </span>
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight">
+            Diseñado para Lectores Móviles
+          </h2>
+          <p className="text-base text-gray-400">
+            Todo lo que necesitas para una lectura fluida, rápida y placentera en tu teléfono o tablet.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {features.map((feat, idx) => {
+            const Icon = feat.icon;
+            return (
+              <div 
+                key={idx}
+                className="rounded-2xl bg-[#0E131E] p-7 border border-[#1E293B] shadow-md hover:border-[#3DD6D0]/60 transition duration-300 text-left space-y-3.5"
+              >
+                <div className="w-12 h-12 rounded-xl bg-[#132A32] text-[#3DD6D0] flex items-center justify-center border border-[#3DD6D0]/30 shadow-md shadow-[#3DD6D0]/10">
+                  <Icon className="w-6 h-6" />
+                </div>
+                <h3 className="text-lg font-bold text-white">
+                  {feat.title}
+                </h3>
+                <p className="text-sm text-gray-400 leading-relaxed">
+                  {feat.desc}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* SECCIÓN: SCANS Y FUENTES EN ESPAÑOL */}
+      <section id="scans" className="py-20 bg-[#0A0E17] border-y border-[#161D2B]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+          
+          <div className="text-center space-y-3 max-w-3xl mx-auto">
+            <span className="text-xs font-mono font-bold uppercase tracking-widest text-[#3DD6D0]">
+              Compatibilidad Total
             </span>
-            <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-              Listo en 3 Simples Pasos
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight">
+              Tus Scans Favoritos en un Solo Lugar
             </h2>
+            <p className="text-base text-gray-400">
+              Lee directamente desde las fuentes oficiales de traducción en español sin publicidad ni intermediarios.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="p-6 rounded-3xl bg-[#121624] border border-gray-800 space-y-3 relative">
-              <span className="w-8 h-8 rounded-xl bg-purple-600 text-white font-black text-sm flex items-center justify-center shadow-lg shadow-purple-600/40">
-                1
-              </span>
-              <h3 className="text-base font-bold text-white">Descarga el Zip</h3>
-              <p className="text-xs text-gray-400 leading-relaxed">
-                Haz clic en el botón de descarga para obtener el paquete oficial <code className="text-purple-300 font-mono">Yomori-Windows-x64.zip</code>.
-              </p>
-            </div>
-
-            <div className="p-6 rounded-3xl bg-[#121624] border border-gray-800 space-y-3 relative">
-              <span className="w-8 h-8 rounded-xl bg-indigo-600 text-white font-black text-sm flex items-center justify-center shadow-lg shadow-indigo-600/40">
-                2
-              </span>
-              <h3 className="text-base font-bold text-white">Descomprime la Carpeta</h3>
-              <p className="text-xs text-gray-400 leading-relaxed">
-                Haz clic derecho en el archivo descargado y selecciona "Extraer todo" en cualquier carpeta de tu PC.
-              </p>
-            </div>
-
-            <div className="p-6 rounded-3xl bg-[#121624] border border-gray-800 space-y-3 relative">
-              <span className="w-8 h-8 rounded-xl bg-emerald-600 text-white font-black text-sm flex items-center justify-center shadow-lg shadow-emerald-600/40">
-                3
-              </span>
-              <h3 className="text-base font-bold text-white">Ejecuta y Lee Offline</h3>
-              <p className="text-xs text-gray-400 leading-relaxed">
-                Abre <code className="text-purple-300 font-mono">Yomori.exe</code> ¡y comienza a disfrutar de todos tus mangas sin conexión a Internet!
-              </p>
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {scans.map((scan, idx) => (
+              <div 
+                key={idx}
+                className="rounded-xl bg-[#0E131E] p-4 sm:p-5 border border-[#1E293B] flex items-center justify-between shadow-md hover:border-[#3DD6D0]/60 transition"
+              >
+                <div className="space-y-1 text-left">
+                  <h4 className="font-bold text-sm text-white">{scan.name}</h4>
+                  <div className="flex items-center gap-2 text-xs text-gray-400">
+                    <span>{scan.lang}</span>
+                    <span>•</span>
+                    <span>{scan.type}</span>
+                  </div>
+                </div>
+                <span className="px-2.5 py-1 rounded-md bg-[#132A32] text-[#3DD6D0] border border-[#3DD6D0]/30 font-mono text-[11px] font-bold">
+                  {scan.status}
+                </span>
+              </div>
+            ))}
           </div>
+
         </div>
       </section>
 
       {/* SECCIÓN: PREGUNTAS FRECUENTES (FAQ) */}
-      <section id="faq" className="py-20 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto space-y-10">
-        <div className="text-center space-y-3">
-          <span className="text-xs font-mono font-bold text-purple-400 uppercase tracking-widest">
-            Resolución de Dudas
-          </span>
-          <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-            Preguntas Frecuentes
-          </h2>
-        </div>
+      <section id="faq" className="py-20 bg-[#07090E] border-b border-[#161D2B]">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+          
+          <div className="text-center space-y-3">
+            <span className="text-xs font-mono font-bold uppercase tracking-widest text-[#3DD6D0]">
+              Dudas Frecuentes
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
+              Preguntas Frecuentes
+            </h2>
+          </div>
 
-        <div className="space-y-3">
-          {faqs.map((faq, idx) => (
-            <div 
-              key={idx}
-              className="rounded-2xl bg-[#101420] border border-gray-800 overflow-hidden transition"
-            >
-              <button
-                onClick={() => setActiveFaq(activeFaq === idx ? null : idx)}
-                className="w-full p-5 text-left flex items-center justify-between gap-4 hover:bg-gray-800/40 transition cursor-pointer"
+          <div className="space-y-3">
+            {faqs.map((faq, idx) => (
+              <div 
+                key={idx}
+                className="rounded-xl bg-[#0E131E] border border-[#1E293B] overflow-hidden transition"
               >
-                <span className="text-sm font-bold text-white">{faq.q}</span>
-                <span className={`text-purple-400 transition-transform ${activeFaq === idx ? 'rotate-90' : ''}`}>
-                  ❯
-                </span>
-              </button>
-              {activeFaq === idx && (
-                <div className="px-5 pb-5 text-xs text-gray-400 leading-relaxed border-t border-gray-800/60 pt-3">
-                  {faq.a}
-                </div>
-              )}
-            </div>
-          ))}
+                <button
+                  onClick={() => setActiveFaq(activeFaq === idx ? null : idx)}
+                  className="w-full p-5 text-left flex items-center justify-between gap-4 hover:bg-[#121824] transition cursor-pointer"
+                >
+                  <span className="text-sm sm:text-base font-bold text-white">{faq.q}</span>
+                  <ChevronDown className={`w-5 h-5 text-[#3DD6D0] transition-transform ${activeFaq === idx ? 'rotate-180' : ''}`} />
+                </button>
+                {activeFaq === idx && (
+                  <div className="px-5 pb-5 text-sm text-gray-400 leading-relaxed border-t border-[#1E293B] pt-3 text-left">
+                    {faq.a}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
         </div>
       </section>
 
       {/* BANNER FINAL DE DESCARGA */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
-        <div className="rounded-3xl bg-gradient-to-r from-purple-900/60 via-indigo-900/50 to-purple-950/70 border border-purple-500/40 p-8 sm:p-12 text-center space-y-6 shadow-2xl backdrop-blur-xl">
-          <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-            ¿Listo para llevar tu lectura al siguiente nivel?
-          </h2>
-          <p className="text-sm text-gray-300 max-w-2xl mx-auto">
-            Descarga Yomori para PC hoy mismo y disfruta de tus mangas y manhwas favoritos sin anuncios ni cortes.
-          </p>
-          <div className="flex items-center justify-center gap-4 pt-2">
-            <a
-              href="/downloads/Yomori-Windows-x64.zip"
-              download="Yomori-Windows-x64.zip"
-              className="px-8 py-4 rounded-2xl bg-white hover:bg-gray-100 text-purple-950 font-black text-sm flex items-center gap-2.5 shadow-xl transition transform hover:scale-105 active:scale-95 cursor-pointer"
-            >
-              <Download className="w-5 h-5 text-purple-700" />
-              <span>Descargar Yomori Gratis (Windows x64)</span>
-            </a>
-          </div>
+      <section className="py-20 sm:py-24 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
+        <div className="w-16 h-16 rounded-3xl bg-[#0F141C] border-2 border-[#3DD6D0] text-[#3DD6D0] flex items-center justify-center mx-auto shadow-xl shadow-[#3DD6D0]/20 mb-2">
+          <Smartphone className="w-8 h-8" />
+        </div>
+        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight">
+          Descarga <span className="text-[#3DD6D0]">Yomori</span> para Android
+        </h2>
+        <p className="text-base sm:text-lg text-gray-400 max-w-2xl mx-auto">
+          Lleva tu biblioteca completa en tu bolsillo. Lectura fluida, cero anuncios y sincronización en la nube.
+        </p>
+        <div className="pt-3 flex flex-wrap justify-center gap-4">
+          <a
+            href="/downloads/yomori.apk"
+            download="Yomori-Universal.apk"
+            className="px-9 py-4 rounded-xl bg-[#3DD6D0] hover:bg-[#4AE3B5] text-[#07090E] font-black text-base flex items-center gap-3 shadow-xl shadow-[#3DD6D0]/25 transition transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+          >
+            <Download className="w-5 h-5" />
+            <span>Descargar APK Universal (Recomendado)</span>
+          </a>
+
+          <a
+            href="/downloads/yomori-arm64-v8a.apk"
+            download="Yomori-ARM64.apk"
+            className="px-6 py-4 rounded-xl bg-[#121824] hover:bg-[#1A2333] text-gray-200 hover:text-white font-bold text-base flex items-center gap-2 border border-[#1E293B] transition cursor-pointer"
+          >
+            <Smartphone className="w-5 h-5 text-[#3DD6D0]" />
+            <span>Descargar ARM64 (26 MB)</span>
+          </a>
         </div>
       </section>
 
       {/* FOOTER */}
-      <footer className="py-10 border-t border-gray-800/80 bg-[#05070a] text-center text-xs text-gray-500 space-y-3">
-        <div className="flex items-center justify-center gap-3">
-          <BookOpen className="w-4 h-4 text-purple-400" />
-          <span className="font-bold text-gray-300">Yomori Manga & Manhwa Reader</span>
+      <footer className="py-10 border-t border-[#161D2B] bg-[#05070B] text-center text-xs text-gray-500 space-y-2">
+        <div className="flex items-center justify-center gap-2">
+          <div className="w-5 h-5 rounded-md bg-[#0F141C] border border-[#3DD6D0] flex items-center justify-center text-[10px] text-[#3DD6D0] font-bold">
+            夜
+          </div>
+          <span className="font-bold text-gray-300">Yomori App para Android</span>
         </div>
-        <p>© 2026 Yomori Project. Proyecto de código abierto para la comunidad.</p>
+        <p>© 2026 Yomori Project. Proyecto gratuito y de código abierto para la comunidad.</p>
       </footer>
 
     </div>

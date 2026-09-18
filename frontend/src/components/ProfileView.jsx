@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { 
   User, 
@@ -24,8 +24,18 @@ import {
   MessageSquare,
   UserPlus,
   UserCheck,
-  Share2
+  Share2,
+  Zap,
+  Target
 } from 'lucide-react';
+import { 
+  calculateReaderRank, 
+  updateReadingStreak, 
+  getReadingStreak, 
+  getReadingTimeStats, 
+  calculateTotalUniqueReadChapters,
+  READER_RANKS
+} from '../services/readerRankService.js';
 
 const BANNER_PRESETS = [
   { id: 'purple_indigo', name: 'Neón Yomori', value: 'linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%)' },
@@ -47,19 +57,13 @@ const AVATAR_PRESETS = [
   'https://api.dicebear.com/7.x/bottts/svg?seed=ReaperSlayer'
 ];
 
-const BADGE_PRESETS = [
-  'Lector Élite ⚡',
-  'Cazador de Manhwas 🗡️',
-  'Otaku Supremo 🌸',
-  'Devorador de Capítulos 🔥',
-  'Soberano de las Sombras 👑',
-  'Crítico de Manga 📜',
-  'Lector Legendario 🌟'
-];
-
 export default function ProfileView({
   targetUserId = null,
   currentUser = null,
+  library = [],
+  readChaptersMap = {},
+  history = [],
+  settings = {},
   onUpdateCurrentUser,
   onSelectManga,
   onOpenDirectChat,
@@ -73,11 +77,9 @@ export default function ProfileView({
   const [isFriend, setIsFriend] = useState(false);
 
   // Estados de edición (para perfil propio)
-  const [username, setUsername] = useState('');
   const [avatar, setAvatar] = useState('');
   const [banner, setBanner] = useState('');
   const [bio, setBio] = useState('');
-  const [badge, setBadge] = useState('');
   const [isLibraryPublic, setIsLibraryPublic] = useState(true);
   const [shareReadingActivity, setShareReadingActivity] = useState(true);
 
@@ -90,12 +92,10 @@ export default function ProfileView({
     if (isMyProfile) {
       setProfileData(currentUser);
       if (currentUser) {
-        setUsername(currentUser.username || '');
         setAvatar(currentUser.avatar || '');
         setBanner(currentUser.banner || BANNER_PRESETS[0].value);
         setBio(currentUser.bio || 'Leyendo en Yomori 📖✨');
-        setBadge(currentUser.badge || 'Lector Élite ⚡');
-        setIsLibraryPublic(currentUser.isLibraryPublic !== false);
+        setIsLibraryPublic(currentUser.isLibraryPublic !== false && settings?.publicLibrary !== false);
         setShareReadingActivity(currentUser.shareReadingActivity !== false);
       }
       setLoading(false);
@@ -126,7 +126,7 @@ export default function ProfileView({
         }).catch(() => {});
       }
     }
-  }, [targetUserId, isMyProfile, currentUser]);
+  }, [targetUserId, isMyProfile, currentUser, settings?.publicLibrary]);
 
   const handleToggleFriend = async () => {
     if (!currentUser || isMyProfile || !profileData) return;
@@ -154,11 +154,10 @@ export default function ProfileView({
 
     try {
       const payload = {
-        username: username.trim(),
         avatar: avatar.trim(),
         banner: banner.trim(),
         bio: bio.trim(),
-        badge: badge.trim(),
+        badge: rankInfo.badge,
         isLibraryPublic,
         shareReadingActivity
       };
@@ -182,6 +181,48 @@ export default function ProfileView({
     }
   };
 
+  // Cálculos reales de estadísticas, rango y tiempo de lectura
+  const totalChaptersRead = useMemo(() => {
+    if (isMyProfile) {
+      return calculateTotalUniqueReadChapters(library, readChaptersMap, history);
+    }
+    return profileData?.stats?.totalChaptersRead || 0;
+  }, [isMyProfile, library, readChaptersMap, history, profileData?.stats?.totalChaptersRead]);
+
+  const rankInfo = useMemo(() => {
+    return calculateReaderRank(totalChaptersRead);
+  }, [totalChaptersRead]);
+
+  const readingTime = useMemo(() => {
+    if (isMyProfile) {
+      return getReadingTimeStats(totalChaptersRead);
+    }
+    return {
+      hours: profileData?.stats?.readingHours || 0,
+      minutes: profileData?.stats?.readingMinutes || 0
+    };
+  }, [isMyProfile, totalChaptersRead, profileData?.stats]);
+
+  const readingStreak = useMemo(() => {
+    if (isMyProfile) {
+      return getReadingStreak();
+    }
+    return profileData?.stats?.streakDays || 1;
+  }, [isMyProfile, profileData?.stats?.streakDays]);
+
+  const libraryList = useMemo(() => {
+    if (isMyProfile) {
+      return Array.isArray(library) ? library : [];
+    }
+    return Array.isArray(profileData?.library) ? profileData.library : [];
+  }, [isMyProfile, library, profileData?.library]);
+
+  const isLibraryPrivate = isMyProfile 
+    ? (settings?.publicLibrary === false || currentUser?.isLibraryPublic === false)
+    : (profileData?.isLibraryPublic === false);
+
+  const canViewLibrary = isMyProfile || !isLibraryPrivate;
+
   if (loading) {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center gap-3">
@@ -196,23 +237,8 @@ export default function ProfileView({
     avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=User',
     banner: BANNER_PRESETS[0].value,
     bio: 'Leyendo en Yomori 📖✨',
-    badge: 'Lector Élite ⚡',
-    library: [],
-    stats: { totalMangas: 0, totalChaptersRead: 0, readingHours: 0, level: 1 }
+    badge: rankInfo.badge
   };
-
-  const stats = p.stats || {
-    totalMangas: p.library?.length || 0,
-    totalChaptersRead: 0,
-    readingHours: 0,
-    readingMinutes: 0,
-    level: 1,
-    levelTitle: 'Lector Principiante',
-    streakDays: 1
-  };
-
-  const libraryList = Array.isArray(p.library) ? p.library : [];
-  const canViewLibrary = isMyProfile || p.isLibraryPublic !== false;
 
   return (
     <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 pb-24 select-none animate-fadeIn">
@@ -256,15 +282,21 @@ export default function ProfileView({
               </div>
 
               <div className="pb-3">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="text-xl sm:text-3xl font-black text-white tracking-tight drop-shadow-md">
-                    {p.username}
-                  </h1>
-                  <span className="px-3 py-1 rounded-full bg-purple-950/90 text-purple-300 border border-purple-800/80 text-xs font-bold shadow-md">
-                    {p.badge || 'Lector'}
-                  </span>
+                <h1 className="text-xl sm:text-3xl font-black text-white tracking-tight drop-shadow-md">
+                  {p.username}
+                </h1>
+                
+                {/* Rango de Lector Debajo del Nombre de Usuario y Encima de la Biografía */}
+                <div className="mt-1.5 mb-1.5 flex items-center gap-2 flex-wrap">
+                  <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full ${rankInfo.bg} ${rankInfo.border} border text-xs font-black ${rankInfo.text} shadow-lg backdrop-blur-md`}>
+                    <span>{rankInfo.badge}</span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-black/50 text-purple-300 font-bold">
+                      Nivel {rankInfo.level}
+                    </span>
+                  </div>
                 </div>
-                <p className="text-xs sm:text-sm text-purple-200/90 font-medium drop-shadow mt-1">
+
+                <p className="text-xs sm:text-sm text-purple-200/90 font-medium drop-shadow">
                   {p.bio || 'Leyendo en Yomori 📖✨'}
                 </p>
               </div>
@@ -362,7 +394,7 @@ export default function ProfileView({
           </div>
 
           <div className="hidden sm:flex items-center gap-2 pb-4">
-            {canViewLibrary ? (
+            {!isLibraryPrivate ? (
               <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/80 border border-emerald-800/60 text-xs font-bold text-emerald-400 font-mono">
                 <Globe className="w-3.5 h-3.5" />
                 <span>Biblioteca Pública</span>
@@ -370,7 +402,7 @@ export default function ProfileView({
             ) : (
               <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-950/80 border border-amber-800/60 text-xs font-bold text-amber-400 font-mono">
                 <Lock className="w-3.5 h-3.5" />
-                <span>Biblioteca Privada</span>
+                <span>{isMyProfile ? 'Biblioteca Privada (Solo tú)' : 'Biblioteca Privada'}</span>
               </span>
             )}
           </div>
@@ -442,73 +474,96 @@ export default function ProfileView({
       {activeTab === 'stats' && (
         <section className="space-y-6">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="p-5 rounded-2xl bg-[#121624] border border-gray-800 flex flex-col justify-between">
+            <div className="p-5 rounded-2xl bg-[#121624] border border-gray-800 flex flex-col justify-between shadow-lg">
               <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                 Mangas en Lista
               </span>
               <div className="flex items-baseline gap-2 mt-3">
-                <span className="text-3xl font-black text-white font-mono">{stats.totalMangas || 0}</span>
+                <span className="text-3xl font-black text-white font-mono">{libraryList.length}</span>
                 <BookOpen className="w-5 h-5 text-purple-400" />
               </div>
             </div>
 
-            <div className="p-5 rounded-2xl bg-[#121624] border border-gray-800 flex flex-col justify-between">
+            <div className="p-5 rounded-2xl bg-[#121624] border border-gray-800 flex flex-col justify-between shadow-lg">
               <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                 Capítulos Leídos
               </span>
               <div className="flex items-baseline gap-2 mt-3">
-                <span className="text-3xl font-black text-white font-mono">{stats.totalChaptersRead || 0}</span>
+                <span className="text-3xl font-black text-white font-mono">{totalChaptersRead}</span>
                 <Flame className="w-5 h-5 text-orange-400" />
               </div>
             </div>
 
-            <div className="p-5 rounded-2xl bg-[#121624] border border-gray-800 flex flex-col justify-between">
+            <div className="p-5 rounded-2xl bg-[#121624] border border-gray-800 flex flex-col justify-between shadow-lg">
               <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                 Tiempo de Lectura
               </span>
               <div className="flex items-baseline gap-2 mt-3">
-                <span className="text-3xl font-black text-white font-mono">{stats.readingHours || 0}h</span>
-                <span className="text-xs text-gray-400 font-mono">{stats.readingMinutes || 0}m</span>
+                <span className="text-3xl font-black text-white font-mono">{readingTime.hours}h</span>
+                <span className="text-xs text-gray-400 font-mono font-bold">{readingTime.minutes}m</span>
                 <Clock className="w-5 h-5 text-blue-400 ml-auto" />
               </div>
             </div>
 
-            <div className="p-5 rounded-2xl bg-[#121624] border border-gray-800 flex flex-col justify-between">
+            <div className="p-5 rounded-2xl bg-[#121624] border border-gray-800 flex flex-col justify-between shadow-lg">
               <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                 Racha de Días
               </span>
               <div className="flex items-baseline gap-2 mt-3">
-                <span className="text-3xl font-black text-white font-mono">{stats.streakDays || 1} 🔥</span>
+                <span className="text-3xl font-black text-white font-mono">{readingStreak} 🔥</span>
                 <Calendar className="w-5 h-5 text-emerald-400 ml-auto" />
               </div>
             </div>
           </div>
 
-          <div className="p-6 rounded-3xl bg-gradient-to-r from-purple-950/40 via-[#131828] to-[#101422] border border-purple-800/40 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-2xl bg-purple-600/30 border border-purple-500/50 text-purple-300">
-                  <Trophy className="w-6 h-6" />
+          {/* Tarjeta Progresiva de Misión y Rango */}
+          <div className="p-6 rounded-3xl bg-gradient-to-r from-purple-950/50 via-[#131828] to-[#101422] border border-purple-800/50 space-y-4 shadow-xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3.5">
+                <div className="p-3.5 rounded-2xl bg-purple-600/30 border border-purple-500/50 text-purple-300 shadow-inner">
+                  <Trophy className="w-7 h-7 text-yellow-400" />
                 </div>
                 <div>
-                  <h4 className="text-base font-bold text-white">
-                    {stats.levelTitle || 'Lector Élite'}
-                  </h4>
-                  <p className="text-xs text-gray-400">
-                    Nivel de Lector: <span className="text-purple-300 font-bold font-mono text-sm">{stats.level || 1}</span>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-base sm:text-lg font-black text-white">
+                      {rankInfo.badge}
+                    </h4>
+                    <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-[10px] font-mono font-bold border border-purple-500/40">
+                      Nivel {rankInfo.level}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-300 mt-0.5">
+                    {rankInfo.isMax
+                      ? '👑 ¡Has alcanzado el rango máximo celestial de Yomori!'
+                      : `Misión activa: Lee ${rankInfo.chaptersRemaining} capítulo${rankInfo.chaptersRemaining > 1 ? 's' : ''} más para subir de rango.`
+                    }
                   </p>
                 </div>
               </div>
-              <span className="text-xs font-mono font-bold text-purple-400">
-                {stats.totalChaptersRead % 20}/20 Capítulos para el siguiente nivel
-              </span>
+              <div className="text-left sm:text-right">
+                <span className="text-xs font-mono font-extrabold text-purple-300">
+                  {rankInfo.isMax 
+                    ? '100% Completado'
+                    : `${rankInfo.totalChaptersRead}/${rankInfo.nextGoal} Capítulos (${rankInfo.progressPercent}%)`
+                  }
+                </span>
+              </div>
             </div>
 
-            <div className="w-full h-3 bg-gray-800 rounded-full overflow-hidden">
+            {/* Barra de Progreso */}
+            <div className="w-full h-3.5 bg-gray-900 rounded-full overflow-hidden p-0.5 border border-purple-900/40">
               <div 
-                className="h-full bg-gradient-to-r from-purple-600 to-indigo-500 rounded-full transition-all duration-500"
-                style={{ width: `${Math.min(100, ((stats.totalChaptersRead % 20) / 20) * 100 || 20)}%` }}
+                className="h-full bg-gradient-to-r from-purple-600 via-indigo-500 to-pink-500 rounded-full transition-all duration-700 shadow-md shadow-purple-500/50"
+                style={{ width: `${rankInfo.progressPercent}%` }}
               />
+            </div>
+
+            {/* Próximos Rangos Desbloqueables */}
+            <div className="pt-2 border-t border-gray-800/80 flex items-center justify-between text-[11px] text-gray-400 font-mono">
+              <span>Nivel Actual: <strong className="text-white">{rankInfo.title}</strong></span>
+              {!rankInfo.isMax && (
+                <span>Siguiente Rango: <strong className="text-purple-300">{READER_RANKS[rankInfo.level]?.title} ({rankInfo.nextGoal} caps)</strong></span>
+              )}
             </div>
           </div>
         </section>
@@ -532,37 +587,15 @@ export default function ProfileView({
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {/* Insignia / Título de Lector Automático */}
+            <div className="p-4 rounded-2xl bg-[#131826] border border-gray-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <label className="block text-xs font-bold text-gray-300 mb-2">
-                  Nombre de Usuario
-                </label>
-                <input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  required
-                  minLength={3}
-                  maxLength={30}
-                  className="w-full bg-[#141824] border border-gray-700/80 rounded-2xl px-4 py-3 text-xs sm:text-sm text-white focus:outline-none focus:border-purple-500 transition select-text"
-                />
+                <span className="text-xs font-bold text-white block">Insignia / Rango de Lector</span>
+                <p className="text-[11px] text-gray-400 mt-0.5">Tu rango se actualiza y desbloquea automáticamente leyendo más capítulos.</p>
               </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-300 mb-2">
-                  Insignia / Título de Lector
-                </label>
-                <select
-                  value={badge}
-                  onChange={(e) => setBadge(e.target.value)}
-                  className="w-full bg-[#141824] border border-gray-700/80 rounded-2xl px-4 py-3 text-xs sm:text-sm text-purple-300 font-semibold focus:outline-none focus:border-purple-500 transition cursor-pointer"
-                >
-                  {BADGE_PRESETS.map((b) => (
-                    <option key={b} value={b} className="bg-[#141824] text-white">
-                      {b}
-                    </option>
-                  ))}
-                </select>
+              <div className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full ${rankInfo.bg} ${rankInfo.border} border text-xs font-black ${rankInfo.text} shrink-0`}>
+                <span>{rankInfo.badge}</span>
+                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-black/40 text-purple-300">Nivel {rankInfo.level}</span>
               </div>
             </div>
 

@@ -105,6 +105,11 @@ export default function AuthModal({
         if (response.data?.success && response.data?.user) {
           const user = response.data.user;
           localStorage.setItem('tachiyomi_user', JSON.stringify(user));
+          if (rememberMe) {
+            localStorage.setItem('yomori_remember_me', 'true');
+          } else {
+            localStorage.removeItem('yomori_remember_me');
+          }
           setSuccessMessage('¡Cuenta creada con éxito! Bienvenido a Yomori.');
           setTimeout(() => {
             if (onLoginSuccess) onLoginSuccess(user);
@@ -127,6 +132,9 @@ export default function AuthModal({
             createdAt: new Date().toISOString()
           };
           localStorage.setItem('tachiyomi_user', JSON.stringify(localUser));
+          if (rememberMe) {
+            localStorage.setItem('yomori_remember_me', 'true');
+          }
           setSuccessMessage('¡Cuenta creada localmente!');
           setTimeout(() => {
             if (onLoginSuccess) onLoginSuccess(localUser);
@@ -142,7 +150,8 @@ export default function AuthModal({
 
     } else {
       // Modo LOGIN
-      if (!emailOrUser.trim()) {
+      const query = (emailOrUser || email || '').trim();
+      if (!query) {
         setError('Por favor ingresa tu usuario o correo electrónico.');
         return;
       }
@@ -156,13 +165,18 @@ export default function AuthModal({
 
       try {
         const response = await axios.post('/api/auth/login', {
-          emailOrUsername: emailOrUser.trim(),
+          emailOrUsername: query,
           password
         });
 
         if (response.data?.success && response.data?.user) {
           const user = response.data.user;
           localStorage.setItem('tachiyomi_user', JSON.stringify(user));
+          if (rememberMe) {
+            localStorage.setItem('yomori_remember_me', 'true');
+          } else {
+            localStorage.removeItem('yomori_remember_me');
+          }
           setSuccessMessage(`¡Bienvenido de nuevo, ${user.username}!`);
           setTimeout(() => {
             if (onLoginSuccess) onLoginSuccess(user);
@@ -181,6 +195,9 @@ export default function AuthModal({
             try {
               const u = JSON.parse(saved);
               if (u.email === emailOrUser.trim() || u.username === emailOrUser.trim()) {
+                if (rememberMe) {
+                  localStorage.setItem('yomori_remember_me', 'true');
+                }
                 setSuccessMessage(`¡Bienvenido, ${u.username}!`);
                 setTimeout(() => {
                   if (onLoginSuccess) onLoginSuccess(u);
@@ -244,12 +261,8 @@ export default function AuthModal({
 
         {/* Emblema Oficial Yomori */}
         <div className="flex justify-center my-3 relative z-10">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-purple-600 via-fuchsia-500 to-indigo-600 p-0.5 shadow-xl shadow-purple-600/30 flex items-center justify-center">
-            <div className="w-full h-full rounded-2xl bg-[#121622] border border-purple-500/50 flex items-center justify-center overflow-hidden">
-              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-inner">
-                <BookOpen className="w-7 h-7 text-white" />
-              </div>
-            </div>
+          <div className="w-20 h-20 rounded-full bg-[#161D24] border-2 border-[#2F3B4B] flex items-center justify-center shadow-2xl text-white select-none">
+            <span className="text-[#3DD6D0] font-black text-3xl tracking-tighter">夜</span>
           </div>
         </div>
 

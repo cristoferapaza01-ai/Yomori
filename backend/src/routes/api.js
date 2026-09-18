@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { 
   getInstalledExtensions,
+  getRepoExtensions,
+  resolveRepoUrl,
   installExtension,
   uninstallExtension,
   getCatalog, 
@@ -8,6 +10,7 @@ import {
   getMangaDetails, 
   extractChapter,
   getHomeFeed,
+  getRecommendations,
   getCacheStats,
   clearCache
 } from '../controllers/mangaController.js';
@@ -28,7 +31,9 @@ import {
   getProfile, 
   updateProfile, 
   getPublicProfile, 
-  syncUserData 
+  syncUserData,
+  verifyPassword,
+  changePassword
 } from '../controllers/authController.js';
 import { 
   getRoomMessages, 
@@ -40,6 +45,13 @@ import {
 import {
   getCommunities,
   createCommunity,
+  getPendingCommunities,
+  reviewCommunityRequest,
+  updateCommunitySettings,
+  updateCommunityRoles,
+  assignMemberRole,
+  kickMember,
+  deleteCommunity,
   toggleJoinCommunity,
   toggleFriend,
   sendFriendRequest,
@@ -47,6 +59,10 @@ import {
   updateReadingActivity,
   getFriendsAndDMs
 } from '../controllers/socialController.js';
+import {
+  trackReadEvent,
+  getPopularAnalytics
+} from '../controllers/analyticsController.js';
 
 const router = Router();
 
@@ -57,6 +73,11 @@ router.get('/health', (req, res) => {
     service: 'Yomori Reader Engine'
   });
 });
+
+// Endpoints de Repositorio Central de Extensiones (Manga & Anime)
+router.get('/repo/index.json', getRepoExtensions);
+router.get('/repo/extensions', getRepoExtensions);
+router.get('/repo/resolve', resolveRepoUrl);
 
 // Endpoints de gestión de extensiones descargadas en disco local
 router.get('/extensions/installed', getInstalledExtensions);
@@ -70,8 +91,11 @@ router.get('/manga', getMangaDetails);
 router.post('/extract', extractChapter);
 router.get('/extract', extractChapter);
 
-// Feed de inicio en vivo
+// Feed de inicio en vivo, Recomendaciones y Analíticas de Lectura de la Comunidad
 router.get('/home-feed', getHomeFeed);
+router.get('/recommendations', getRecommendations);
+router.post('/analytics/track-read', trackReadEvent);
+router.get('/analytics/popular', getPopularAnalytics);
 
 // Proxy de imágenes
 router.get('/proxy-image', proxyImage);
@@ -96,6 +120,8 @@ router.post('/auth/login', login);
 router.get('/auth/me', getProfile);
 router.put('/auth/profile', updateProfile);
 router.post('/auth/sync', syncUserData);
+router.post('/auth/verify-password', verifyPassword);
+router.post('/auth/change-password', changePassword);
 router.get('/users/:userId', getPublicProfile);
 
 // Chat en vivo y salas de comentarios persistentes
@@ -111,11 +137,19 @@ router.post('/chat/delete', deleteMessage);
 router.post('/chat/report/:messageId', reportMessage);
 router.post('/chat/report', reportMessage);
 
-
-// Comunidades, Amigos y Mensajes Directos (DMs)
+// Comunidades, Roles Estilo Discord, Moderación y Amigos
 router.get('/social/communities', getCommunities);
 router.post('/social/communities', createCommunity);
+router.get('/social/communities/pending', getPendingCommunities);
+router.post('/social/communities/review', reviewCommunityRequest);
+router.put('/social/communities/settings', updateCommunitySettings);
+router.post('/social/communities/roles', updateCommunityRoles);
+router.post('/social/communities/assign-role', assignMemberRole);
+router.post('/social/communities/kick', kickMember);
+router.delete('/social/communities/:communityId', deleteCommunity);
+router.post('/social/communities/delete', deleteCommunity);
 router.post('/social/communities/join', toggleJoinCommunity);
+
 router.post('/social/friends/toggle', toggleFriend);
 router.post('/social/friends/request', sendFriendRequest);
 router.post('/social/friends/respond', respondFriendRequest);

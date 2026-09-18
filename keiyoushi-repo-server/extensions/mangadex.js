@@ -446,20 +446,27 @@ export class MangaDexExtension extends BaseExtension {
 
       const atHomeRes = await axios.get(`${this.apiBase}/at-home/server/${chapterId}`, {
         headers: this.headers,
-        timeout: 10000
+        timeout: 12000
       });
 
-      const { baseUrl, chapter } = atHomeRes.data;
-      const imagesList = (chapter.data && chapter.data.length > 0) ? chapter.data : (chapter.dataSaver || []);
+      const { baseUrl, chapter } = atHomeRes.data || {};
+      if (!chapter || !baseUrl) {
+        throw new Error('Respuesta incompleta del servidor At-Home de MangaDex');
+      }
+
+      const isDataSaver = (!chapter.data || chapter.data.length === 0) && (chapter.dataSaver && chapter.dataSaver.length > 0);
+      const folder = isDataSaver ? 'data-saver' : 'data';
+      const imagesList = isDataSaver ? chapter.dataSaver : (chapter.data || []);
+      
       const pages = imagesList.map((fileName, index) => ({
         index: index + 1,
-        url: `${baseUrl}/data/${chapter.hash}/${fileName}`
+        url: `${baseUrl}/${folder}/${chapter.hash}/${fileName}`
       }));
 
-      console.log(`[MangaDex] Viñetas listas: ${pages.length} páginas extraídas.`);
+      console.log(`[MangaDex] Viñetas listas: ${pages.length} páginas extraídas (${folder}).`);
 
       return {
-        success: true,
+        success: pages.length > 0,
         extension: this.name,
         extensionId: this.id,
         mangaTitle: 'MangaDex',

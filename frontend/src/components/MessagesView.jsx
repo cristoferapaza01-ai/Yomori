@@ -69,7 +69,14 @@ export default function MessagesView({
       });
       if (res.data?.success) {
         setFriends(res.data.friends || []);
-        setPendingRequests(res.data.pendingRequests || { incoming: [], outgoing: [] });
+        const rawPending = res.data.pendingRequests;
+        if (Array.isArray(rawPending)) {
+          setPendingRequests({ incoming: rawPending, outgoing: res.data.sentRequests || [] });
+        } else if (rawPending && typeof rawPending === 'object') {
+          setPendingRequests({ incoming: rawPending.incoming || [], outgoing: rawPending.outgoing || [] });
+        } else {
+          setPendingRequests({ incoming: [], outgoing: [] });
+        }
         setMessageRequests(res.data.messageRequests || []);
         setActiveReadingFriends(res.data.activeReadingFriends || []);
         setConversations(res.data.conversations || []);
@@ -100,6 +107,14 @@ export default function MessagesView({
     fetchSocialData();
   }, [currentUser, initialActiveUserId]);
 
+  const incomingRequestsList = Array.isArray(pendingRequests?.incoming) 
+    ? pendingRequests.incoming 
+    : (Array.isArray(pendingRequests) ? pendingRequests : []);
+
+  const outgoingRequestsList = Array.isArray(pendingRequests?.outgoing) 
+    ? pendingRequests.outgoing 
+    : [];
+
   const dmRoomId = (currentUser && activeUser)
     ? `dm:${[currentUser.id, activeUser.id].sort().join('_')}`
     : null;
@@ -109,11 +124,11 @@ export default function MessagesView({
   );
 
   const isPendingOutgoing = Boolean(
-    activeUser && pendingRequests.outgoing?.some(r => r.toUserId === activeUser.id || r.toUsername?.toLowerCase() === activeUser.username?.toLowerCase())
+    activeUser && outgoingRequestsList.some(r => r.toUserId === activeUser.id || r.toUsername?.toLowerCase() === activeUser.username?.toLowerCase())
   );
 
   const incomingRequest = activeUser 
-    ? pendingRequests.incoming?.find(r => r.fromUserId === activeUser.id || r.fromUsername?.toLowerCase() === activeUser.username?.toLowerCase()) 
+    ? incomingRequestsList.find(r => r.fromUserId === activeUser.id || r.fromUsername?.toLowerCase() === activeUser.username?.toLowerCase()) 
     : null;
 
   // Socket global para registro de usuario, DMs en tiempo real y solicitudes
@@ -476,9 +491,9 @@ export default function MessagesView({
                 <Users className="w-4 h-4" />
                 <span>Amigos</span>
               </div>
-              {pendingRequests.incoming.length > 0 && (
+              {incomingRequestsList.length > 0 && (
                 <span className="w-5 h-5 rounded-full bg-rose-600 text-white text-[10px] font-extrabold flex items-center justify-center animate-pulse">
-                  {pendingRequests.incoming.length}
+                  {incomingRequestsList.length}
                 </span>
               )}
             </button>
@@ -598,9 +613,9 @@ export default function MessagesView({
                   }`}
                 >
                   <span>Pendientes</span>
-                  {pendingRequests.incoming.length > 0 && (
+                  {incomingRequestsList.length > 0 && (
                     <span className="px-1.5 py-0.2 rounded-full bg-rose-600 text-white text-[9px] font-bold">
-                      {pendingRequests.incoming.length}
+                      {incomingRequestsList.length}
                     </span>
                   )}
                 </button>
@@ -778,15 +793,15 @@ export default function MessagesView({
                   <div className="space-y-4 animate-fade-in">
                     <div>
                       <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                        Solicitudes Recibidas ({pendingRequests.incoming.length})
+                        Solicitudes Recibidas ({incomingRequestsList.length})
                       </h3>
                     </div>
 
-                    {pendingRequests.incoming.length === 0 ? (
+                    {incomingRequestsList.length === 0 ? (
                       <p className="text-xs text-gray-500 italic">No tienes solicitudes de amistad entrantes.</p>
                     ) : (
                       <div className="space-y-2">
-                        {pendingRequests.incoming.map((req) => (
+                        {incomingRequestsList.map((req) => (
                           <div key={req.id} className="flex items-center justify-between p-3 rounded-2xl bg-[#121624] border border-gray-800">
                             <div className="flex items-center gap-3">
                               <img src={req.fromAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(req.fromUsername)}`} alt={req.fromUsername} className="w-9 h-9 rounded-full object-cover border border-purple-500/30" />
@@ -871,7 +886,11 @@ export default function MessagesView({
                         {friends.map((f) => (
                           <div 
                             key={f.id}
-                            className="flex items-center justify-between p-2.5 rounded-2xl bg-[#121624]/60 hover:bg-[#151b2c] border border-gray-800/80 hover:border-purple-600/40 transition group"
+                            onClick={() => {
+                              setActiveUser(f);
+                              setActiveTab('chat');
+                            }}
+                            className="flex items-center justify-between p-2.5 rounded-2xl bg-[#121624]/60 hover:bg-[#151b2c] border border-gray-800/80 hover:border-purple-600/40 transition group cursor-pointer"
                           >
                             <div className="flex items-center gap-3 min-w-0">
                               <div className="relative shrink-0">
@@ -895,11 +914,13 @@ export default function MessagesView({
 
                             <div className="flex items-center gap-1.5 shrink-0">
                               <button
-                                onClick={() => {
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                   setActiveUser(f);
                                   setActiveTab('chat');
                                 }}
-                                className="p-2 rounded-xl bg-gray-800 hover:bg-purple-600 text-gray-300 hover:text-white transition cursor-pointer shadow-sm"
+                                className="p-2 rounded-xl bg-gray-800 group-hover:bg-purple-600 text-gray-300 group-hover:text-white transition cursor-pointer shadow-sm"
                                 title="Abrir chat privado"
                               >
                                 <MessageSquare className="w-3.5 h-3.5" />

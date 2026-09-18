@@ -232,12 +232,13 @@ export const toggleLikeMessage = async (req, res) => {
   }
 };
 
-// Eliminar mensaje
+// Eliminar mensaje (Autor o Administrador)
 export const deleteMessage = async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     const token = authHeader ? authHeader.replace('Bearer ', '').trim() : '';
-    const { roomId = 'global', messageId } = req.body;
+    const messageId = req.params.messageId || req.body?.messageId || req.query?.messageId;
+    let roomId = req.body?.roomId || req.query?.roomId || null;
 
     if (!messageId) {
       return res.status(400).json({ success: false, message: 'Falta messageId.' });
@@ -247,22 +248,52 @@ export const deleteMessage = async (req, res) => {
     const user = users.find(u => u.token === token);
 
     const chats = loadChats();
-    const roomMessages = chats[roomId] || [];
-    const msg = roomMessages.find(m => m.id === messageId);
+    let foundRoomId = roomId;
+    let msg = null;
+
+    if (foundRoomId && chats[foundRoomId]) {
+      msg = chats[foundRoomId].find(m => m.id === messageId);
+    }
+
+    // Si no se pasó roomId o no se encontró en esa sala, buscar en todas las salas
+    if (!msg) {
+      for (const [rId, msgs] of Object.entries(chats)) {
+        const found = msgs.find(m => m.id === messageId);
+        if (found) {
+          msg = found;
+          foundRoomId = rId;
+          break;
+        }
+      }
+    }
 
     if (!msg) {
       return res.status(404).json({ success: false, message: 'Mensaje no encontrado.' });
     }
 
-    // Permitir si es autor o administrador o modo local
-    if (user && user.id !== msg.userId && user.role !== 'admin') {
+    const isAdmin = user && (
+      user.role === 'admin' || 
+      (user.username || '').toLowerCase() === 'rey_palomo' || 
+      (user.email || '').toLowerCase() === 'admin@yomori.com'
+    );
+    const isAuthor = user && user.id === msg.userId;
+
+    // Permitir eliminación a Administradores (Rey_Palomo) y al autor del mensaje
+    if (!isAdmin && !isAuthor) {
       return res.status(403).json({ success: false, message: 'No tienes permiso para eliminar este mensaje.' });
     }
 
-    chats[roomId] = roomMessages.filter(m => m.id !== messageId);
+    chats[foundRoomId] = (chats[foundRoomId] || []).filter(m => m.id !== messageId);
     saveChats(chats);
 
-    return res.json({ success: true, messageId, roomId });
+    // Emitir borrado en tiempo real vía WebSocket a todos los usuarios conectados
+    if (global.io) {
+      global.io.to(foundRoomId).emit('delete_message', { messageId, roomId: foundRoomId });
+      global.io.emit('delete_message', { messageId, roomId: foundRoomId });
+    }
+
+    console.log(`[Moderación Chat] Mensaje ${messageId} eliminado por ${user?.username || 'Admin'} en sala ${foundRoomId}`);
+    return res.json({ success: true, messageId, roomId: foundRoomId });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }

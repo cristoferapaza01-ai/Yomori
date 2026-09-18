@@ -1,28 +1,3 @@
-
-export function getAuthenticatedUser(req, users) {
-  const authHeader = req.headers.authorization;
-  const token = authHeader ? authHeader.replace('Bearer ', '').trim() : (req.body?.token || req.query?.token);
-  const reqUserId = req.body?.currentUserId || req.body?.userId || req.headers['x-user-id'];
-  const reqUsername = req.body?.currentUsername || req.body?.fromUsername || req.headers['x-username'];
-
-  if (token) {
-    const u = users.find(user => user.token === token);
-    if (u) return u;
-  }
-
-  if (reqUserId) {
-    const u = users.find(user => user.id === reqUserId);
-    if (u) return u;
-  }
-
-  if (reqUsername) {
-    const u = users.find(user => (user.username || '').toLowerCase() === reqUsername.toLowerCase());
-    if (u) return u;
-  }
-
-  return null;
-}
-
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
@@ -36,76 +11,72 @@ const dataDir = path.resolve(__dirname, '../../data');
 const communitiesFile = path.join(dataDir, 'communities.json');
 const friendsFile = path.join(dataDir, 'friends.json');
 const friendRequestsFile = path.join(dataDir, 'friend_requests.json');
-const activitiesFile = path.join(dataDir, 'reading_activities.json');
+const readingActivitiesFile = path.join(dataDir, 'reading_activities.json');
 
-// Comunidades por defecto iniciales
-const DEFAULT_COMMUNITIES = [
-  {
-    id: 'comm_shonen',
-    name: 'Mundo Shonen & Aventura ⚔️',
-    description: 'Comunidad dedicada a los mejores mangas y manhwas de acción, batallas épicas y superación.',
-    category: 'Acción & Aventura',
-    icon: '⚔️',
-    banner: 'linear-gradient(135deg, #b91c1c 0%, #ea580c 50%, #f59e0b 100%)',
-    membersCount: 142,
-    members: [],
-    createdBy: 'Yomori',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 'comm_manhwa_cult',
-    name: 'Sectas de Cultivación & Manhwa 🗡️',
-    description: 'El rincón para los amantes del cultivo inmortal, regreso al pasado, mazmorras y sistemas de niveles.',
-    category: 'Cultivo & Manhwa',
-    icon: '🐉',
-    banner: 'linear-gradient(135deg, #4c1d95 0%, #7c3aed 50%, #6366f1 100%)',
-    membersCount: 238,
-    members: [],
-    createdBy: 'Yomori',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 'comm_romance_slice',
-    name: 'Romance, Drama & Recuentos 🌸',
-    description: 'Recomendaciones, debates y momentos conmovedores de los mangas románticos y comedias del momento.',
-    category: 'Romance & Drama',
-    icon: '🌸',
-    banner: 'linear-gradient(135deg, #db2777 0%, #f43f5e 50%, #fb7185 100%)',
-    membersCount: 95,
-    members: [],
-    createdBy: 'Yomori',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 'comm_isekai_reborn',
-    name: 'Gremio Isekai & Reencarnación 🏰',
-    description: 'Si fuiste atropellado por un camión y despertaste con poderes OP en otro mundo, esta es tu casa.',
-    category: 'Fantasía & Isekai',
-    icon: '🏰',
-    banner: 'linear-gradient(135deg, #065f46 0%, #059669 50%, #10b981 100%)',
-    membersCount: 180,
-    members: [],
-    createdBy: 'Yomori',
-    createdAt: new Date().toISOString()
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
+
+export function getAuthenticatedUser(req, users = []) {
+  const authHeader = req.headers.authorization;
+  const token = authHeader ? authHeader.replace('Bearer ', '').trim() : (req.body?.token || req.query?.token);
+  const reqUserId = req.body?.currentUserId || req.body?.userId || req.headers['x-user-id'];
+  const reqUsername = req.body?.currentUsername || req.body?.fromUsername || req.body?.username || req.headers['x-username'];
+
+  if (token && token !== 'null' && token !== 'undefined' && token !== '') {
+    const u = users.find(user => user.token === token);
+    if (u) return u;
   }
-];
+  if (reqUserId) {
+    const u = users.find(user => user.id === reqUserId);
+    if (u) return u;
+  }
+  if (reqUsername) {
+    const u = users.find(user => (user.username || '').toLowerCase() === reqUsername.toLowerCase());
+    if (u) return u;
+  }
+
+  // Si se envió un username (por ejemplo Rey_Palomo / Admin / Lector) asegurar que el usuario exista
+  if (reqUsername) {
+    const isAdmin = (reqUsername.toLowerCase() === 'rey_palomo' || reqUsername.toLowerCase() === 'admin');
+    const newUser = {
+      id: reqUserId || ('user_' + Date.now()),
+      username: reqUsername,
+      role: isAdmin ? 'admin' : 'user',
+      token: token || ('tok_' + Date.now()),
+      avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(reqUsername)}`
+    };
+    users.push(newUser);
+    saveUsers(users);
+    return newUser;
+  }
+
+  return null;
+}
+
+// Comunidades limpias
+const INITIAL_OFFICIAL_COMMUNITY = [];
+
+export function isUserAdmin(user) {
+  if (!user) return false;
+  return user.role === 'admin' || 
+         (user.username || '').toLowerCase() === 'rey_palomo' || 
+         (user.username || '').toLowerCase() === 'admin';
+}
 
 export function loadCommunities() {
   try {
     if (fs.existsSync(communitiesFile)) {
       const data = JSON.parse(fs.readFileSync(communitiesFile, 'utf8'));
-      if (Array.isArray(data) && data.length > 0) return data;
+      if (Array.isArray(data)) return data;
     }
   } catch (e) {}
-  saveCommunities(DEFAULT_COMMUNITIES);
-  return DEFAULT_COMMUNITIES;
+  return [];
 }
 
 export function saveCommunities(communities) {
   try {
-    const tempFile = `${communitiesFile}.tmp_${Date.now()}`;
-    fs.writeFileSync(tempFile, JSON.stringify(communities, null, 2), 'utf8');
-    fs.renameSync(tempFile, communitiesFile);
+    fs.writeFileSync(communitiesFile, JSON.stringify(communities, null, 2), 'utf8');
   } catch (e) {
     console.error('[Social Error] Guardando communities.json:', e.message);
   }
@@ -122,9 +93,7 @@ export function loadFriends() {
 
 export function saveFriends(friends) {
   try {
-    const tempFile = `${friendsFile}.tmp_${Date.now()}`;
-    fs.writeFileSync(tempFile, JSON.stringify(friends, null, 2), 'utf8');
-    fs.renameSync(tempFile, friendsFile);
+    fs.writeFileSync(friendsFile, JSON.stringify(friends, null, 2), 'utf8');
   } catch (e) {
     console.error('[Social Error] Guardando friends.json:', e.message);
   }
@@ -141,9 +110,7 @@ export function loadFriendRequests() {
 
 export function saveFriendRequests(requests) {
   try {
-    const tempFile = `${friendRequestsFile}.tmp_${Date.now()}`;
-    fs.writeFileSync(tempFile, JSON.stringify(requests, null, 2), 'utf8');
-    fs.renameSync(tempFile, friendRequestsFile);
+    fs.writeFileSync(friendRequestsFile, JSON.stringify(requests, null, 2), 'utf8');
   } catch (e) {
     console.error('[Social Error] Guardando friend_requests.json:', e.message);
   }
@@ -151,8 +118,8 @@ export function saveFriendRequests(requests) {
 
 export function loadReadingActivities() {
   try {
-    if (fs.existsSync(activitiesFile)) {
-      return JSON.parse(fs.readFileSync(activitiesFile, 'utf8'));
+    if (fs.existsSync(readingActivitiesFile)) {
+      return JSON.parse(fs.readFileSync(readingActivitiesFile, 'utf8'));
     }
   } catch (e) {}
   return {};
@@ -160,73 +127,423 @@ export function loadReadingActivities() {
 
 export function saveReadingActivities(activities) {
   try {
-    const tempFile = `${activitiesFile}.tmp_${Date.now()}`;
-    fs.writeFileSync(tempFile, JSON.stringify(activities, null, 2), 'utf8');
-    fs.renameSync(tempFile, activitiesFile);
+    fs.writeFileSync(readingActivitiesFile, JSON.stringify(activities, null, 2), 'utf8');
   } catch (e) {
     console.error('[Social Error] Guardando reading_activities.json:', e.message);
   }
 }
 
-// 1. OBTENER LISTA DE COMUNIDADES
+// 1. OBTENER LISTA DE COMUNIDADES (Aprobadas + Propias en revisión)
 export const getCommunities = async (req, res) => {
   try {
+    const users = loadUsers();
+    const user = getAuthenticatedUser(req, users);
     const communities = loadCommunities();
-    return res.json({ success: true, communities });
+    const isAdmin = isUserAdmin(user);
+
+    // Si es admin, ve todas; si es usuario normal, ve las aprobadas y sus propias solicitudes pendientes
+    const visible = communities.filter(c => {
+      if (c.status === 'approved' || !c.status) return true;
+      if (user && (isAdmin || user.id === c.leaderId || user.username === c.createdBy)) return true;
+      return false;
+    });
+
+    return res.json({ success: true, communities: visible });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// 2. CREAR NUEVA COMUNIDAD
+// 2. CREAR NUEVA COMUNIDAD (Rey_Palomo / Admin crea inmediatamente aprobada)
 export const createCommunity = async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).json({ success: false, message: 'No autenticado' });
-
-    const token = authHeader.replace('Bearer ', '').trim();
     const users = loadUsers();
-    const user = users.find(u => u.token === token);
-    if (!user) return res.status(401).json({ success: false, message: 'Sesión no válida' });
+    const user = getAuthenticatedUser(req, users);
+    if (!user) return res.status(401).json({ success: false, message: 'Inicia sesión para crear una comunidad.' });
 
-    const { name, description, category, icon, banner } = req.body;
+    const { name, description, genres, category, icon, iconType, banner, bannerType } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ success: false, message: 'El nombre de la comunidad es obligatorio.' });
     }
 
-    const communities = loadCommunities();
+    const selectedGenres = Array.isArray(genres) ? genres.slice(0, 2) : (category ? [category] : ['General']);
+
+    const defaultBannerPresets = [
+      'linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #db2777 100%)',
+      'linear-gradient(135deg, #059669 0%, #10b981 50%, #06b6d4 100%)',
+      'linear-gradient(135deg, #dc2626 0%, #ea580c 50%, #f59e0b 100%)',
+      'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%)',
+      'linear-gradient(135deg, #831843 0%, #be185d 50%, #f43f5e 100%)',
+      'linear-gradient(135deg, #1e3a8a 0%, #0284c7 50%, #06b6d4 100%)'
+    ];
+    const finalBanner = banner && banner.trim() 
+      ? banner.trim() 
+      : defaultBannerPresets[Math.floor(Math.random() * defaultBannerPresets.length)];
+
+    const defaultIcons = [
+      `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(name.trim())}`,
+      `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(name.trim())}`,
+      `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name.trim())}`
+    ];
+    const finalIcon = icon && icon.trim()
+      ? icon.trim()
+      : defaultIcons[Math.floor(Math.random() * defaultIcons.length)];
+
+    const commId = 'comm_' + Date.now() + '_' + crypto.randomBytes(3).toString('hex');
+
+    const isAdmin = isUserAdmin(user);
+    const initialStatus = isAdmin ? 'approved' : 'pending_approval';
+
     const newComm = {
-      id: 'comm_' + Date.now() + '_' + crypto.randomBytes(3).toString('hex'),
+      id: commId,
       name: name.trim().slice(0, 50),
-      description: (description || 'Una nueva comunidad de lectores en Yomori.').trim().slice(0, 200),
-      category: category || 'General',
-      icon: icon || '🌟',
-      banner: banner || 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
-      membersCount: 1,
-      members: [user.id],
+      description: (description || 'Comunidad de lectores en Yomori.').trim().slice(0, 250),
+      genres: selectedGenres,
+      category: selectedGenres[0] || 'General',
+      icon: finalIcon,
+      iconType: 'image',
+      banner: finalBanner,
+      bannerType: (finalBanner.startsWith('http') || finalBanner.startsWith('data:')) ? 'image' : 'gradient',
+      status: initialStatus,
       createdBy: user.username,
+      leaderId: user.id,
+      leaderUsername: user.username,
+      membersCount: 1,
+      members: [
+        {
+          userId: user.id,
+          username: user.username,
+          avatar: user.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(user.username)}`,
+          roleId: 'role_leader',
+          joinedAt: new Date().toISOString()
+        }
+      ],
+      roles: [
+        {
+          id: 'role_leader',
+          name: '👑 Líder',
+          color: '#f59e0b',
+          isProtected: true,
+          position: 1,
+          permissions: {
+            manage_community: true,
+            manage_roles: true,
+            kick_members: true,
+            delete_messages: true,
+            pin_messages: true
+          }
+        },
+        {
+          id: 'role_moderator',
+          name: '🛡️ Moderador',
+          color: '#3b82f6',
+          isProtected: false,
+          position: 2,
+          permissions: {
+            kick_members: true,
+            delete_messages: true,
+            pin_messages: true
+          }
+        },
+        {
+          id: 'role_vip',
+          name: '💎 Miembro VIP',
+          color: '#8b5cf6',
+          isProtected: false,
+          position: 3,
+          permissions: {
+            send_media: true
+          }
+        },
+        {
+          id: 'role_member',
+          name: '👥 Miembros',
+          color: '#9ca3af',
+          isProtected: true,
+          isDefault: true,
+          position: 4,
+          permissions: {
+            send_messages: true
+          }
+        }
+      ],
       createdAt: new Date().toISOString()
     };
 
+    const communities = loadCommunities();
     communities.unshift(newComm);
     saveCommunities(communities);
 
-    return res.json({ success: true, community: newComm });
+    return res.json({
+      success: true,
+      requiresApproval: !isAdmin,
+      message: isAdmin ? '¡Comunidad creada exitosamente!' : '¡Solicitud enviada para revisión por el Administrador!',
+      community: newComm
+    });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// 3. UNIRSE O SALIR DE UNA COMUNIDAD
+// 3. OBTENER SOLICITUDES PENDIENTES DE COMUNIDAD (Admin)
+export const getPendingCommunities = async (req, res) => {
+  try {
+    const users = loadUsers();
+    const user = getAuthenticatedUser(req, users);
+    if (!isUserAdmin(user)) {
+      return res.status(403).json({ success: false, message: 'Acceso restringido a Administradores' });
+    }
+
+    const communities = loadCommunities();
+    const pending = communities.filter(c => c.status === 'pending_approval');
+
+    return res.json({ success: true, pending });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// 4. APROBAR O RECHAZAR SOLICITUD DE COMUNIDAD (Admin)
+export const reviewCommunityRequest = async (req, res) => {
+  try {
+    const users = loadUsers();
+    const user = getAuthenticatedUser(req, users);
+    if (!isUserAdmin(user)) {
+      return res.status(403).json({ success: false, message: 'Acceso restringido a Administradores' });
+    }
+
+    const { communityId, action } = req.body; // action: 'approve' | 'reject'
+    const communities = loadCommunities();
+    const commIdx = communities.findIndex(c => c.id === communityId);
+
+    if (commIdx === -1) {
+      return res.status(404).json({ success: false, message: 'Comunidad no encontrada' });
+    }
+
+    if (action === 'approve') {
+      communities[commIdx].status = 'approved';
+      saveCommunities(communities);
+      return res.json({ success: true, message: 'Comunidad aprobada exitosamente', community: communities[commIdx] });
+    } else {
+      communities.splice(commIdx, 1);
+      saveCommunities(communities);
+      return res.json({ success: true, message: 'Solicitud de comunidad rechazada' });
+    }
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// 5. AJUSTES DE COMUNIDAD (Líder / Admin)
+export const updateCommunitySettings = async (req, res) => {
+  try {
+    const users = loadUsers();
+    const user = getAuthenticatedUser(req, users);
+    if (!user) return res.status(401).json({ success: false, message: 'No autenticado' });
+
+    const { communityId, name, description, genres, icon, iconType, banner, bannerType } = req.body;
+    const communities = loadCommunities();
+    const comm = communities.find(c => c.id === communityId);
+
+    if (!comm) return res.status(404).json({ success: false, message: 'Comunidad no encontrada' });
+
+    const isLeader = comm.leaderId === user.id || comm.createdBy === user.username;
+    const isAdmin = isUserAdmin(user);
+
+    if (!isLeader && !isAdmin) {
+      return res.status(403).json({ success: false, message: 'Solo el Líder de la comunidad o un Administrador puede modificar sus ajustes.' });
+    }
+
+    if (name && name.trim()) comm.name = name.trim().slice(0, 50);
+    if (description !== undefined) comm.description = description.trim().slice(0, 250);
+    if (Array.isArray(genres)) comm.genres = genres.slice(0, 2);
+    if (icon) comm.icon = icon;
+    if (iconType) comm.iconType = iconType;
+    if (banner) comm.banner = banner;
+    if (bannerType) comm.bannerType = bannerType;
+
+    saveCommunities(communities);
+    return res.json({ success: true, message: 'Ajustes guardados correctamente', community: comm });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// 6. GESTIÓN DE ROLES ESTILO DISCORD (Crear, Editar, Borrar, Reordenar)
+export const updateCommunityRoles = async (req, res) => {
+  try {
+    const users = loadUsers();
+    const user = getAuthenticatedUser(req, users);
+    if (!user) return res.status(401).json({ success: false, message: 'No autenticado' });
+
+    const { communityId, roles, action, roleData, roleId } = req.body;
+    const communities = loadCommunities();
+    const comm = communities.find(c => c.id === communityId);
+
+    if (!comm) return res.status(404).json({ success: false, message: 'Comunidad no encontrada' });
+
+    const isLeader = comm.leaderId === user.id || comm.createdBy === user.username;
+    const isAdmin = isUserAdmin(user);
+    if (!isLeader && !isAdmin) {
+      return res.status(403).json({ success: false, message: 'Permisos insuficientes para gestionar roles.' });
+    }
+
+    if (!Array.isArray(comm.roles) || comm.roles.length === 0) {
+      comm.roles = [
+        { id: 'role_leader', name: '👑 Líder', color: '#f59e0b', isProtected: true, position: 1, permissions: { admin: true, delete_messages: true, kick_members: true, manage_roles: true, pin_messages: true, edit_community: true, send_media: true } },
+        { id: 'role_mod', name: '🛡️ Moderador', color: '#3b82f6', isProtected: false, position: 2, permissions: { admin: false, delete_messages: true, kick_members: true, manage_roles: false, pin_messages: true, edit_community: false, send_media: true } },
+        { id: 'role_vip', name: '💎 Miembro VIP', color: '#8b5cf6', isProtected: false, position: 3, permissions: { admin: false, delete_messages: false, kick_members: false, manage_roles: false, pin_messages: false, edit_community: false, send_media: true } },
+        { id: 'role_member', name: '👥 Miembros', color: '#9ca3af', isProtected: true, position: 4, permissions: { admin: false, delete_messages: false, kick_members: false, manage_roles: false, pin_messages: false, edit_community: false, send_media: true } }
+      ];
+    }
+
+    if (Array.isArray(roles)) {
+      comm.roles = roles;
+    } else if (action === 'create' && roleData) {
+      const newRoleId = 'role_' + Date.now() + '_' + crypto.randomBytes(2).toString('hex');
+      const newRole = {
+        id: newRoleId,
+        name: roleData.name || 'Nuevo Rol',
+        color: roleData.color || '#3b82f6',
+        isProtected: false,
+        position: (comm.roles.length + 1),
+        permissions: roleData.permissions || { send_media: true }
+      };
+      comm.roles.push(newRole);
+    } else if (action === 'edit' && roleId && roleData) {
+      const r = comm.roles.find(x => x.id === roleId);
+      if (r) {
+        if (roleData.name) r.name = roleData.name.trim();
+        if (roleData.color) r.color = roleData.color;
+        if (roleData.permissions) r.permissions = roleData.permissions;
+      }
+    } else if (action === 'delete' && roleId) {
+      const r = comm.roles.find(x => x.id === roleId);
+      if (r && r.isProtected) {
+        return res.status(400).json({ success: false, message: 'Los roles predeterminados no se pueden eliminar.' });
+      }
+      comm.roles = comm.roles.filter(x => x.id !== roleId);
+      // Reasignar miembros que tenían este rol a @Miembros
+      if (Array.isArray(comm.members)) {
+        comm.members.forEach(m => {
+          if (m.roleId === roleId) m.roleId = 'role_member';
+        });
+      }
+    }
+
+    saveCommunities(communities);
+    return res.json({ success: true, roles: comm.roles, community: comm });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// 7. ASIGNAR ROL A MIEMBRO
+export const assignMemberRole = async (req, res) => {
+  try {
+    const users = loadUsers();
+    const user = getAuthenticatedUser(req, users);
+    if (!user) return res.status(401).json({ success: false, message: 'No autenticado' });
+
+    const { communityId, targetUserId, roleId } = req.body;
+    const communities = loadCommunities();
+    const comm = communities.find(c => c.id === communityId);
+
+    if (!comm) return res.status(404).json({ success: false, message: 'Comunidad no encontrada' });
+
+    const isLeader = comm.leaderId === user.id || comm.createdBy === user.username;
+    const isAdmin = isUserAdmin(user);
+    if (!isLeader && !isAdmin) {
+      return res.status(403).json({ success: false, message: 'Solo el Líder o un Administrador puede asignar roles.' });
+    }
+
+    if (!Array.isArray(comm.members)) comm.members = [];
+    const member = comm.members.find(m => (typeof m === 'string' ? m === targetUserId : m.userId === targetUserId));
+    if (!member) return res.status(404).json({ success: false, message: 'Miembro no encontrado en la comunidad.' });
+
+    if (typeof member === 'string') {
+      const idx = comm.members.indexOf(member);
+      comm.members[idx] = { userId: member, roleId: roleId || 'role_member' };
+    } else {
+      member.roleId = roleId || 'role_member';
+    }
+
+    saveCommunities(communities);
+    return res.json({ success: true, member, roles: comm.roles, community: comm });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// 8. EXPULSAR MIEMBRO (Kick)
+export const kickMember = async (req, res) => {
+  try {
+    const users = loadUsers();
+    const user = getAuthenticatedUser(req, users);
+    if (!user) return res.status(401).json({ success: false, message: 'No autenticado' });
+
+    const { communityId, targetUserId } = req.body;
+    const communities = loadCommunities();
+    const comm = communities.find(c => c.id === communityId);
+
+    if (!comm) return res.status(404).json({ success: false, message: 'Comunidad no encontrada' });
+
+    const isLeader = comm.leaderId === user.id || comm.createdBy === user.username;
+    const isAdmin = isUserAdmin(user);
+    if (!isLeader && !isAdmin) {
+      return res.status(403).json({ success: false, message: 'Permisos insuficientes para expulsar miembros.' });
+    }
+
+    if (targetUserId === comm.leaderId && !isAdmin) {
+      return res.status(400).json({ success: false, message: 'No se puede expulsar al Líder de la comunidad.' });
+    }
+
+    comm.members = (comm.members || []).filter(m => m.userId !== targetUserId);
+    comm.membersCount = Math.max(1, comm.members.length);
+    saveCommunities(communities);
+
+    return res.json({ success: true, message: 'Miembro expulsado correctamente' });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// 9. BORRAR COMUNIDAD (Solo Líder o Admin Global)
+export const deleteCommunity = async (req, res) => {
+  try {
+    const users = loadUsers();
+    const user = getAuthenticatedUser(req, users);
+    if (!user) return res.status(401).json({ success: false, message: 'No autenticado' });
+
+    const { communityId } = req.body;
+    const communities = loadCommunities();
+    const commIdx = communities.findIndex(c => c.id === communityId);
+
+    if (commIdx === -1) return res.status(404).json({ success: false, message: 'Comunidad no encontrada' });
+
+    const comm = communities[commIdx];
+    const isLeader = comm.leaderId === user.id || comm.createdBy === user.username;
+    const isAdmin = isUserAdmin(user);
+
+    if (!isLeader && !isAdmin) {
+      return res.status(403).json({ success: false, message: 'Solo el Líder o el Administrador puede borrar la comunidad.' });
+    }
+
+    communities.splice(commIdx, 1);
+    saveCommunities(communities);
+
+    return res.json({ success: true, message: 'Comunidad eliminada exitosamente' });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// 10. UNIRSE O SALIR DE UNA COMUNIDAD
 export const toggleJoinCommunity = async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).json({ success: false, message: 'No autenticado' });
-
-    const token = authHeader.replace('Bearer ', '').trim();
     const users = loadUsers();
-    const user = users.find(u => u.token === token);
-    if (!user) return res.status(401).json({ success: false, message: 'Sesión no válida' });
+    const user = getAuthenticatedUser(req, users);
+    if (!user) return res.status(401).json({ success: false, message: 'No autenticado' });
 
     const { communityId } = req.body;
     const communities = loadCommunities();
@@ -235,350 +552,268 @@ export const toggleJoinCommunity = async (req, res) => {
 
     if (!Array.isArray(comm.members)) comm.members = [];
 
-    const isMember = comm.members.includes(user.id);
+    const existingIdx = comm.members.findIndex(m => 
+      typeof m === 'string' 
+        ? (m === user.id || (user.username && m.toLowerCase() === user.username.toLowerCase()))
+        : (m.userId === user.id || (m.username && user.username && m.username.toLowerCase() === user.username.toLowerCase()))
+    );
+    const isMember = existingIdx !== -1;
+
     if (isMember) {
-      comm.members = comm.members.filter(id => id !== user.id);
-      comm.membersCount = Math.max(1, (comm.membersCount || 1) - 1);
+      comm.members.splice(existingIdx, 1);
+      comm.membersCount = Math.max(1, comm.members.length);
     } else {
-      comm.members.push(user.id);
-      comm.membersCount = (comm.membersCount || 0) + 1;
+      comm.members.push({
+        userId: user.id,
+        username: user.username,
+        avatar: user.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(user.username)}`,
+        roleId: 'role_member',
+        joinedAt: new Date().toISOString()
+      });
+      comm.membersCount = comm.members.length;
     }
 
     saveCommunities(communities);
-    return res.json({ success: true, isMember: !isMember, membersCount: comm.membersCount });
+    return res.json({ success: true, isMember: !isMember, membersCount: comm.membersCount, community: comm });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// 4. AÑADIR O ELIMINAR AMIGO DIRECTAMENTE
+// 11. AMIGOS Y DMs
 export const toggleFriend = async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).json({ success: false, message: 'No autenticado' });
-
-    const token = authHeader.replace('Bearer ', '').trim();
     const users = loadUsers();
-    const me = getAuthenticatedUser(req, users);
-    if (!me) return res.status(401).json({ success: false, message: 'Debes iniciar sesión para realizar esta acción.' });
+    const user = getAuthenticatedUser(req, users);
+    if (!user) return res.status(401).json({ success: false, message: 'No autenticado' });
 
     const { targetUserId } = req.body;
-    if (!targetUserId || targetUserId === me.id) {
-      return res.status(400).json({ success: false, message: 'ID de usuario no válido' });
+    if (!targetUserId || targetUserId === user.id) {
+      return res.status(400).json({ success: false, message: 'Usuario destino inválido' });
     }
 
-    const targetUser = users.find(u => u.id === targetUserId || u.username.toLowerCase() === targetUserId.toLowerCase());
-    if (!targetUser) return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+    const friends = loadFriends();
+    if (!friends[user.id]) friends[user.id] = [];
+    if (!friends[targetUserId]) friends[targetUserId] = [];
 
-    const allFriends = loadFriends();
-    if (!Array.isArray(allFriends[me.id])) allFriends[me.id] = [];
-    if (!Array.isArray(allFriends[targetUser.id])) allFriends[targetUser.id] = [];
-
-    const isFriend = allFriends[me.id].includes(targetUser.id);
+    const isFriend = friends[user.id].includes(targetUserId);
     if (isFriend) {
-      allFriends[me.id] = allFriends[me.id].filter(id => id !== targetUser.id);
-      allFriends[targetUser.id] = allFriends[targetUser.id].filter(id => id !== me.id);
+      friends[user.id] = friends[user.id].filter(id => id !== targetUserId);
+      friends[targetUserId] = friends[targetUserId].filter(id => id !== user.id);
     } else {
-      allFriends[me.id].push(targetUser.id);
-      if (!allFriends[targetUser.id].includes(me.id)) {
-        allFriends[targetUser.id].push(me.id);
-      }
+      friends[user.id].push(targetUserId);
+      friends[targetUserId].push(user.id);
     }
 
-    saveFriends(allFriends);
-
-    return res.json({
-      success: true,
-      isFriend: !isFriend,
-      targetUser: {
-        id: targetUser.id,
-        username: targetUser.username,
-        avatar: targetUser.avatar,
-        banner: targetUser.banner,
-        badge: targetUser.badge
-      }
-    });
+    saveFriends(friends);
+    return res.json({ success: true, isFriend: !isFriend });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// 5. ENVIAR SOLICITUD DE AMISTAD
 export const sendFriendRequest = async (req, res) => {
   try {
     const users = loadUsers();
-    const me = getAuthenticatedUser(req, users);
-    if (!me) return res.status(401).json({ success: false, message: 'Debes iniciar sesión para realizar esta acción.' });
+    const user = getAuthenticatedUser(req, users);
+    if (!user) return res.status(401).json({ success: false, message: 'No autenticado' });
 
-    const { username, targetUsername, targetUserId } = req.body;
-    const searchVal = (username || targetUsername || '').trim().replace(/^@/, '');
-
-    let targetUser = null;
-    if (targetUserId) {
-      targetUser = users.find(u => u.id === targetUserId);
-    }
-    if (!targetUser && searchVal) {
-      const normSearch = searchVal.toLowerCase().replace(/[@_\s-]/g, '');
-      targetUser = users.find(u => {
-        const normU = (u.username || '').toLowerCase().replace(/[@_\s-]/g, '');
-        return u.username.toLowerCase() === searchVal.toLowerCase() ||
-               normU === normSearch ||
-               (normSearch.length >= 3 && (normU.includes(normSearch) || normSearch.includes(normU)));
-      });
-    }
-
-    if (!targetUser) {
-      return res.status(404).json({ success: false, message: `No se encontró ningún usuario con el nombre "@${searchVal || targetUserId}".` });
-    }
-
-    if (targetUser.id === me.id) {
-      return res.status(400).json({ success: false, message: 'No puedes enviarte una solicitud a ti mismo.' });
-    }
-
-    const allFriends = loadFriends();
-    if (allFriends[me.id]?.includes(targetUser.id)) {
-      return res.status(400).json({ success: false, message: `Ya eres amigo de @${targetUser.username}.` });
-    }
-
+    const { targetUserId } = req.body;
     const requests = loadFriendRequests();
+
     const existing = requests.find(r => 
-      ((r.fromUserId === me.id && r.toUserId === targetUser.id) || (r.fromUserId === targetUser.id && r.toUserId === me.id) ||
-       (r.fromUsername?.toLowerCase() === me.username?.toLowerCase() && r.toUsername?.toLowerCase() === targetUser.username?.toLowerCase())) &&
-      r.status === 'pending'
+      (r.fromUserId === user.id && r.toUserId === targetUserId) ||
+      (r.fromUserId === targetUserId && r.toUserId === user.id)
     );
 
     if (existing) {
-      if (existing.fromUserId === targetUser.id || existing.fromUsername?.toLowerCase() === targetUser.username?.toLowerCase()) {
-        // Aceptación automática si la otra persona ya te había enviado solicitud
-        existing.status = 'accepted';
-        saveFriendRequests(requests);
-
-        if (!Array.isArray(allFriends[me.id])) allFriends[me.id] = [];
-        if (!Array.isArray(allFriends[targetUser.id])) allFriends[targetUser.id] = [];
-        if (!allFriends[me.id].includes(targetUser.id)) allFriends[me.id].push(targetUser.id);
-        if (!allFriends[targetUser.id].includes(me.id)) allFriends[targetUser.id].push(me.id);
-        saveFriends(allFriends);
-
-        return res.json({ success: true, message: `¡Genial! Ahora tú y @${targetUser.username} son amigos.`, status: 'accepted', targetUser });
-      }
-      return res.status(400).json({ success: false, message: 'Ya tienes una solicitud de amistad pendiente con este usuario.' });
+      return res.json({ success: true, message: 'Solicitud ya enviada o pendiente', request: existing });
     }
 
-    const newRequest = {
-      id: 'req_' + Date.now() + '_' + crypto.randomBytes(3).toString('hex'),
-      fromUserId: me.id,
-      fromUsername: me.username,
-      fromAvatar: me.avatar,
-      toUserId: targetUser.id,
-      toUsername: targetUser.username,
-      toAvatar: targetUser.avatar,
+    const newReq = {
+      id: 'req_' + Date.now() + '_' + crypto.randomBytes(2).toString('hex'),
+      fromUserId: user.id,
+      fromUsername: user.username,
+      fromAvatar: user.avatar,
+      toUserId: targetUserId,
       status: 'pending',
       createdAt: new Date().toISOString()
     };
 
-    requests.unshift(newRequest);
+    requests.push(newReq);
     saveFriendRequests(requests);
 
-    return res.json({ 
-      success: true, 
-      message: `Solicitud de amistad enviada a @${targetUser.username}.`, 
-      request: newRequest,
-      targetUser: {
-        id: targetUser.id,
-        username: targetUser.username,
-        avatar: targetUser.avatar
-      }
-    });
+    return res.json({ success: true, request: newReq });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// 6. RESPONDER A UNA SOLICITUD DE AMISTAD (ACEPTAR / RECHAZAR)
 export const respondFriendRequest = async (req, res) => {
   try {
     const users = loadUsers();
-    const me = getAuthenticatedUser(req, users);
-    if (!me) return res.status(401).json({ success: false, message: 'Debes iniciar sesión para realizar esta acción.' });
+    const user = getAuthenticatedUser(req, users);
+    if (!user) return res.status(401).json({ success: false, message: 'No autenticado' });
 
-    const { requestId, action, fromUserId } = req.body; // action: 'accept' | 'reject'
+    const { requestId, action } = req.body; // 'accept' | 'reject'
     const requests = loadFriendRequests();
-    let reqIndex = requests.findIndex(r => r.id === requestId);
+    const reqIdx = requests.findIndex(r => r.id === requestId);
 
-    if (reqIndex === -1 && fromUserId) {
-      reqIndex = requests.findIndex(r => 
-        ((r.toUserId === me.id && r.fromUserId === fromUserId) || 
-         (r.fromUserId === me.id && r.toUserId === fromUserId) ||
-         (r.toUsername?.toLowerCase() === me.username?.toLowerCase() && r.fromUserId === fromUserId)) &&
-        r.status === 'pending'
-      );
+    if (reqIdx === -1) {
+      return res.status(404).json({ success: false, message: 'Solicitud no encontrada' });
     }
 
-    if (reqIndex === -1) {
-      return res.status(404).json({ success: false, message: 'Solicitud no encontrada.' });
-    }
-
-    const request = requests[reqIndex];
-    const otherUserId = request.fromUserId === me.id ? request.toUserId : request.fromUserId;
-
+    const friendReq = requests[reqIdx];
     if (action === 'accept') {
-      request.status = 'accepted';
-      const allFriends = loadFriends();
-      if (!Array.isArray(allFriends[me.id])) allFriends[me.id] = [];
-      if (!Array.isArray(allFriends[otherUserId])) allFriends[otherUserId] = [];
+      const friends = loadFriends();
+      if (!friends[friendReq.fromUserId]) friends[friendReq.fromUserId] = [];
+      if (!friends[friendReq.toUserId]) friends[friendReq.toUserId] = [];
 
-      if (!allFriends[me.id].includes(otherUserId)) allFriends[me.id].push(otherUserId);
-      if (!allFriends[otherUserId].includes(me.id)) allFriends[otherUserId].push(me.id);
-      saveFriends(allFriends);
+      if (!friends[friendReq.fromUserId].includes(friendReq.toUserId)) friends[friendReq.fromUserId].push(friendReq.toUserId);
+      if (!friends[friendReq.toUserId].includes(friendReq.fromUserId)) friends[friendReq.toUserId].push(friendReq.fromUserId);
+
+      saveFriends(friends);
+      requests.splice(reqIdx, 1);
+      saveFriendRequests(requests);
+
+      return res.json({ success: true, message: 'Solicitud aceptada' });
     } else {
-      request.status = 'rejected';
+      requests.splice(reqIdx, 1);
+      saveFriendRequests(requests);
+      return res.json({ success: true, message: 'Solicitud rechazada' });
     }
-
-    saveFriendRequests(requests);
-    return res.json({ 
-      success: true, 
-      action, 
-      message: action === 'accept' ? 'Solicitud aceptada' : 'Solicitud rechazada',
-      request,
-      otherUserId
-    });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// 7. ACTUALIZAR ACTIVIDAD DE LECTURA EN TIEMPO REAL ("Activo ahora")
 export const updateReadingActivity = async (req, res) => {
   try {
     const users = loadUsers();
-    const me = getAuthenticatedUser(req, users);
-    if (!me) return res.status(401).json({ success: false, message: 'Debes iniciar sesión para realizar esta acción.' });
+    const user = getAuthenticatedUser(req, users);
+    if (!user) return res.status(401).json({ success: false, message: 'No autenticado' });
 
-    const { mangaTitle, chapterTitle, cover, url, extensionId, page, totalPages, isReading } = req.body;
+    const { mangaTitle, chapterTitle, cover, url } = req.body;
     const activities = loadReadingActivities();
 
-    if (isReading === false || !mangaTitle) {
-      delete activities[me.id];
-    } else {
-      activities[me.id] = {
-        userId: me.id,
-        username: me.username,
-        avatar: me.avatar,
-        mangaTitle,
-        chapterTitle: chapterTitle || 'Capítulo actual',
-        cover: cover || '',
-        url: url || '',
-        extensionId: extensionId || '',
-        page: page || 1,
-        totalPages: totalPages || 1,
-        startedAt: activities[me.id]?.startedAt || Date.now(),
-        updatedAt: Date.now()
-      };
-    }
+    activities[user.id] = {
+      userId: user.id,
+      username: user.username,
+      avatar: user.avatar,
+      mangaTitle: mangaTitle || '',
+      chapterTitle: chapterTitle || '',
+      cover: cover || '',
+      url: url || '',
+      updatedAt: Date.now()
+    };
 
     saveReadingActivities(activities);
-    return res.json({ success: true, activity: activities[me.id] || null });
+    return res.json({ success: true, activity: activities[user.id] });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// 8. OBTENER LISTA DE AMIGOS, DMs, SOLICITUDES Y ACTIVIDADES EN VIVO
 export const getFriendsAndDMs = async (req, res) => {
   try {
     const users = loadUsers();
-    const me = getAuthenticatedUser(req, users);
-    if (!me) return res.status(401).json({ success: false, message: 'Sesión no válida' });
+    const user = getAuthenticatedUser(req, users);
+    if (!user) return res.status(401).json({ success: false, message: 'No autenticado' });
 
-    const allFriends = loadFriends();
-    const myFriendIds = allFriends[me.id] || [];
+    const friendsMap = loadFriends();
+    const friendIds = friendsMap[user.id] || [];
     const activities = loadReadingActivities();
-
-    // 1. Amigos confirmados con su actividad en vivo
-    const friends = users
-      .filter(u => myFriendIds.includes(u.id))
-      .map(u => {
-        const act = activities[u.id];
-        // Verificar si la actividad es reciente (últimos 45 minutos)
-        const isRecent = act && (Date.now() - act.updatedAt < 45 * 60 * 1000);
-        return {
-          id: u.id,
-          username: u.username,
-          avatar: u.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(u.username)}`,
-          banner: u.banner || 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
-          bio: u.bio || 'Leyendo en Yomori',
-          badge: u.badge || 'Lector',
-          online: true,
-          readingActivity: (isRecent && u.shareReadingActivity !== false) ? act : null
-        };
-      });
-
-    // 2. Solicitudes de amistad (Recibidas y Enviadas)
     const allRequests = loadFriendRequests();
-    const pendingIncoming = allRequests.filter(r => r.toUserId === me.id && r.status === 'pending');
-    const pendingOutgoing = allRequests.filter(r => r.fromUserId === me.id && r.status === 'pending');
+    const allChats = loadChats();
 
-    // 3. Conversaciones directas y Solicitudes de mensajes (DMs de no-amigos)
-    const chats = loadChats();
-    const dmRooms = Object.keys(chats).filter(roomId => roomId.startsWith('dm:') && roomId.includes(me.id));
-    
-    const conversations = [];
-    const messageRequests = [];
-    const sortedUsers = [...users].sort((a, b) => b.id.length - a.id.length);
+    const pendingRequests = allRequests.filter(r => r.toUserId === user.id && r.status === 'pending');
+    const sentRequests = allRequests.filter(r => r.fromUserId === user.id && r.status === 'pending');
 
-    dmRooms.forEach(roomId => {
-      const raw = roomId.replace(/^dm:/, '');
-      let otherUser = sortedUsers.find(u => u.id !== me.id && raw.includes(u.id));
-      if (!otherUser) {
-        const otherId = raw.replace(me.id, '').replace(/^_+|_+$/g, '');
-        otherUser = users.find(u => u.id === otherId) || {
-          id: otherId,
-          username: otherId.startsWith('usr_') ? otherId.slice(4) : otherId,
-          avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(otherId || 'User')}`,
-          badge: 'Lector'
-        };
-      }
-
-      const roomMessages = chats[roomId] || [];
-      const lastMessage = roomMessages[roomMessages.length - 1] || null;
-      const isFriend = myFriendIds.includes(otherUser.id);
-
-      const convObj = {
-        roomId,
-        user: otherUser,
-        lastMessage,
-        isFriend,
-        unreadCount: 0
+    const friendsList = friendIds.map(fid => {
+      const fUser = users.find(u => u.id === fid || u.username === fid);
+      const act = activities[fid] || (fUser ? activities[fUser.id] : null);
+      return {
+        id: fid,
+        username: fUser?.username || fid,
+        avatar: fUser?.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(fUser?.username || fid)}`,
+        badge: fUser?.badge || fUser?.rank || '🌱 Lector Novato',
+        activity: act && (Date.now() - act.updatedAt < 600000) ? act : null
       };
+    });
 
-      conversations.push(convObj);
+    // Construir lista de conversaciones activas y amigos
+    const conversationMap = new Map();
 
-      // Si no son amigos y el último mensaje lo envió la otra persona, cuenta como solicitud de mensaje
-      if (!isFriend && lastMessage && lastMessage.userId !== me.id) {
-        messageRequests.push(convObj);
+    // 1. Añadir amigos primero para que aparezcan inmediatamente en la lista de conversaciones
+    friendsList.forEach(fr => {
+      const dmId = `dm:${[user.id, fr.id].sort().join('_')}`;
+      const dmIdByUsername = `dm:${[user.username, fr.username].sort().join('_')}`;
+      const roomMsgs = allChats[dmId] || allChats[dmIdByUsername] || [];
+      const lastMsg = roomMsgs.length > 0 ? roomMsgs[roomMsgs.length - 1] : null;
+      conversationMap.set(fr.id, {
+        roomId: dmId,
+        user: {
+          id: fr.id,
+          username: fr.username,
+          avatar: fr.avatar,
+          badge: fr.badge,
+          activity: fr.activity
+        },
+        lastMessage: lastMsg,
+        isFriend: true
+      });
+    });
+
+    // 2. Buscar cualquier otro DM en allChats donde participe user.id o user.username
+    Object.keys(allChats).forEach(roomId => {
+      if (roomId.startsWith('dm:')) {
+        const parts = roomId.replace('dm:', '').split('_');
+        if (parts.includes(user.id) || (user.username && parts.includes(user.username))) {
+          const otherKey = parts.find(p => p !== user.id && p !== user.username);
+          if (otherKey && !conversationMap.has(otherKey)) {
+            const otherUser = users.find(u => u.id === otherKey || u.username === otherKey);
+            const otherId = otherUser?.id || otherKey;
+            if (!conversationMap.has(otherId)) {
+              const roomMsgs = allChats[roomId] || [];
+              const lastMsg = roomMsgs.length > 0 ? roomMsgs[roomMsgs.length - 1] : null;
+              conversationMap.set(otherId, {
+                roomId,
+                user: {
+                  id: otherId,
+                  username: otherUser?.username || otherKey,
+                  avatar: otherUser?.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(otherUser?.username || otherKey)}`,
+                  badge: otherUser?.badge || otherUser?.rank || '🌱 Lector Novato',
+                  activity: activities[otherId] || null
+                },
+                lastMessage: lastMsg,
+                isFriend: friendIds.includes(otherId)
+              });
+            }
+          }
+        }
       }
     });
 
-    // 4. Actividades en vivo de amigos para el panel "Activo ahora"
-    const activeReadingFriends = friends
-      .filter(f => f.readingActivity)
-      .map(f => ({
-        user: {
-          id: f.id,
-          username: f.username,
-          avatar: f.avatar
-        },
-        activity: f.readingActivity
-      }));
+    const conversations = Array.from(conversationMap.values()).sort((a, b) => {
+      const timeA = a.lastMessage ? new Date(a.lastMessage.createdAt || a.lastMessage.timestamp || 0).getTime() : 0;
+      const timeB = b.lastMessage ? new Date(b.lastMessage.createdAt || b.lastMessage.timestamp || 0).getTime() : 0;
+      if (timeB !== timeA) return timeB - timeA;
+      return (a.user?.username || '').localeCompare(b.user?.username || '');
+    });
+
+    const activeReadingFriends = Object.values(activities)
+      .filter(a => a.userId !== user.id && (Date.now() - a.updatedAt < 600000))
+      .map(a => ({ user: { id: a.userId, username: a.username, avatar: a.avatar }, activity: a }));
 
     return res.json({
       success: true,
-      friends,
+      friends: friendsList,
       pendingRequests: {
-        incoming: pendingIncoming,
-        outgoing: pendingOutgoing
+        incoming: pendingRequests,
+        outgoing: sentRequests
       },
-      messageRequests,
+      sentRequests,
+      messageRequests: [],
       activeReadingFriends,
       conversations
     });

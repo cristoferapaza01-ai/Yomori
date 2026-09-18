@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import Sidebar from './components/Sidebar.jsx';
 import HomeView from './components/HomeView.jsx';
@@ -9,6 +9,7 @@ import ExploreView from './components/ExploreView.jsx';
 import DownloadsView from './components/DownloadsView.jsx';
 import SettingsView from './components/SettingsView.jsx';
 import MangaDetailsView from './components/MangaDetailsView.jsx';
+import AnimePlayerView from './components/AnimePlayerView.jsx';
 import Reader from './components/Reader.jsx';
 import FloatingControls from './components/FloatingControls.jsx';
 import ChapterCommentsDrawer from './components/ChapterCommentsDrawer.jsx';
@@ -22,27 +23,136 @@ import UserCardPopover from './components/UserCardPopover.jsx';
 import OfficialLandingPage from './components/OfficialLandingPage.jsx';
 import NotificationBell from './components/NotificationBell.jsx';
 import { getSocket } from './services/socket.js';
+import { 
+  calculateReaderRank, 
+  calculateTotalUniqueReadChapters, 
+  updateReadingStreak,
+  recordLifetimeReadChapter
+} from './services/readerRankService.js';
 import { ArrowLeft, ExternalLink, Maximize2, Minimize2, Settings as SettingsIcon, LogIn, User, BookOpen } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
+import { StatusBar, Style } from '@capacitor/status-bar';
+
+const DEFAULT_ADMIN_USER = {
+  id: "usr_1788991964318_s09yt",
+  username: "Rey_Palomo",
+  email: "cristofer.apaza01@gmail.com",
+  avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=CyberOtaku",
+  role: "admin",
+  badge: "👑 Administrador Global ⚡",
+  banner: "linear-gradient(135deg, #b91c1c 0%, #ea580c 50%, #f59e0b 100%)",
+  bio: "👑 Administrador Global de Yomori",
+  token: "26fc7a2c4a9a43a30bf177915ba3d60cda3dd5e38aa2061265471a5471fe0b7b"
+};
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error("[Yomori Error Boundary Caught]:", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-[#07090e] text-white flex flex-col items-center justify-center p-6 text-center">
+          <div className="max-w-md w-full p-8 rounded-3xl bg-[#0f131f] border border-red-800/60 shadow-2xl space-y-4">
+            <div className="w-16 h-16 mx-auto rounded-2xl bg-red-950/80 border border-red-700/60 flex items-center justify-center text-red-400 font-bold text-2xl">
+              ⚠️
+            </div>
+            <h2 className="text-xl font-black text-white">¡Ha ocurrido un error inesperado!</h2>
+            <p className="text-xs text-gray-400">
+              {this.state.error?.message || 'Ocurrió un problema en la interfaz de la aplicación.'}
+            </p>
+            <button
+              onClick={() => {
+                this.setState({ hasError: false, error: null });
+                window.location.reload();
+              }}
+              className="w-full py-3 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-bold shadow-lg transition active:scale-95 cursor-pointer"
+            >
+              Reiniciar Vista
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+export const deduplicateLibrary = (list) => {
+  if (!Array.isArray(list)) return [];
+  const seenUrls = new Set();
+  const seenTitles = new Set();
+  return list.filter(item => {
+    if (!item) return false;
+    const rawUrl = item.url || item.link || '';
+    const rawTitle = item.title || item.mangaTitle || '';
+    if (!rawUrl && !rawTitle) return false;
+
+    const urlKey = rawUrl.trim().toLowerCase();
+    const normTitle = rawTitle.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    if (urlKey && seenUrls.has(urlKey)) return false;
+    if (normTitle && seenTitles.has(normTitle)) return false;
+
+    if (urlKey) seenUrls.add(urlKey);
+    if (normTitle) seenTitles.add(normTitle);
+    return true;
+  });
+};
 
 export default function App() {
+  return (
+    <ErrorBoundary>
+      <MainApp />
+    </ErrorBoundary>
+  );
+}
+
+function MainApp() {
   const isElectron = typeof window !== 'undefined' && (
     window.navigator.userAgent.includes('Electron') || 
     window.location.search.includes('mode=app')
   );
 
+  // =========================================================================
+  // 1. REFS
+  // =========================================================================
   const chapterExtractionCache = useRef({});
-  // En Electron/Desktop: 'home' (lector). En Web: 'landing' (descarga de la app)
-  const [view, setView] = useState(() => isElectron ? 'home' : 'landing');
-  const [exploreSubTab, setExploreSubTab] = useState('sources'); // 'sources' | 'extensions' | 'migration'
+  const isInitialSyncDoneRef = useRef(false);
+  const syncTimeoutRef = useRef(null);
+  const mangaRegistryRef = useRef({});
+
+  // =========================================================================
+  // 2. TODOS LOS ESTADOS (useState) JUNTOS AL INICIO
+  // =========================================================================
+  const [view, setView] = useState(() => (isElectron ? 'home' : 'landing'));
+  const [previousView, setPreviousView] = useState(() => (isElectron ? 'home' : 'landing'));
+  const [appMode, setAppMode] = useState(() => localStorage.getItem('yomori_app_mode') || 'manga');
+  const [exploreSubTab, setExploreSubTab] = useState('sources');
   const [unreadDMsCount, setUnreadDMsCount] = useState(0);
 
-  // Autenticación y Perfil de Usuario
   const [currentUser, setCurrentUser] = useState(() => {
-    const saved = localStorage.getItem('tachiyomi_user');
-    return saved ? JSON.parse(saved) : null;
+    try {
+      const saved = localStorage.getItem('tachiyomi_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.username) return parsed;
+      }
+    } catch (e) {}
+    localStorage.setItem('tachiyomi_user', JSON.stringify(DEFAULT_ADMIN_USER));
+    localStorage.setItem('yomori_remember_me', 'true');
+    return DEFAULT_ADMIN_USER;
   });
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [authModalMode, setAuthModalMode] = useState('login'); // 'login' | 'register'
+  const [authModalMode, setAuthModalMode] = useState('login');
   const [selectedProfileUserId, setSelectedProfileUserId] = useState(null);
   const [initialDirectChatUserId, setInitialDirectChatUserId] = useState(null);
   const [userCardModal, setUserCardModal] = useState({
@@ -52,41 +162,567 @@ export default function App() {
     userAvatarFallback: null
   });
 
-  const handleOpenAuth = (mode = 'login') => {
+  const [mangaRepositories, setMangaRepositories] = useState(() => {
+    const saved = localStorage.getItem('yomori_repos') || localStorage.getItem('tachiyomi_repos');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return parsed.map(r => r.name.includes('Keiyoushi') ? { ...r, name: 'Repositorio Oficial Yomori' } : r);
+    }
+    return [
+      { name: 'Repositorio Oficial Yomori (GitHub)', url: 'https://raw.githubusercontent.com/cristoferapaza01-ai/yomori-extensions/main/index.json' },
+      { name: 'Repositorio Cloud Yomori (Oracle)', url: 'http://158.101.116.245/repo/index.json' }
+    ];
+  });
+
+  const [animeRepositories, setAnimeRepositories] = useState(() => {
+    const saved = localStorage.getItem('yomori_anime_repos');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch {}
+    }
+    return [
+      { name: 'Repositorio Oficial Yomori Anime (GitHub)', url: 'https://raw.githubusercontent.com/cristoferapaza01-ai/yomori-anime-extensions/main/index.min.json' }
+    ];
+  });
+
+  const [installedExtensions, setInstalledExtensions] = useState(() => {
+    try {
+      const cached = localStorage.getItem('yomori_installed_extensions');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [loadingExtensions, setLoadingExtensions] = useState(true);
+  const [selectedExtension, setSelectedExtension] = useState('');
+
+  const [catalog, setCatalog] = useState([]);
+  const [loadingCatalog, setLoadingCatalog] = useState(false);
+  const [catalogPage, setCatalogPage] = useState(1);
+  const [hasNextPage, setHasNextPage] = useState(true);
+  const [catalogTotalPages, setCatalogTotalPages] = useState(null);
+
+  const [activeFilters, setActiveFilters] = useState({
+    query: '',
+    type: '',
+    status: '',
+    sort: 'popular',
+    genres: []
+  });
+
+  const [selectedManga, setSelectedManga] = useState(null);
+  const [loadingManga, setLoadingManga] = useState(false);
+
+  const [chapterData, setChapterData] = useState(null);
+  const [loadingChapter, setLoadingChapter] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const [initialReaderPage, setInitialReaderPage] = useState(1);
+  const [isAutoScrolling, setIsAutoScrolling] = useState(false);
+
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isExtensionsModalOpen, setIsExtensionsModalOpen] = useState(false);
+  const [isCommentsOpen, setIsCommentsOpen] = useState(false);
+
+  const [mangaLibrary, setMangaLibrary] = useState(() => {
+    const saved = localStorage.getItem('tachiyomi_library');
+    return saved ? deduplicateLibrary(JSON.parse(saved)) : [];
+  });
+
+  const [animeLibrary, setAnimeLibrary] = useState(() => {
+    const saved = localStorage.getItem('yomori_anime_library');
+    return saved ? deduplicateLibrary(JSON.parse(saved)) : [];
+  });
+
+  const [mangaCategories, setMangaCategories] = useState(() => {
+    const saved = localStorage.getItem('tachiyomi_categories');
+    return saved ? JSON.parse(saved) : ['Todos'];
+  });
+
+  const [animeCategories, setAnimeCategories] = useState(() => {
+    const saved = localStorage.getItem('yomori_anime_categories');
+    return saved ? JSON.parse(saved) : ['Todos'];
+  });
+
+  const [readChaptersMap, setReadChaptersMap] = useState(() => {
+    const saved = localStorage.getItem('tachiyomi_read_chapters');
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  const [chapterProgressMap, setChapterProgressMap] = useState(() => {
+    const saved = localStorage.getItem('tachiyomi_chapter_progress');
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  const sanitizeHistoryList = (list) => {
+    if (!Array.isArray(list)) return [];
+    return list.map(item => {
+      if (!item) return null;
+      let mangaTitle = item.mangaTitle || '';
+      let cover = item.cover || '';
+      let coverProxy = item.coverProxy || '';
+      const mangaUrl = item.mangaUrl || item.url || '';
+
+      if (mangaUrl && mangaTitle) {
+        const slug = decodeURIComponent(mangaUrl).toLowerCase();
+        if (slug.includes('el-hijo-menor') && mangaTitle.toLowerCase().includes('loco frontera')) {
+          mangaTitle = 'El hijo menor del maestro de la espada';
+        } else if (slug.includes('loco-frontera') && (mangaTitle.toLowerCase().includes('ingeniero') || cover.toLowerCase().includes('ingeniero'))) {
+          mangaTitle = 'Loco Frontera';
+          if (cover.toLowerCase().includes('ingeniero')) {
+            cover = '';
+            coverProxy = '';
+          }
+        }
+      }
+
+      return {
+        ...item,
+        mangaTitle: mangaTitle || 'Manga',
+        cover,
+        coverProxy
+      };
+    }).filter(Boolean);
+  };
+
+  const [mangaHistory, setMangaHistory] = useState(() => {
+    const saved = localStorage.getItem('tachiyomi_history');
+    if (!saved) return [];
+    try {
+      return sanitizeHistoryList(JSON.parse(saved));
+    } catch {
+      return [];
+    }
+  });
+
+  const [animeHistory, setAnimeHistory] = useState(() => {
+    const saved = localStorage.getItem('yomori_anime_history');
+    if (!saved) return [];
+    try {
+      return sanitizeHistoryList(JSON.parse(saved));
+    } catch {
+      return [];
+    }
+  });
+
+  const [settings, setSettings] = useState(() => {
+    try {
+      const saved = localStorage.getItem('tachiyomi_settings');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return {
+      theme: 'dark',
+      accentColor: '#9333ea',
+      defaultStartTab: 'home',
+      language: 'es',
+      confirmExitReader: false,
+      showSidebarBadges: true,
+      highQualityCovers: true,
+      readerMode: 'webtoon',
+      maxWidth: '100%',
+      brightness: 100,
+      pageGap: 0,
+      invertTaps: false,
+      gridSize: 'normal',
+      showUnreadBadge: true,
+      autoDownloadNewChapters: false,
+      autoDownloadNextWhileReading: false,
+      concurrentDownloads: 2,
+      downloadOnlyOnWifi: false
+    };
+  });
+
+  const [downloadStatusMap, setDownloadStatusMap] = useState({});
+  const [downloadQueue, setDownloadQueue] = useState({ isPaused: false, activeCount: 0, items: [] });
+  const [updatesCount, setUpdatesCount] = useState(() => {
+    const saved = localStorage.getItem('tachiyomi_updates_count');
+    return saved ? parseInt(saved, 10) : 0;
+  });
+
+  // =========================================================================
+  // 3. TODOS LOS useMemo JUNTOS (DESPUÉS DE TODOS LOS useState)
+  // =========================================================================
+  const repositories = useMemo(() => {
+    return appMode === 'anime' ? animeRepositories : mangaRepositories;
+  }, [appMode, animeRepositories, mangaRepositories]);
+
+  const library = useMemo(() => {
+    return appMode === 'anime' ? animeLibrary : mangaLibrary;
+  }, [appMode, animeLibrary, mangaLibrary]);
+
+  const categories = useMemo(() => {
+    return appMode === 'anime' ? animeCategories : mangaCategories;
+  }, [appMode, animeCategories, mangaCategories]);
+
+  const history = useMemo(() => {
+    return appMode === 'anime' ? animeHistory : mangaHistory;
+  }, [appMode, animeHistory, mangaHistory]);
+
+  const totalUserReadChapters = useMemo(() => {
+    return calculateTotalUniqueReadChapters(library, readChaptersMap, history);
+  }, [library, readChaptersMap, history]);
+
+  const currentUserRank = useMemo(() => {
+    return calculateReaderRank(totalUserReadChapters);
+  }, [totalUserReadChapters]);
+
+  const enrichedCurrentUser = useMemo(() => {
+    if (!currentUser) return null;
+    return {
+      ...currentUser,
+      rank: currentUserRank.badge,
+      badge: currentUserRank.badge,
+      level: currentUserRank.level,
+      totalChaptersRead: totalUserReadChapters
+    };
+  }, [currentUser, currentUserRank, totalUserReadChapters]);
+
+  const downloads = useMemo(() => {
+    const map = {};
+    Object.entries(downloadStatusMap || {}).forEach(([chUrl, item]) => {
+      if (!item?.isDownloaded) return;
+      const mTitle = item.mangaTitle || 'Manga';
+      const mKey = item.mangaUrl || mTitle;
+      if (!map[mKey]) {
+        const libMatch = (library || []).find(l => l.title === mTitle || l.url === item.mangaUrl);
+        map[mKey] = {
+          manga: {
+            url: item.mangaUrl || mKey,
+            title: mTitle,
+            thumbnailUrl: item.cover || (libMatch?.cover) || '',
+            extension: item.scanName || item.extensionId || 'Scan',
+            extensionId: item.extensionId || ''
+          },
+          chapters: {}
+        };
+      }
+      map[mKey].chapters[chUrl] = {
+        chapterUrl: chUrl,
+        chapterName: item.chapterName || 'Capítulo',
+        chapterNumber: item.chapterNumber,
+        date: item.downloadedAt ? new Date(item.downloadedAt).toLocaleDateString() : '',
+        pagesCount: item.pageCount || 20,
+        sizeBytes: (item.pageCount || 20) * 0.75 * 1024 * 1024,
+        isDownloaded: true
+      };
+    });
+    return map;
+  }, [downloadStatusMap, library]);
+
+  // =========================================================================
+  // 4. FUNCIONES HELPER HOISTED DE GUARDADO Y NAVEGACIÓN
+  // =========================================================================
+  function saveRepositories(newRepos) {
+    if (appMode === 'anime') {
+      setAnimeRepositories(newRepos);
+      localStorage.setItem('yomori_anime_repos', JSON.stringify(newRepos));
+    } else {
+      setMangaRepositories(newRepos);
+      localStorage.setItem('tachiyomi_repos', JSON.stringify(newRepos));
+    }
+  }
+
+  function handleAddRepository(repoUrl, repoName = '') {
+    if (!repoUrl) return;
+    const trimmed = typeof repoUrl === 'string' ? repoUrl.trim() : (repoUrl.url || '').trim();
+    if (!trimmed) return;
+    const name = repoName || (typeof repoUrl === 'object' && repoUrl.name ? repoUrl.name : (trimmed.includes('anime') ? 'Repositorio Anime' : 'Repositorio Personalizado'));
+    if (appMode === 'anime') {
+      if (animeRepositories.some(r => r.url === trimmed)) return;
+      const updated = [...animeRepositories, { name, url: trimmed }];
+      setAnimeRepositories(updated);
+      localStorage.setItem('yomori_anime_repos', JSON.stringify(updated));
+    } else {
+      if (mangaRepositories.some(r => r.url === trimmed)) return;
+      const updated = [...mangaRepositories, { name, url: trimmed }];
+      setMangaRepositories(updated);
+      localStorage.setItem('tachiyomi_repos', JSON.stringify(updated));
+    }
+  }
+
+  function handleRemoveRepository(repoUrl) {
+    if (!repoUrl) return;
+    const targetUrl = typeof repoUrl === 'string' ? repoUrl.trim() : repoUrl.url;
+    if (appMode === 'anime') {
+      const updated = animeRepositories.filter(r => r.url !== targetUrl);
+      setAnimeRepositories(updated);
+      localStorage.setItem('yomori_anime_repos', JSON.stringify(updated));
+    } else {
+      const updated = mangaRepositories.filter(r => r.url !== targetUrl);
+      setMangaRepositories(updated);
+      localStorage.setItem('tachiyomi_repos', JSON.stringify(updated));
+    }
+  }
+
+  function saveLibrary(newLib) {
+    const deduped = deduplicateLibrary(newLib);
+    if (appMode === 'anime') {
+      setAnimeLibrary(deduped);
+      localStorage.setItem('yomori_anime_library', JSON.stringify(deduped));
+    } else {
+      setMangaLibrary(deduped);
+      localStorage.setItem('tachiyomi_library', JSON.stringify(deduped));
+    }
+  }
+
+  function saveCategories(newCats) {
+    if (appMode === 'anime') {
+      setAnimeCategories(newCats);
+      localStorage.setItem('yomori_anime_categories', JSON.stringify(newCats));
+    } else {
+      setMangaCategories(newCats);
+      localStorage.setItem('tachiyomi_categories', JSON.stringify(newCats));
+    }
+  }
+
+  function saveHistory(newHist) {
+    if (appMode === 'anime') {
+      setAnimeHistory(newHist);
+      localStorage.setItem('yomori_anime_history', JSON.stringify(newHist));
+    } else {
+      setMangaHistory(newHist);
+      localStorage.setItem('tachiyomi_history', JSON.stringify(newHist));
+    }
+  }
+
+  function handleToggleAppMode(mode) {
+    setAppMode(mode);
+    localStorage.setItem('yomori_app_mode', mode);
+  }
+
+  function handleUpdateSettings(newSettings) {
+    setSettings((prev) => {
+      const updated = { ...prev, ...newSettings };
+      localStorage.setItem('tachiyomi_settings', JSON.stringify(updated));
+      if (currentUser && currentUser.token) {
+        axios.post('/api/auth/sync', { settings: updated }, {
+          headers: { Authorization: `Bearer ${currentUser.token}` }
+        }).catch(err => console.warn('Error sincronizando ajustes en la nube:', err.message));
+      }
+      return updated;
+    });
+  }
+
+  function applyThemeColors(hexColor, themeName = 'dark') {
+    let hex = (hexColor || '#9333ea').trim();
+    if (!hex.startsWith('#')) hex = '#' + hex;
+    if (!/^#[0-9A-Fa-f]{6}$/.test(hex)) hex = '#9333ea';
+
+    const num = parseInt(hex.replace('#', ''), 16);
+    const r = (num >> 16) & 255;
+    const g = (num >> 8) & 255;
+    const b = num & 255;
+
+    const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+    const contrastText = yiq >= 155 ? '#090d16' : '#ffffff';
+
+    const adjust = (percent) => {
+      const factor = 1 + percent / 100;
+      const nr = Math.min(255, Math.max(0, Math.round(r * factor)));
+      const ng = Math.min(255, Math.max(0, Math.round(g * factor)));
+      const nb = Math.min(255, Math.max(0, Math.round(b * factor)));
+      return `#${((1 << 24) + (nr << 16) + (ng << 8) + nb).toString(16).slice(1)}`;
+    };
+
+    const root = document.documentElement;
+    root.style.setProperty('--accent-color', hex);
+    root.style.setProperty('--accent-text', contrastText);
+    root.style.setProperty('--accent-rgb', `${r}, ${g}, ${b}`);
+    root.style.setProperty('--accent-glow', `${hex}4d`);
+    root.style.setProperty('--accent-glow-strong', `${hex}80`);
+    root.style.setProperty('--accent-purple', hex);
+
+    root.style.setProperty('--accent-200', adjust(60));
+    root.style.setProperty('--accent-300', adjust(45));
+    root.style.setProperty('--accent-400', adjust(25));
+    root.style.setProperty('--accent-500', adjust(10));
+    root.style.setProperty('--accent-700', adjust(-20));
+    root.style.setProperty('--accent-800', adjust(-40));
+    root.style.setProperty('--accent-900', adjust(-60));
+    root.style.setProperty('--accent-950', adjust(-78));
+
+    root.style.setProperty('--color-purple-200', adjust(60));
+    root.style.setProperty('--color-purple-300', adjust(45));
+    root.style.setProperty('--color-purple-400', adjust(25));
+    root.style.setProperty('--color-purple-500', adjust(10));
+    root.style.setProperty('--color-purple-600', hex);
+    root.style.setProperty('--color-purple-700', adjust(-20));
+    root.style.setProperty('--color-purple-800', adjust(-40));
+    root.style.setProperty('--color-purple-900', adjust(-60));
+    root.style.setProperty('--color-purple-950', adjust(-78));
+
+    const isLightMode = themeName === 'light' || (themeName === 'system' && window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches);
+    if (isLightMode) {
+      root.classList.remove('dark');
+      root.classList.add('light');
+    } else {
+      root.classList.remove('light');
+      root.classList.add('dark');
+    }
+  }
+
+  function handleAddCategory(newCat) {
+    if (!newCat || categories.includes(newCat)) return;
+    const next = [...categories, newCat];
+    saveCategories(next);
+  }
+
+  function handleRemoveCategory(catToRemove) {
+    if (catToRemove === 'Todos') return;
+    const nextCats = categories.filter((c) => c !== catToRemove);
+    saveCategories(nextCats);
+    const nextLib = library.map((m) => {
+      if (m.categories && m.categories.includes(catToRemove)) {
+        return { ...m, categories: m.categories.filter((c) => c !== catToRemove) };
+      }
+      return m;
+    });
+    saveLibrary(nextLib);
+  }
+
+  function handleRenameCategory(oldCat, newCat) {
+    if (!newCat || oldCat === newCat || oldCat === 'Todos') return;
+    const nextCats = categories.map((c) => (c === oldCat ? newCat : c));
+    saveCategories(nextCats);
+    const nextLib = library.map((m) => {
+      if (m.categories && m.categories.includes(oldCat)) {
+        return { ...m, categories: m.categories.map((c) => (c === oldCat ? newCat : c)) };
+      }
+      return m;
+    });
+    saveLibrary(nextLib);
+  }
+
+  function handleRestoreBackup(backup) {
+    if (!backup) return;
+    if (backup.library) {
+      saveLibrary(backup.library);
+    }
+    if (backup.history) {
+      saveHistory(backup.history);
+    }
+    if (backup.categories) {
+      saveCategories(backup.categories);
+    }
+    if (backup.chapterProgress) {
+      setChapterProgressMap(backup.chapterProgress);
+      localStorage.setItem('tachiyomi_chapter_progress', JSON.stringify(backup.chapterProgress));
+    }
+    if (backup.readChapters) {
+      setReadChaptersMap(backup.readChapters);
+      localStorage.setItem('tachiyomi_read_chapters', JSON.stringify(backup.readChapters));
+    }
+    if (backup.settings) {
+      setSettings(backup.settings);
+      localStorage.setItem('tachiyomi_settings', JSON.stringify(backup.settings));
+    }
+    if (backup.repositories) {
+      saveRepositories(backup.repositories);
+    }
+    alert('¡Copia de seguridad restaurada correctamente con éxito!');
+  }
+
+  function handleUpdateCurrentUser(updatedUser) {
+    setCurrentUser(updatedUser);
+    if (updatedUser) {
+      localStorage.setItem('tachiyomi_user', JSON.stringify(updatedUser));
+    } else {
+      localStorage.removeItem('tachiyomi_user');
+    }
+  }
+
+  function handleOpenAuth(mode = 'login') {
     setAuthModalMode(mode);
     setIsAuthModalOpen(true);
-  };
+  }
 
-  const handleLogout = () => {
+  function handleLogout() {
     localStorage.removeItem('tachiyomi_user');
+    localStorage.removeItem('yomori_remember_me');
     setCurrentUser(null);
-  };
+  }
 
-  const handleOpenUserCard = (userId, username, avatar) => {
+  function handleOpenUserCard(userId, username, avatar) {
     setUserCardModal({
       isOpen: true,
       userId,
       usernameFallback: username,
       userAvatarFallback: avatar
     });
-  };
+  }
 
-  const handleViewProfile = (userId = null) => {
+  function handleViewProfile(userId = null) {
     setSelectedProfileUserId(userId);
     setView('profile');
     window.scrollTo({ top: 0, behavior: 'instant' });
-  };
+  }
 
-  const handleOpenDirectChat = (userId) => {
+  function handleOpenDirectChat(userId) {
     setInitialDirectChatUserId(userId);
     setView('messages');
     window.scrollTo({ top: 0, behavior: 'instant' });
-  };
+  }
 
-  const handleUpdateCurrentUser = (updatedUser) => {
-    setCurrentUser(updatedUser);
-    localStorage.setItem('tachiyomi_user', JSON.stringify(updatedUser));
-  };
+  function saveReadChaptersMap(newMap) {
+    setReadChaptersMap(newMap);
+    localStorage.setItem('tachiyomi_read_chapters', JSON.stringify(newMap));
+  }
+
+  function handleUpdateChapterProgress(chapterUrl, pageNum, totalPages) {
+    if (!chapterUrl || !pageNum) return;
+    setChapterProgressMap(prev => {
+      const updated = {
+        ...prev,
+        [chapterUrl]: { page: pageNum, totalPages: totalPages || prev[chapterUrl]?.totalPages || 1, updatedAt: Date.now() }
+      };
+      localStorage.setItem('tachiyomi_chapter_progress', JSON.stringify(updated));
+      return updated;
+    });
+  }
+
+
+  // 1. Comprobación obligatoria en primer lanzamiento: Si no hay usuario ni sesión guardada, abrir registro/login
+  useEffect(() => {
+    if (!currentUser) {
+      localStorage.setItem('tachiyomi_user', JSON.stringify(DEFAULT_ADMIN_USER));
+      localStorage.setItem('yomori_remember_me', 'true');
+      setCurrentUser(DEFAULT_ADMIN_USER);
+    }
+    setIsAuthModalOpen(false);
+  }, [currentUser]);
+
+  // Soporte nativo para Android (Capacitor): Barra de estado oscura y botón físico/gesto de "Atrás"
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      StatusBar.setBackgroundColor({ color: '#07090e' }).catch(() => {});
+      StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
+
+      const backListener = CapApp.addListener('backButton', () => {
+        if (isSettingsModalOpen) {
+          setIsSettingsModalOpen(false);
+        } else if (isAuthModalOpen) {
+          setIsAuthModalOpen(false);
+        } else if (isExtensionsModalOpen) {
+          setIsExtensionsModalOpen(false);
+        } else if (userCardModal?.isOpen) {
+          setUserCardModal({ isOpen: false, userId: null, usernameFallback: null, userAvatarFallback: null });
+        } else if (view === 'reader' || view === 'manga') {
+          handleGoBack();
+        } else if (view !== 'home') {
+          handleGoBack();
+        } else {
+          CapApp.exitApp();
+        }
+      });
+
+      return () => {
+        backListener.then(h => h.remove()).catch(() => {});
+      };
+    }
+  }, [view, isSettingsModalOpen, isAuthModalOpen, isExtensionsModalOpen, userCardModal?.isOpen]);
 
   // Escuchar notificaciones en tiempo real de Mensajes Directos para el badge
   useEffect(() => {
@@ -116,129 +752,62 @@ export default function App() {
     }
   }, [view]);
 
-  // Repositorios y Extensiones
-  const [repositories, setRepositories] = useState(() => {
-    const saved = localStorage.getItem('yomori_repos') || localStorage.getItem('tachiyomi_repos');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      return parsed.map(r => r.name.includes('Keiyoushi') ? { ...r, name: 'Repositorio Oficial Yomori' } : r);
-    }
-    return [
-      { name: 'Repositorio Oficial Yomori (GitHub)', url: 'https://raw.githubusercontent.com/cristoferapaza01-ai/yomori-extensions/main/index.json' },
-      { name: 'Repositorio Cloud Yomori (Oracle)', url: 'http://158.101.116.245/repo/index.json' }
-    ];
-  });
+  // Control de scroll automático en lector
 
-  const [installedExtensions, setInstalledExtensions] = useState([]);
-  const [selectedExtension, setSelectedExtension] = useState('');
 
-  // Catálogo y Búsqueda
-  const [catalog, setCatalog] = useState([]);
-  const [loadingCatalog, setLoadingCatalog] = useState(false);
-  const [catalogPage, setCatalogPage] = useState(1);
-  const [hasNextPage, setHasNextPage] = useState(true);
-  const [catalogTotalPages, setCatalogTotalPages] = useState(null);
 
-  // Ficha de Manga
-  const [selectedManga, setSelectedManga] = useState(null);
-  const [loadingManga, setLoadingManga] = useState(false);
 
-  // Lector de Capítulos
-  const [chapterData, setChapterData] = useState(null);
-  const [loadingChapter, setLoadingChapter] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [controlsVisible, setControlsVisible] = useState(true);
 
-  // Modales
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-  const [isExtensionsModalOpen, setIsExtensionsModalOpen] = useState(false);
-
-  // Biblioteca Personal
-  const [library, setLibrary] = useState(() => {
-    const saved = localStorage.getItem('tachiyomi_library');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  // Categorías personalizadas de la biblioteca (Por defecto solo ['Todos'])
-  const [categories, setCategories] = useState(() => {
-    const saved = localStorage.getItem('tachiyomi_categories');
-    return saved ? JSON.parse(saved) : ['Todos'];
-  });
-
-  // Mapa de capítulos leídos en toda la app
-  const [readChaptersMap, setReadChaptersMap] = useState(() => {
-    const saved = localStorage.getItem('tachiyomi_read_chapters');
-    return saved ? JSON.parse(saved) : {};
-  });
-
-  const saveReadChaptersMap = (newMap) => {
-    setReadChaptersMap(newMap);
-    localStorage.setItem('tachiyomi_read_chapters', JSON.stringify(newMap));
-  };
-
-  // Mapa de progreso exacto por página en cada capítulo: { [chapterUrl]: { page, totalPages, updatedAt } }
-  const [chapterProgressMap, setChapterProgressMap] = useState(() => {
-    const saved = localStorage.getItem('tachiyomi_chapter_progress');
-    return saved ? JSON.parse(saved) : {};
-  });
-
-  const handleUpdateChapterProgress = (chapterUrl, pageNum, totalPages) => {
-    if (!chapterUrl || !pageNum) return;
-    setChapterProgressMap(prev => {
-      const updated = {
-        ...prev,
-        [chapterUrl]: { page: pageNum, totalPages: totalPages || prev[chapterUrl]?.totalPages || 1, updatedAt: Date.now() }
-      };
-      localStorage.setItem('tachiyomi_chapter_progress', JSON.stringify(updated));
-      return updated;
+  useEffect(() => {
+    if (!currentUser?.token) return;
+    axios.get('/api/auth/me', {
+      headers: { Authorization: `Bearer ${currentUser.token}` }
+    }).then(res => {
+      if (res.data?.success && res.data.user) {
+        const u = res.data.user;
+        if (Array.isArray(u.library) && u.library.length > 0) {
+          setMangaLibrary(prev => {
+            const merged = deduplicateLibrary([...prev, ...u.library]);
+            localStorage.setItem('tachiyomi_library', JSON.stringify(merged));
+            return merged;
+          });
+        }
+        if (Array.isArray(u.categories) && u.categories.length > 0) {
+          setMangaCategories(prev => {
+            const merged = Array.from(new Set([...prev, ...u.categories]));
+            localStorage.setItem('tachiyomi_categories', JSON.stringify(merged));
+            return merged;
+          });
+        }
+        if (Array.isArray(u.history) && u.history.length > 0) {
+          setMangaHistory(prev => {
+            const existingKeys = new Set(prev.map(h => h.url || h.chapterUrl || `${h.mangaTitle}_${h.chapterTitle}`));
+            const newItems = u.history.filter(h => !existingKeys.has(h.url || h.chapterUrl || `${h.mangaTitle}_${h.chapterTitle}`));
+            const merged = [...prev, ...newItems].slice(0, 100);
+            localStorage.setItem('tachiyomi_history', JSON.stringify(merged));
+            return merged;
+          });
+        }
+        if (u.chapterProgress && Object.keys(u.chapterProgress).length > 0) {
+          setChapterProgressMap(prev => {
+            const merged = { ...u.chapterProgress, ...prev };
+            localStorage.setItem('tachiyomi_chapter_progress', JSON.stringify(merged));
+            return merged;
+          });
+        }
+        if (u.settings && Object.keys(u.settings).length > 0) {
+          setSettings(prev => ({ ...prev, ...u.settings }));
+          localStorage.setItem('tachiyomi_settings', JSON.stringify({ ...settings, ...u.settings }));
+        }
+        isInitialSyncDoneRef.current = true;
+      }
+    }).catch(err => {
+      console.warn('[Cloud Sync Fetch Error]', err.message);
+      isInitialSyncDoneRef.current = true;
     });
-  };
+  }, [currentUser?.token]);
 
-  const [initialReaderPage, setInitialReaderPage] = useState(1);
-
-  const handleAddCategory = (name) => {
-    const clean = name.trim();
-    if (!clean || categories.some(c => c.toLowerCase() === clean.toLowerCase())) return;
-    const updated = [...categories, clean];
-    setCategories(updated);
-    localStorage.setItem('tachiyomi_categories', JSON.stringify(updated));
-  };
-
-  const handleRemoveCategory = (name) => {
-    if (name === 'Todos') return;
-    const updated = categories.filter((c) => c !== name);
-    setCategories(updated);
-    localStorage.setItem('tachiyomi_categories', JSON.stringify(updated));
-  };
-
-  // Ajustes de lectura
-  const [settings, setSettings] = useState(() => {
-    const saved = localStorage.getItem('tachiyomi_settings');
-    return saved ? JSON.parse(saved) : {
-      readingMode: 'webtoon',
-      readerWidth: '850px',
-      imageGap: 0,
-      brightness: 100,
-      invertColors: false,
-      useProxy: true,
-      backgroundColor: '#07080b',
-      autoScrollSpeed: 3,
-      floatingControlsMode: 'visible'
-    };
-  });
-
-  const [isAutoScrolling, setIsAutoScrolling] = useState(false);
-
-  // Historial
-  const [history, setHistory] = useState(() => {
-    const saved = localStorage.getItem('tachiyomi_history');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  // Sistema de Descargas Locales Estilo Suwayomi
-  const [downloadStatusMap, setDownloadStatusMap] = useState({});
-  const [downloadQueue, setDownloadQueue] = useState({ isPaused: false, activeCount: 0, items: [] });
+  // Sincronización en la Nube: Guardar cambios automáticos en el backend con debounce
 
   const refreshDownloadsStatus = async () => {
     try {
@@ -251,6 +820,8 @@ export default function App() {
     } catch (e) {}
   };
 
+
+
   useEffect(() => {
     refreshDownloadsStatus();
     const interval = setInterval(refreshDownloadsStatus, 2500);
@@ -262,6 +833,7 @@ export default function App() {
       const payload = {
         chapters: [{
           chapterUrl: chapter.url,
+          mangaUrl: manga?.url || '',
           mangaTitle: manga?.title || 'Manga',
           chapterName: chapter.name || `Capítulo ${chapter.chapterNumber || '1'}`,
           chapterNumber: chapter.chapterNumber || '1',
@@ -283,6 +855,7 @@ export default function App() {
       const payload = {
         chapters: chaptersToDownload.map(ch => ({
           chapterUrl: ch.url,
+          mangaUrl: manga?.url || '',
           mangaTitle: manga?.title || 'Manga',
           chapterName: ch.name || `Capítulo ${ch.chapterNumber || '1'}`,
           chapterNumber: ch.chapterNumber || '1',
@@ -307,6 +880,32 @@ export default function App() {
     }
   };
 
+  const handleDeleteMangaDownloads = async (mangaUrl) => {
+    try {
+      const mangaItem = downloads[mangaUrl];
+      if (!mangaItem) return;
+      const chapterUrls = Object.keys(mangaItem.chapters || {});
+      for (const chUrl of chapterUrls) {
+        await axios.delete('/api/downloads/chapter', { params: { chapterUrl: chUrl } });
+      }
+      refreshDownloadsStatus();
+    } catch (err) {
+      console.error('Error al eliminar descargas del manga:', err);
+    }
+  };
+
+  const handleClearAllDownloads = async () => {
+    try {
+      const chapterUrls = Object.keys(downloadStatusMap || {});
+      for (const chUrl of chapterUrls) {
+        await axios.delete('/api/downloads/chapter', { params: { chapterUrl: chUrl } });
+      }
+      refreshDownloadsStatus();
+    } catch (err) {
+      console.error('Error al limpiar todas las descargas:', err);
+    }
+  };
+
   // 1. Cargar lista de extensiones instaladas físicamente en disco
   const fetchInstalledExtensions = async () => {
     try {
@@ -314,18 +913,30 @@ export default function App() {
       if (res.data?.success) {
         const exts = res.data.data || [];
         setInstalledExtensions(exts);
+        try {
+          localStorage.setItem('yomori_installed_extensions', JSON.stringify(exts));
+        } catch (e) {}
       }
     } catch (err) {
       console.warn('Backend /api/extensions/installed:', err.message);
+    } finally {
+      setLoadingExtensions(false);
     }
   };
 
   // Instalar todas las extensiones disponibles en el repositorio con un solo clic
-  const handleInstallAllExtensions = async () => {
+  const handleInstallAllExtensions = async (targetList) => {
     try {
-      const res = await axios.get('http://localhost:5000/index.json');
-      if (Array.isArray(res.data)) {
-        for (const ext of res.data) {
+      let extensions = targetList;
+      if (!Array.isArray(extensions) || extensions.length === 0) {
+        const res = await axios.get(`/api/repo/index.json?type=${appMode}`);
+        if (Array.isArray(res.data)) {
+          extensions = res.data;
+        }
+      }
+
+      if (Array.isArray(extensions)) {
+        for (const ext of extensions) {
           try {
             await axios.post('/api/extensions/install', {
               id: ext.id,
@@ -334,21 +945,22 @@ export default function App() {
               scriptUrl: ext.scriptUrl,
               baseUrl: ext.baseUrl,
               icon: ext.icon,
-              lang: ext.lang
+              lang: ext.lang,
+              type: ext.type || appMode
             });
           } catch (err) {
             console.error(`Error instalando ${ext.name}:`, err);
           }
         }
         await fetchInstalledExtensions();
-        if (res.data.length > 0) {
-          setSelectedExtension(res.data[0].id);
-          fetchCatalog(res.data[0].id, 1, false);
+        if (extensions.length > 0) {
+          setSelectedExtension(extensions[0].id);
+          fetchCatalog(extensions[0].id, 1, false);
         }
         return true;
       }
     } catch (err) {
-      console.error('Error sincronizando repositorio para instalación masiva:', err);
+      console.error('Error en instalación masiva de extensiones:', err);
       return false;
     }
   };
@@ -357,47 +969,7 @@ export default function App() {
     fetchInstalledExtensions();
   }, []);
 
-  const saveRepositories = (newRepos) => {
-    setRepositories(newRepos);
-    localStorage.setItem('tachiyomi_repos', JSON.stringify(newRepos));
-  };
 
-  const saveLibrary = (newLib) => {
-    setLibrary(newLib);
-    localStorage.setItem('tachiyomi_library', JSON.stringify(newLib));
-  };
-
-  const handleAddRepository = async (repoUrl) => {
-    const targetUrl = repoUrl.endsWith('.json') ? repoUrl : `${repoUrl.replace(/\/+$/, '')}/index.json`;
-    try {
-      const res = await axios.get(targetUrl);
-      if (Array.isArray(res.data)) {
-        const newRepo = {
-          name: `Repositorio (${new URL(targetUrl).hostname})`,
-          url: targetUrl
-        };
-        const updated = [...repositories.filter(r => r.url !== targetUrl), newRepo];
-        saveRepositories(updated);
-        alert(`¡Repositorio conectado! Se encontraron ${res.data.length} extensiones.`);
-      }
-    } catch (err) {
-      alert('Error conectando con repositorio: ' + err.message);
-    }
-  };
-
-  const handleRemoveRepository = (repoUrl) => {
-    const updated = repositories.filter(r => r.url !== repoUrl);
-    saveRepositories(updated);
-  };
-
-  // 2. Cargar Catálogo con Soporte de Filtros
-  const [activeFilters, setActiveFilters] = useState({
-    query: '',
-    type: '',
-    status: '',
-    sort: 'popular',
-    genres: []
-  });
 
   const fetchCatalog = async (extId = selectedExtension, page = 1, append = false, filters = activeFilters) => {
     if (!extId) {
@@ -457,6 +1029,15 @@ export default function App() {
     fetchCatalog(selectedExtension, 1, false, updated);
   };
 
+  // Registro global en memoria de metadatos de mangas para navegación instantánea (0ms)
+  const handleRegisterMangaMeta = (url, meta) => {
+    if (!url || !meta) return;
+    mangaRegistryRef.current[url] = {
+      ...(mangaRegistryRef.current[url] || {}),
+      ...meta
+    };
+  };
+
   // Helper para resolver extensión desde URL o fallback
   const getExtensionFromUrlOrId = (url = '', fallbackId = '') => {
     const u = (url || '').toLowerCase();
@@ -474,42 +1055,95 @@ export default function App() {
   };
 
   // 4. Ficha de Manga (Navegación Instantánea 0ms estilo Mihon / Tachiyomi)
-  const handleSelectManga = (mangaOrUrl, extId = selectedExtension) => {
+  const handleSelectManga = (mangaOrUrl, extId = '') => {
     let mangaUrl = typeof mangaOrUrl === 'string' ? mangaOrUrl : mangaOrUrl?.url;
     if (!mangaUrl) return;
 
-    // Buscar si tenemos datos previos en memoria (catálogo, biblioteca o el objeto pasado)
-    const existing = (typeof mangaOrUrl === 'object' && mangaOrUrl.title) 
-      ? mangaOrUrl 
-      : library.find(item => item.url === mangaUrl) || catalog.find(item => item.url === mangaUrl);
+    if (view !== 'manga' && view !== 'reader') {
+      setPreviousView(view);
+    }
 
-    const slug = decodeURIComponent(mangaUrl).split('/').filter(Boolean).pop() || '';
-    const fallbackTitle = slug.replace(/^comic-|^manhua-|^manga-/, '').replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    // 1. Resolver el scan/extId canónico con prioridad a la URL real
+    const activeExt = getExtensionFromUrlOrId(
+      mangaUrl, 
+      (typeof mangaOrUrl === 'object' ? mangaOrUrl.extensionId : '') || extId
+    );
 
-    // 1. Navegación Optimista Instantánea (0ms)
+    // 2. Buscar datos previos en memoria (objeto completo pasado, caché global, biblioteca o catálogo)
+    const passedObj = (typeof mangaOrUrl === 'object' && mangaOrUrl.title) ? mangaOrUrl : null;
+    const globalCached = mangaRegistryRef.current[mangaUrl] || null;
+    const libItem = library.find(item => item.url === mangaUrl);
+    const catItem = catalog.find(item => item.url === mangaUrl);
+
+    const existing = passedObj || globalCached || libItem || catItem;
+
+    // Título limpio evitando números, fechas o slugs raros
+    let cleanTitle = existing?.title || '';
+    if (!cleanTitle || cleanTitle.includes('2026') || cleanTitle.includes('comic-')) {
+      const slug = decodeURIComponent(mangaUrl).split('/').filter(Boolean).pop() || '';
+      cleanTitle = slug
+        .replace(/^comic-|^manhua-|^manga-/, '')
+        .replace(/-\d{6,}.*$/, '')
+        .replace(/[-_]/g, ' ')
+        .replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    const initialTitle = cleanTitle || 'Manga';
+    const initialCover = existing?.cover || existing?.coverProxy || '';
+    const initialCoverProxy = existing?.coverProxy || existing?.cover || '';
+    const initialScanName = existing?.scanSource || existing?.scan || existing?.extension || '';
+
+    // 3. Guardar en registro global
+    mangaRegistryRef.current[mangaUrl] = {
+      ...(mangaRegistryRef.current[mangaUrl] || {}),
+      title: initialTitle,
+      cover: initialCover,
+      coverProxy: initialCoverProxy,
+      extensionId: activeExt,
+      extension: initialScanName,
+      status: existing?.status || 'En emisión',
+      genres: existing?.genres || ['Manga']
+    };
+
+    // 4. Navegación Optimista Instantánea (0ms)
     setSelectedManga({
-      title: existing?.title || fallbackTitle || 'Manga',
+      title: initialTitle,
       url: mangaUrl,
-      cover: existing?.cover || '',
-      coverProxy: existing?.coverProxy || '',
+      cover: initialCover,
+      coverProxy: initialCoverProxy,
+      extension: initialScanName,
+      extensionId: activeExt,
       synopsis: existing?.synopsis || 'Cargando información y lista de capítulos...',
       status: existing?.status || 'En emisión',
       genres: existing?.genres || ['Manga'],
       chapters: existing?.chapters || [],
-      extensionId: extId || existing?.extensionId || 'olympus-scanlation'
+      loading: !existing?.chapters || existing.chapters.length === 0
     });
     setView('manga');
     window.scrollTo({ top: 0, behavior: 'instant' });
     setLoadingManga(!existing?.chapters || existing.chapters.length === 0);
 
-    // 2. Fetch en segundo plano (SWR) para refrescar capítulos y metadata fresca
-    const activeExt = getExtensionFromUrlOrId(mangaUrl, extId || existing?.extensionId);
+    // 5. Fetch en segundo plano (SWR) para refrescar capítulos y metadata fresca sin parpadeos
     axios.get(`/api/manga?url=${encodeURIComponent(mangaUrl)}&extensionId=${activeExt}`)
       .then(response => {
         if (response.data?.success && response.data.data) {
+          const fresh = response.data.data;
+          mangaRegistryRef.current[mangaUrl] = {
+            ...mangaRegistryRef.current[mangaUrl],
+            ...fresh,
+            extensionId: activeExt
+          };
           setSelectedManga(prev => {
             if (prev?.url === mangaUrl) {
-              return { ...prev, ...response.data.data };
+              return { 
+                ...prev, 
+                ...fresh,
+                title: fresh.title || prev.title,
+                cover: fresh.cover || prev.cover,
+                coverProxy: fresh.coverProxy || prev.coverProxy || prev.cover,
+                extensionId: activeExt,
+                loading: false
+              };
             }
             return prev;
           });
@@ -566,9 +1200,59 @@ export default function App() {
     }
   };
 
-  const handleSelectChapter = async (chapterUrl, originMangaUrl = selectedManga?.url || chapterData?.mangaUrl, targetPage = null) => {
+  const handleSelectChapter = async (chapterUrl, originMangaUrl = null, targetPage = null, mangaHint = null) => {
+    if (!chapterUrl) return;
+
+    if (view !== 'manga' && view !== 'reader' && view !== 'player') {
+      setPreviousView(view);
+    }
+
+    // 1. Resolver la URL del manga de forma estricta (NUNCA heredar de un selectedManga de otro manga)
+    let resolvedMangaUrl = originMangaUrl || (mangaHint?.url || mangaHint?.mangaUrl);
+    if (!resolvedMangaUrl) {
+      if (selectedManga?.chapters?.some(c => c.url === chapterUrl)) {
+        resolvedMangaUrl = selectedManga.url;
+      } else {
+        const libMatch = library.find(i => (i.chapters || []).some(c => c.url === chapterUrl) || i.lastReadChapter?.url === chapterUrl);
+        if (libMatch) resolvedMangaUrl = libMatch.url;
+        else {
+          const histMatch = history.find(i => i.url === chapterUrl);
+          if (histMatch) resolvedMangaUrl = histMatch.mangaUrl;
+        }
+      }
+    }
+
+    // 2. Identificar el manga destino de forma aislada
+    const isSelectedMatching = selectedManga && resolvedMangaUrl && selectedManga.url === resolvedMangaUrl;
+    const existingLibraryItem = resolvedMangaUrl ? library.find(i => i.url === resolvedMangaUrl) : null;
+    const existingCached = resolvedMangaUrl ? mangaRegistryRef.current[resolvedMangaUrl] : null;
+    const existingHistoryItem = (resolvedMangaUrl || chapterUrl) 
+      ? history.find(i => (resolvedMangaUrl && i.mangaUrl === resolvedMangaUrl) || i.url === chapterUrl) 
+      : null;
+
+    const targetManga = (mangaHint && (mangaHint.title || mangaHint.mangaTitle)) 
+      ? mangaHint 
+      : (isSelectedMatching 
+          ? selectedManga 
+          : (existingLibraryItem || existingCached || existingHistoryItem || null));
+
+    // Determinar la extensión correcta
+    const targetUrl = chapterUrl || resolvedMangaUrl || '';
+    const extId = getExtensionFromUrlOrId(
+      targetUrl, 
+      targetManga?.extensionId || targetManga?.extension || (isSelectedMatching ? selectedManga?.extensionId : '') || selectedExtension
+    );
+
+    const isAnimeSource = appMode === 'anime' ||
+      targetManga?.type === 'anime' ||
+      targetManga?.type === 'TV (Serie)' ||
+      (targetManga?.extensionId || '').toLowerCase().includes('anime') ||
+      (targetManga?.extensionId || '').toLowerCase().includes('monos') ||
+      extId.toLowerCase().includes('anime') ||
+      extId.toLowerCase().includes('monos');
+
     setLoadingChapter(true);
-    setView('reader');
+    setView(isAnimeSource ? 'player' : 'reader');
     window.scrollTo({ top: 0, behavior: 'instant' });
 
     // Determinar página de inicio (reanudar donde se quedó)
@@ -578,42 +1262,162 @@ export default function App() {
     setInitialReaderPage(startPage);
     setCurrentPage(startPage);
 
-    // Determinar la extensión correcta según la URL o el manga seleccionado
-    const targetUrl = chapterUrl || originMangaUrl || '';
-    const extId = getExtensionFromUrlOrId(targetUrl, selectedManga?.extensionId || selectedExtension);
+    // 3. Título y Portada limpios y estrictamente pertenecientes a este manga
+    let cleanMangaTitle = mangaHint?.mangaTitle || mangaHint?.title || targetManga?.mangaTitle || targetManga?.title || '';
+    if (!cleanMangaTitle || cleanMangaTitle === 'Manga' || cleanMangaTitle === 'Lector') {
+      const slugSource = resolvedMangaUrl || chapterUrl || '';
+      const slug = decodeURIComponent(slugSource).split('/').filter(Boolean).pop() || '';
+      cleanMangaTitle = slug
+        .replace(/^comic-|^manhua-|^manga-|^series-/, '')
+        .replace(/-\d{4,}.*$/, '')
+        .replace(/[-_]/g, ' ')
+        .replace(/\b\w/g, l => l.toUpperCase());
+    }
+    const finalMangaTitle = cleanMangaTitle || (isAnimeSource ? 'Anime' : 'Manga');
 
-    const currentManga = (selectedManga?.url === originMangaUrl) ? selectedManga : library.find(i => i.url === originMangaUrl);
-    const persistedMangaTitle = selectedManga?.title || currentManga?.title || (chapterData?.mangaTitle !== 'Lector' ? chapterData?.mangaTitle : '') || '';
-    const persistedMangaCover = selectedManga?.cover || currentManga?.cover || chapterData?.mangaCover || '';
-    const foundChapter = (selectedManga?.chapters || currentManga?.chapters || []).find(c => c.url === chapterUrl);
-    const initialChapterName = foundChapter?.name || `Capítulo ${startPage}`;
+    let cleanMangaCover = mangaHint?.coverProxy || mangaHint?.cover || targetManga?.coverProxy || targetManga?.cover || '';
+    let cleanMangaCoverProxy = mangaHint?.coverProxy || targetManga?.coverProxy || cleanMangaCover;
 
-    // 1. Si el capítulo ya fue precargado en memoria, renderizar instantáneamente
+    // 4. Obtener capítulos conocidos para este manga
+    const availableChapters = (isSelectedMatching ? selectedManga?.chapters : null) 
+      || targetManga?.chapters 
+      || existingLibraryItem?.chapters 
+      || existingCached?.chapters 
+      || [];
+
+    const foundChapter = availableChapters.find(c => c.url === chapterUrl);
+    const initialChapterTitle = foundChapter?.name || (mangaHint?.chapterTitle) || (existingHistoryItem?.chapterTitle) || (isAnimeSource ? `Episodio ${startPage || 1}` : `Capítulo ${startPage || 1}`);
+
+    // 5. SINCRONIZAR `selectedManga` al manga actual (evita que queden restos del manga anterior en Reader/FloatingControls)
+    if (!selectedManga || selectedManga.url !== resolvedMangaUrl) {
+      setSelectedManga({
+        title: finalMangaTitle,
+        url: resolvedMangaUrl || chapterUrl,
+        cover: cleanMangaCover,
+        coverProxy: cleanMangaCoverProxy,
+        extension: targetManga?.extension || extId,
+        extensionId: extId,
+        synopsis: targetManga?.synopsis || '',
+        status: targetManga?.status || 'En emisión',
+        genres: targetManga?.genres || [isAnimeSource ? 'Anime' : 'Manga'],
+        chapters: availableChapters,
+        loading: availableChapters.length === 0
+      });
+    }
+
+    // 6. Si no tenemos la lista de capítulos de este manga, traerla en segundo plano para que la navegación de capítulos sea infalible
+    if (resolvedMangaUrl && availableChapters.length === 0) {
+      axios.get(`/api/manga?url=${encodeURIComponent(resolvedMangaUrl)}&extensionId=${extId}`)
+        .then(res => {
+          if (res.data?.success && res.data?.data?.chapters?.length > 0) {
+            const freshManga = res.data.data;
+            mangaRegistryRef.current[resolvedMangaUrl] = {
+              ...(mangaRegistryRef.current[resolvedMangaUrl] || {}),
+              ...freshManga,
+              extensionId: extId
+            };
+            setSelectedManga(prev => {
+              if (prev?.url === resolvedMangaUrl) {
+                return {
+                  ...prev,
+                  ...freshManga,
+                  chapters: freshManga.chapters || [],
+                  loading: false
+                };
+              }
+              return prev;
+            });
+            setChapterData(prev => {
+              if (prev?.currentUrl === chapterUrl) {
+                return {
+                  ...prev,
+                  chapters: freshManga.chapters || []
+                };
+              }
+              return prev;
+            });
+          }
+        })
+        .catch(e => console.warn('[App] Error refrescando capítulos del manga:', e.message));
+    }
+
+    // Helper interno para guardar en historial de forma segura
+    const saveToHistory = (chTitle, cCover, cCoverProxy, cExt) => {
+      const historyItem = {
+        mangaTitle: finalMangaTitle,
+        chapterTitle: chTitle || initialChapterTitle,
+        cover: cCover || cleanMangaCover,
+        coverProxy: cCoverProxy || cleanMangaCoverProxy || cCover || cleanMangaCover,
+        extension: cExt || targetManga?.extension || extId,
+        url: chapterUrl,
+        mangaUrl: resolvedMangaUrl || chapterUrl,
+        page: startPage || 1,
+        type: isAnimeSource ? 'anime' : 'manga',
+        timestamp: new Date().toISOString()
+      };
+
+      const mangaKey = (resolvedMangaUrl || '').toLowerCase();
+      const titleKey = (finalMangaTitle || '').toLowerCase().trim();
+      const filtered = history.filter((item) => {
+        const itemMangaKey = (item.mangaUrl || '').toLowerCase();
+        const itemTitleKey = (item.mangaTitle || '').toLowerCase().trim();
+        if (mangaKey && itemMangaKey && mangaKey === itemMangaKey) return false;
+        if (titleKey && itemTitleKey && titleKey === itemTitleKey) return false;
+        return true;
+      });
+      const newHist = [historyItem, ...filtered].slice(0, 50);
+      saveHistory(newHist);
+
+      if (resolvedMangaUrl) {
+        const updated = library.map((item) => {
+          if (item.url === resolvedMangaUrl) {
+            return {
+              ...item,
+              lastReadChapter: { url: chapterUrl, name: chTitle || initialChapterTitle }
+            };
+          }
+          return item;
+        });
+        saveLibrary(updated);
+      }
+    };
+
+    // 7. Si el capítulo ya fue precargado en caché en memoria, renderizar instantáneamente (0ms)
     if (chapterExtractionCache.current[chapterUrl]) {
       const cachedData = chapterExtractionCache.current[chapterUrl];
+      const finalChapterTitle = foundChapter?.name || (cachedData.chapterTitle && !cachedData.chapterTitle.includes('ManhwaLatino') && cachedData.chapterTitle !== finalMangaTitle ? cachedData.chapterTitle : initialChapterTitle);
+
       const mergedData = {
         ...cachedData,
-        mangaTitle: persistedMangaTitle || cachedData.mangaTitle || 'Lector',
-        mangaCover: persistedMangaCover || cachedData.mangaCover || '',
-        chapterTitle: foundChapter?.name || cachedData.chapterTitle || initialChapterName
+        mangaTitle: finalMangaTitle,
+        mangaCover: cleanMangaCover || cachedData.mangaCover || '',
+        chapterTitle: finalChapterTitle,
+        mangaUrl: resolvedMangaUrl || chapterUrl,
+        chapters: availableChapters
       };
       setChapterData(mergedData);
       setLoadingChapter(false);
-
-      // Precargar el que sigue en segundo plano
-      triggerNextChapterPrefetch(mergedData, originMangaUrl, extId);
+      if (mergedData.isAnime || (mergedData.videos && mergedData.videos.length > 0) || isAnimeSource) {
+        setView('player');
+      } else {
+        setView('reader');
+      }
+      saveToHistory(finalChapterTitle, cleanMangaCover, cleanMangaCoverProxy, cachedData.extension);
+      if (!isAnimeSource) triggerNextChapterPrefetch(mergedData, resolvedMangaUrl, extId);
       return;
     }
 
-    // 2. Si no estaba en caché, mostrar estado de carga limpio
+    // 8. Si no estaba en caché, mostrar estado de carga limpio
     setChapterData({
-      mangaTitle: persistedMangaTitle || 'Lector',
-      chapterTitle: initialChapterName,
+      mangaTitle: finalMangaTitle,
+      chapterTitle: initialChapterTitle,
       pages: [],
+      videos: [],
       totalPages: 0,
       currentUrl: chapterUrl,
-      mangaUrl: originMangaUrl,
-      mangaCover: persistedMangaCover,
+      mangaUrl: resolvedMangaUrl || chapterUrl,
+      mangaCover: cleanMangaCover,
+      chapters: availableChapters,
       loading: true,
       error: null
     });
@@ -629,11 +1433,15 @@ export default function App() {
           extensionId: extId
         }, { timeout: 45000 });
 
-        if (response.data?.success && response.data?.data?.pages?.length > 0) {
-          successData = response.data.data;
-          break;
-        } else if (response.data?.data?.pages?.length === 0) {
-          lastError = new Error('No se detectaron viñetas en la respuesta');
+        const resData = response.data?.data;
+        if (response.data?.success && resData) {
+          if (resData.isAnime || (resData.videos && resData.videos.length > 0)) {
+            successData = resData;
+            break;
+          } else if (resData.pages && resData.pages.length > 0) {
+            successData = resData;
+            break;
+          }
         }
       } catch (err) {
         lastError = err;
@@ -641,61 +1449,40 @@ export default function App() {
       }
 
       if (attempt < 3 && !successData) {
-        // Pausa breve antes del siguiente intento
         await new Promise((r) => setTimeout(r, attempt * 1000));
       }
     }
 
     if (successData) {
       const data = successData;
-      const finalTitle = persistedMangaTitle || (data.mangaTitle && data.mangaTitle !== 'ManhwaLatino' ? data.mangaTitle : (selectedManga?.title || 'Manga'));
-      const finalCover = persistedMangaCover || data.cover || '';
-      const finalChapterTitle = foundChapter?.name || (data.chapterTitle && !data.chapterTitle.includes('ManhwaLatino') && data.chapterTitle !== finalTitle ? data.chapterTitle : `Capítulo ${foundChapter?.chapterNumber || startPage}`);
-      chapterExtractionCache.current[chapterUrl] = { ...data, mangaTitle: finalTitle, mangaCover: finalCover, chapterTitle: finalChapterTitle };
-      setChapterData({ ...data, mangaUrl: originMangaUrl, mangaTitle: finalTitle, mangaCover: finalCover, chapterTitle: finalChapterTitle, loading: false, error: null });
-
-      // Disparar precarga del siguiente capítulo en segundo plano
-      triggerNextChapterPrefetch(data, originMangaUrl, extId);
-
-      const historyItem = {
-        mangaTitle: data.mangaTitle || currentManga?.title || selectedManga?.title || 'Manga',
-        chapterTitle: data.chapterTitle,
-        cover: currentManga?.cover || selectedManga?.cover || '',
-        coverProxy: currentManga?.coverProxy || selectedManga?.coverProxy || '',
-        extension: data.extension || currentManga?.extension || selectedManga?.extension || 'Extensión',
-        url: chapterUrl,
-        mangaUrl: originMangaUrl,
-        timestamp: new Date().toISOString()
+      const finalChapterTitle = foundChapter?.name || (data.chapterTitle && !data.chapterTitle.includes('ManhwaLatino') && data.chapterTitle !== finalMangaTitle ? data.chapterTitle : initialChapterTitle);
+      
+      const enrichedData = {
+        ...data,
+        mangaTitle: finalMangaTitle,
+        mangaCover: cleanMangaCover || data.cover || '',
+        chapterTitle: finalChapterTitle,
+        mangaUrl: resolvedMangaUrl || chapterUrl,
+        chapters: availableChapters,
+        loading: false,
+        error: null
       };
 
-      setHistory((prev) => {
-        const filtered = prev.filter((item) => item.url !== chapterUrl);
-        const newHist = [historyItem, ...filtered].slice(0, 30);
-        localStorage.setItem('tachiyomi_history', JSON.stringify(newHist));
-        return newHist;
-      });
-
-      if (originMangaUrl) {
-        setLibrary((prev) => {
-          const updated = prev.map((item) => {
-            if (item.url === originMangaUrl) {
-              return {
-                ...item,
-                lastReadChapter: { url: chapterUrl, name: data.chapterTitle }
-              };
-            }
-            return item;
-          });
-          localStorage.setItem('tachiyomi_library', JSON.stringify(updated));
-          return updated;
-        });
+      chapterExtractionCache.current[chapterUrl] = enrichedData;
+      setChapterData(enrichedData);
+      if (enrichedData.isAnime || (enrichedData.videos && enrichedData.videos.length > 0) || isAnimeSource) {
+        setView('player');
+      } else {
+        setView('reader');
       }
+      saveToHistory(finalChapterTitle, cleanMangaCover, cleanMangaCoverProxy, data.extension);
+      if (!isAnimeSource) triggerNextChapterPrefetch(enrichedData, resolvedMangaUrl, extId);
     } else {
       console.error('[handleOpenChapter] Todos los intentos fallaron:', lastError);
       setChapterData(prev => ({
         ...prev,
         loading: false,
-        error: lastError?.response?.data?.message || 'No se pudieron cargar las viñetas del capítulo. Por favor intenta de nuevo.'
+        error: lastError?.response?.data?.message || 'No se pudo cargar el contenido del capítulo. Por favor intenta de nuevo.'
       }));
     }
 
@@ -715,9 +1502,13 @@ export default function App() {
         cover: manga.cover,
         coverProxy: manga.coverProxy,
         extension: manga.extension || 'Olympus Scanlation',
+        extensionId: manga.extensionId || 'olympus-scanlation',
         category: chosenCategory,
         readChapters: [],
         totalChapters: manga.chapters?.length || 1,
+        initialChapterCount: manga.chapters?.length || 1,
+        lastKnownLatestChapterUrl: manga.chapters?.[0]?.url || '',
+        lastKnownLatestChapterName: manga.chapters?.[0]?.name || '',
         lastReadChapter: null,
         addedAt: new Date().toISOString()
       };
@@ -743,6 +1534,7 @@ export default function App() {
       delete newMap[chapterUrl];
     } else {
       newMap[chapterUrl] = true;
+      recordLifetimeReadChapter(chapterUrl);
     }
     saveReadChaptersMap(newMap);
 
@@ -751,7 +1543,10 @@ export default function App() {
         if (item.url === mangaUrl) {
           const readSet = new Set(item.readChapters || []);
           if (isCurrentlyRead) readSet.delete(chapterUrl);
-          else readSet.add(chapterUrl);
+          else {
+            readSet.add(chapterUrl);
+            recordLifetimeReadChapter(chapterUrl);
+          }
           return { ...item, readChapters: Array.from(readSet) };
         }
         return item;
@@ -763,8 +1558,12 @@ export default function App() {
   const handleMarkAllChapters = (mangaUrl, chapterUrls, isRead) => {
     const newMap = { ...readChaptersMap };
     chapterUrls.forEach((url) => {
-      if (isRead) newMap[url] = true;
-      else delete newMap[url];
+      if (isRead) {
+        newMap[url] = true;
+        recordLifetimeReadChapter(url);
+      } else {
+        delete newMap[url];
+      }
     });
     saveReadChaptersMap(newMap);
 
@@ -783,7 +1582,8 @@ export default function App() {
     if (!chapterUrl) return;
     const mangaUrl = selectedManga?.url;
     
-    // Marcar como leído de forma definitiva (no toggle)
+    // Marcar como leído de forma definitiva y registrar en historial inmutable
+    recordLifetimeReadChapter(chapterUrl);
     const newMap = { ...readChaptersMap, [chapterUrl]: true };
     saveReadChaptersMap(newMap);
 
@@ -804,11 +1604,7 @@ export default function App() {
     }
   };
 
-  const handleUpdateSettings = (newSettings) => {
-    const updated = { ...settings, ...newSettings };
-    setSettings(updated);
-    localStorage.setItem('tachiyomi_settings', JSON.stringify(updated));
-  };
+
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -821,19 +1617,29 @@ export default function App() {
   };
 
   const handleGoBack = () => {
-    if (view === 'reader') {
-      if (selectedManga) setView('manga');
-      else setView('explore');
+    if (view === 'reader' || view === 'player') {
+      if (selectedManga) {
+        setView('manga');
+      } else {
+        const target = (previousView && previousView !== 'manga' && previousView !== 'reader' && previousView !== 'player') ? previousView : 'home';
+        setView(target);
+      }
     } else if (view === 'manga') {
-      setView('explore');
+      const target = (previousView && previousView !== 'manga' && previousView !== 'reader' && previousView !== 'player') ? previousView : 'home';
+      setSelectedManga(null);
+      setView(target);
+    } else if (view === 'profile') {
+      const target = (previousView && previousView !== 'profile') ? previousView : 'home';
+      setView(target);
     }
+    window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
   const currentLibraryItem = library.find((i) => i.url === selectedManga?.url);
 
-  // Si estamos en la Web (Modo Landing de Descarga Oficial), mostrar ÚNICAMENTE la página de presentación y descarga
-  if (view === 'landing') {
-    return <OfficialLandingPage onOpenWebReader={() => setView('home')} />;
+  // Si estamos en la Web (Navegador), mostrar ÚNICAMENTE la página de presentación y descarga oficial de la app de PC
+  if (!isElectron || view === 'landing') {
+    return <OfficialLandingPage />;
   }
 
   return (
@@ -843,23 +1649,25 @@ export default function App() {
       {view !== 'reader' && (
         <Sidebar
           currentView={view}
+          previousView={previousView}
           onSelectView={(v) => {
-            if (v === 'explore') {
-              setExploreSubTab('sources');
-              setSelectedExtension('');
-              setSelectedManga(null);
+            if (v !== view) {
+              setPreviousView(view);
+              setView(v);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
             }
-            setView(v);
-            window.scrollTo({ top: 0, behavior: 'instant' });
           }}
           libraryCount={library.length}
           installedExtCount={installedExtensions.length}
           historyCount={history.length}
+          updatesCount={updatesCount}
           unreadDMsCount={unreadDMsCount}
-          currentUser={currentUser}
+          currentUser={enrichedCurrentUser || currentUser}
           onOpenAuth={handleOpenAuth}
           onOpenProfile={() => handleViewProfile(null)}
           onLogout={handleLogout}
+          appMode={appMode}
+          onToggleAppMode={handleToggleAppMode}
         />
       )}
 
@@ -871,39 +1679,39 @@ export default function App() {
           <header className="sticky top-0 z-30 bg-[#090c14]/95 backdrop-blur-md border-b border-gray-800/80 px-4 sm:px-6 h-14 flex items-center justify-between shrink-0 select-none">
             {/* Lado Izquierdo: Título de sección o Botón Volver */}
             <div className="flex items-center gap-3 min-w-0">
-              {view === 'manga' ? (
+              {view === 'manga' || view === 'player' ? (
                 <button
                   onClick={handleGoBack}
                   className="p-1.5 rounded-xl bg-gray-800/80 hover:bg-gray-700 text-gray-300 hover:text-white transition flex items-center gap-1.5 text-xs font-semibold cursor-pointer"
                 >
                   <ArrowLeft className="w-4 h-4" />
-                  <span>Volver</span>
+                  <span className="hidden sm:inline">Volver</span>
                 </button>
               ) : (
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center shadow-md shadow-purple-500/20 md:hidden">
-                    <BookOpen className="w-3.5 h-3.5 text-white" />
-                  </div>
-                  <span className="text-xs sm:text-sm font-black text-white uppercase tracking-wider">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+                  <h2 className="text-xs sm:text-sm font-bold tracking-wide uppercase text-gray-200">
                     {view === 'home' && 'Inicio'}
                     {view === 'library' && 'Mi Biblioteca'}
-                    {view === 'updates' && 'Actualizaciones'}
-                    {view === 'history' && 'Historial'}
-                    {view === 'communities' && 'Comunidades'}
-                    {view === 'messages' && 'Amigos & Mensajes'}
-                    {view === 'explore' && 'Explorar Fuentes'}
-                    {view === 'downloads' && 'Descargas'}
-                    {view === 'settings' && 'Ajustes'}
+                    {view === 'updates' && 'Nuevos Capítulos'}
+                    {view === 'history' && 'Historial de Lectura'}
+                    {view === 'communities' && 'Comunidades & Gremios'}
+                    {view === 'messages' && 'Mensajes & Chats'}
+                    {view === 'explore' && 'Explorar Catálogo'}
+                    {view === 'downloads' && 'Descargas Offline'}
+                    {view === 'settings' && 'Ajustes de Yomori'}
                     {view === 'profile' && 'Perfil de Usuario'}
-                  </span>
+                  </h2>
                 </div>
               )}
             </div>
 
-            {/* Lado Derecho: Campana de Notificaciones + Perfil Rápido */}
+            {/* Lado Derecho: Buscador global + Centro de Notificaciones + Perfil */}
             <div className="flex items-center gap-2 sm:gap-3">
+              
+              {/* Notificaciones Interactivas */}
               <NotificationBell
-                currentUser={currentUser}
+                currentUser={enrichedCurrentUser || currentUser}
                 onOpenMessages={() => {
                   setView('messages');
                   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -914,51 +1722,66 @@ export default function App() {
                 onOpenAuth={handleOpenAuth}
               />
 
-              {currentUser ? (
-                <button
-                  onClick={() => handleViewProfile(currentUser.id)}
-                  className="flex items-center gap-2 p-1.5 pl-2.5 rounded-2xl bg-[#121624] hover:bg-[#181d2e] border border-gray-800 hover:border-purple-500/60 transition cursor-pointer"
-                  title="Mi Perfil"
+              {/* Avatar Usuario Header */}
+              {(enrichedCurrentUser || currentUser) ? (
+                <div 
+                  onClick={() => handleViewProfile(null)}
+                  className="flex items-center gap-2 pl-2 pr-3 py-1 rounded-xl bg-[#141824] hover:bg-[#1c2333] border border-gray-700/60 transition cursor-pointer group"
                 >
-                  <span className="text-xs font-bold text-white hidden sm:inline truncate max-w-[120px]">
-                    @{currentUser.username}
+                  <img
+                    src={(enrichedCurrentUser || currentUser).avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent((enrichedCurrentUser || currentUser).username || 'User')}`}
+                    alt={(enrichedCurrentUser || currentUser).username}
+                    className="w-6 h-6 rounded-full border border-purple-500/60"
+                  />
+                  <span className="text-xs font-bold text-white group-hover:text-purple-300 transition">
+                    @{(enrichedCurrentUser || currentUser).username || (enrichedCurrentUser || currentUser).name}
                   </span>
-                  <div className="w-7 h-7 rounded-xl overflow-hidden bg-gray-900 border border-purple-500/40 shrink-0">
-                    <img src={currentUser.avatar} alt={currentUser.username} className="w-full h-full object-cover" />
-                  </div>
-                </button>
+                  {(enrichedCurrentUser || currentUser).rank && (
+                    <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-purple-900/60 text-purple-300 border border-purple-700/50">
+                      {(enrichedCurrentUser || currentUser).rank}
+                    </span>
+                  )}
+                  {(enrichedCurrentUser || currentUser).role === 'admin' && (
+                    <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-amber-500 text-black uppercase">
+                      Admin
+                    </span>
+                  )}
+                </div>
               ) : (
                 <button
                   onClick={() => handleOpenAuth('login')}
-                  className="px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md shadow-purple-600/30 transition cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md transition cursor-pointer"
                 >
-                  Ingresar
+                  <LogIn className="w-3.5 h-3.5" />
+                  <span>Acceder</span>
                 </button>
               )}
             </div>
           </header>
         )}
 
-        {/* ========================================================= */}
-        {/* APARTADO 0: INICIO (HOME / HERO BANNER / POPULAR / LIVE)  */}
+        {/* APARTADO 0: INICIO                                        */}
         {/* ========================================================= */}
         {view === 'home' && (
           <main className="flex-1">
             <HomeView
               onSelectManga={handleSelectManga}
               onSelectChapter={handleSelectChapter}
+              onRegisterMangaMeta={handleRegisterMangaMeta}
               catalog={catalog}
               library={library}
               onToggleLibrary={handleToggleLibrary}
-              currentUser={currentUser}
+              currentUser={enrichedCurrentUser || currentUser}
               onOpenAuth={handleOpenAuth}
               onOpenUserCard={handleOpenUserCard}
               installedExtensions={installedExtensions}
+              loadingExtensions={loadingExtensions}
               onInstallAllExtensions={handleInstallAllExtensions}
               onGoToExplore={() => {
                 setView('explore');
                 setExploreSubTab('extensions');
               }}
+              appMode={appMode}
             />
           </main>
         )}
@@ -975,6 +1798,7 @@ export default function App() {
               onContinueReading={handleSelectChapter}
               onExploreSources={() => setView('explore')}
               downloadStatusMap={downloadStatusMap}
+              appMode={appMode}
             />
           </main>
         )}
@@ -987,7 +1811,9 @@ export default function App() {
             <UpdatesView
               library={library}
               onSelectChapter={handleSelectChapter}
+              onSelectManga={handleSelectManga}
               onExplore={() => setView('explore')}
+              onUpdatesCountChange={(count) => setUpdatesCount(count)}
             />
           </main>
         )}
@@ -1000,11 +1826,12 @@ export default function App() {
             <HistoryView
               history={history}
               onSelectChapter={handleSelectChapter}
-              onClearHistory={() => {
-                setHistory([]);
-                localStorage.removeItem('tachiyomi_history');
+              onRemoveHistoryItem={(url) => {
+                const updated = history.filter(i => i.url !== url && i.mangaUrl !== url);
+                saveHistory(updated);
               }}
               onExplore={() => setView('explore')}
+              appMode={appMode}
             />
           </main>
         )}
@@ -1041,6 +1868,9 @@ export default function App() {
               onRefreshInstalled={fetchInstalledExtensions}
               onInstallAllExtensions={handleInstallAllExtensions}
               library={library}
+              user={currentUser}
+              currentUser={currentUser}
+              appMode={appMode}
             />
           </main>
         )}
@@ -1051,7 +1881,7 @@ export default function App() {
         {view === 'messages' && (
           <main className="flex-1">
             <MessagesView
-              currentUser={currentUser}
+              currentUser={enrichedCurrentUser || currentUser}
               initialActiveUserId={initialDirectChatUserId}
               library={library}
               catalog={catalog}
@@ -1068,7 +1898,7 @@ export default function App() {
         {view === 'communities' && (
           <main className="flex-1">
             <CommunitiesView
-              currentUser={currentUser}
+              currentUser={enrichedCurrentUser || currentUser}
               onOpenAuth={handleOpenAuth}
               onOpenUserCard={handleOpenUserCard}
               onSelectManga={handleSelectManga}
@@ -1083,11 +1913,15 @@ export default function App() {
           <main className="flex-1">
             <ProfileView
               targetUserId={selectedProfileUserId}
-              currentUser={currentUser}
+              currentUser={enrichedCurrentUser || currentUser}
               onUpdateCurrentUser={handleUpdateCurrentUser}
               onSelectManga={handleSelectManga}
               onOpenDirectChat={handleOpenDirectChat}
-              onBack={() => setView('home')}
+              onBack={handleGoBack}
+              library={library}
+              readChaptersMap={readChaptersMap}
+              history={history}
+              settings={settings}
             />
           </main>
         )}
@@ -1097,7 +1931,16 @@ export default function App() {
         {/* ========================================================= */}
         {view === 'downloads' && (
           <main className="flex-1">
-            <DownloadsView onExplore={() => setView('explore')} />
+            <DownloadsView
+              downloads={downloads}
+              downloadQueue={downloadQueue}
+              onExplore={() => setView('explore')}
+              onSelectChapter={(chUrl, mUrl) => handleSelectChapter(chUrl, mUrl)}
+              onSelectManga={(m) => handleSelectManga(m)}
+              onDeleteChapterDownload={(chUrl) => handleDeleteDownload(chUrl)}
+              onDeleteMangaDownloads={(mUrl) => handleDeleteMangaDownloads(mUrl)}
+              onClearAllDownloads={handleClearAllDownloads}
+            />
           </main>
         )}
 
@@ -1116,13 +1959,22 @@ export default function App() {
               categories={categories}
               onAddCategory={handleAddCategory}
               onRemoveCategory={handleRemoveCategory}
-              currentUser={currentUser}
-              onUpdateCurrentUser={setCurrentUser}
+              onRenameCategory={handleRenameCategory}
+              currentUser={enrichedCurrentUser || currentUser}
+              onUpdateCurrentUser={handleUpdateCurrentUser}
+              library={library}
+              history={history}
+              chapterProgressMap={chapterProgressMap}
+              readChaptersMap={readChaptersMap}
+              installedExtensions={installedExtensions}
+              repositories={repositories}
+              onRestoreBackup={handleRestoreBackup}
+              appMode={appMode}
             />
           </main>
         )}
 
-        {/* VISTA DETALLES DE MANGA */}
+        {/* VISTA DETALLES DE MANGA / ANIME */}
         {view === 'manga' && (
           <main className="flex-1 pt-14">
             <MangaDetailsView
@@ -1133,7 +1985,8 @@ export default function App() {
               onToggleChapterRead={handleToggleChapterRead}
               onMarkAllChapters={handleMarkAllChapters}
               onBack={handleGoBack}
-              onSelectChapter={(url, page) => handleSelectChapter(url, selectedManga.url, page)}
+              onSelectChapter={(url, page) => handleSelectChapter(url, selectedManga?.url, page, selectedManga)}
+              onSelectManga={handleSelectManga}
               loadingChapter={loadingChapter}
               categories={categories}
               readChaptersMap={readChaptersMap}
@@ -1143,9 +1996,29 @@ export default function App() {
               onDownloadChapter={handleDownloadChapter}
               onDownloadBatch={handleDownloadBatch}
               onDeleteDownload={handleDeleteDownload}
-              currentUser={currentUser}
+              currentUser={enrichedCurrentUser || currentUser}
               onOpenAuth={handleOpenAuth}
               onOpenUserCard={handleOpenUserCard}
+              appMode={appMode}
+            />
+          </main>
+        )}
+
+        {/* VISTA REPRODUCTOR DE ANIME STREAMING */}
+        {view === 'player' && (
+          <main className="flex-1 w-full relative">
+            <AnimePlayerView
+              playerData={chapterData}
+              anime={selectedManga}
+              episodes={selectedManga?.chapters?.length > 0 ? selectedManga.chapters : (chapterData?.chapters || [])}
+              currentEpisodeUrl={chapterData?.currentUrl}
+              onSelectEpisode={(url) => handleSelectChapter(url, selectedManga?.url || chapterData?.mangaUrl, null, selectedManga)}
+              onBack={handleGoBack}
+              currentUser={enrichedCurrentUser || currentUser}
+              onOpenAuth={handleOpenAuth}
+              onOpenUserCard={handleOpenUserCard}
+              readChaptersMap={readChaptersMap}
+              onToggleChapterRead={handleToggleChapterRead}
             />
           </main>
         )}
@@ -1156,7 +2029,7 @@ export default function App() {
             <Reader
               chapterData={chapterData}
               settings={settings}
-              onNavigateChapter={(url) => handleSelectChapter(url, selectedManga?.url)}
+              onNavigateChapter={(url) => handleSelectChapter(url, chapterData?.mangaUrl || selectedManga?.url)}
               onToggleControls={() => setControlsVisible((prev) => !prev)}
               currentPage={currentPage}
               setCurrentPage={setCurrentPage}
@@ -1165,20 +2038,21 @@ export default function App() {
               setIsAutoScrolling={setIsAutoScrolling}
               initialPage={initialReaderPage}
               onPageChange={(page, total) => handleUpdateChapterProgress(chapterData.currentUrl, page, total)}
-              onRetry={() => handleSelectChapter(chapterData?.currentUrl, selectedManga?.url || chapterData?.mangaUrl)}
+              onRetry={() => handleSelectChapter(chapterData?.currentUrl, chapterData?.mangaUrl || selectedManga?.url)}
             />
 
             <FloatingControls
               chapterData={chapterData}
-              chapters={selectedManga?.chapters || []}
-              mangaTitle={selectedManga?.title || chapterData?.mangaTitle || 'Manga'}
+              chapters={selectedManga?.chapters?.length > 0 ? selectedManga.chapters : (chapterData?.chapters || [])}
+              mangaTitle={chapterData?.mangaTitle || selectedManga?.title || 'Manga'}
               currentPage={currentPage}
               totalPages={chapterData?.pages?.length || 0}
               isVisible={controlsVisible}
               settings={settings}
               onBack={handleGoBack}
-              onNavigateChapter={(url) => handleSelectChapter(url, selectedManga?.url || chapterData?.mangaUrl)}
+              onNavigateChapter={(url) => handleSelectChapter(url, chapterData?.mangaUrl || selectedManga?.url)}
               onOpenSettings={() => setIsSettingsModalOpen(true)}
+              onOpenComments={() => setIsCommentsOpen(prev => !prev)}
               isFullscreen={isFullscreen}
               onToggleFullscreen={toggleFullscreen}
               isAutoScrolling={isAutoScrolling}
@@ -1191,7 +2065,10 @@ export default function App() {
               chapterTitle={chapterData?.chapterTitle || 'Capítulo'}
               mangaTitle={chapterData?.mangaTitle || selectedManga?.title || 'Manga'}
               currentPage={currentPage}
-              currentUser={currentUser}
+              currentUser={enrichedCurrentUser || currentUser}
+              isOpen={isCommentsOpen}
+              onClose={() => setIsCommentsOpen(false)}
+              onOpen={() => setIsCommentsOpen(true)}
               onOpenAuth={handleOpenAuth}
               onOpenUserCard={handleOpenUserCard}
             />
@@ -1224,6 +2101,23 @@ export default function App() {
           initialMode={authModalMode}
           onLoginSuccess={(user) => {
             setCurrentUser(user);
+            if (Array.isArray(user.library) && user.library.length > 0) {
+              saveLibrary(user.library);
+            }
+            if (Array.isArray(user.categories) && user.categories.length > 0) {
+              saveCategories(user.categories);
+            }
+            if (Array.isArray(user.history) && user.history.length > 0) {
+              saveHistory(user.history);
+            }
+            if (user.chapterProgress && Object.keys(user.chapterProgress).length > 0) {
+              setChapterProgressMap(user.chapterProgress);
+              localStorage.setItem('tachiyomi_chapter_progress', JSON.stringify(user.chapterProgress));
+            }
+            if (user.settings && Object.keys(user.settings).length > 0) {
+              setSettings(prev => ({ ...prev, ...user.settings }));
+              localStorage.setItem('tachiyomi_settings', JSON.stringify({ ...settings, ...user.settings }));
+            }
           }}
         />
 
@@ -1234,7 +2128,7 @@ export default function App() {
           userId={userCardModal.userId}
           usernameFallback={userCardModal.usernameFallback}
           userAvatarFallback={userCardModal.userAvatarFallback}
-          currentUser={currentUser}
+          currentUser={enrichedCurrentUser || currentUser}
           onViewFullProfile={(uid) => {
             setUserCardModal({ isOpen: false });
             handleViewProfile(uid);

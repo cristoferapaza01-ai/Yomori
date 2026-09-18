@@ -5,20 +5,23 @@ export const CLOUD_SERVER_URL = 'http://158.101.116.245';
 
 export function getSocket() {
   if (!socket) {
-    // Conectar al servidor central en la nube de Yomori para sincronización global en tiempo real (PC <-> Celular)
-    let serverUrl = CLOUD_SERVER_URL;
+    let serverUrl = typeof window !== 'undefined' && window.location ? window.location.origin : CLOUD_SERVER_URL;
     if (typeof window !== 'undefined' && window.location) {
       const hostname = window.location.hostname || '';
-      if (hostname === '158.101.116.245' || hostname.includes('yomori')) {
+      if (hostname === 'localhost' || hostname === '127.0.0.1') {
         serverUrl = window.location.origin;
+      } else if (hostname === '158.101.116.245' || hostname.includes('yomori')) {
+        serverUrl = window.location.origin;
+      } else {
+        serverUrl = CLOUD_SERVER_URL;
       }
     }
 
     socket = io(serverUrl, {
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
       reconnection: true,
-      reconnectionAttempts: 50,
-      reconnectionDelay: 1000,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 2000,
       timeout: 10000
     });
 

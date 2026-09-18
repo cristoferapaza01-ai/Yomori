@@ -5,6 +5,7 @@ import {
   Heart, 
   Users, 
   LogIn, 
+  UserPlus,
   MoreVertical,
   Reply,
   Copy,
@@ -29,6 +30,7 @@ const SORT_OPTIONS = [
 export default function LiveChatRoom({
   roomId = 'global',
   title = 'Chat de la Comunidad',
+  roomTitle = null,
   subtitle = 'Comenta en directo con otros lectores en tiempo real.',
   currentUser = null,
   onOpenAuth,
@@ -37,7 +39,12 @@ export default function LiveChatRoom({
   chapterTitle = null,
   currentPage = null,
   showPageTag = false,
-  compact = false
+  compact = false,
+  variant = 'default',
+  isCommunityMember = true,
+  onJoinCommunity = null,
+  limit = null,
+  className = ''
 }) {
   const [messages, setMessages] = useState([]);
   const [activeUsersCount, setActiveUsersCount] = useState(1);
@@ -160,18 +167,21 @@ export default function LiveChatRoom({
     }
   }, [roomId]);
 
-  // Mensajes ordenados según el filtro seleccionado
+  // Mensajes ordenados según el filtro seleccionado (por defecto Más recientes al inicio/arriba)
   const sortedMessages = useMemo(() => {
     const list = [...messages];
     if (sortBy === 'recientes') {
-      return list.sort((a, b) => new Date(a.createdAt || a.timestamp || 0) - new Date(b.createdAt || b.timestamp || 0));
+      return list.sort((a, b) => new Date(b.createdAt || b.timestamp || 0) - new Date(a.createdAt || a.timestamp || 0));
     } else if (sortBy === 'populares') {
       return list.sort((a, b) => (b.likesCount || b.likes || 0) - (a.likesCount || a.likes || 0));
     } else if (sortBy === 'antiguos') {
-      return list.sort((a, b) => new Date(b.createdAt || b.timestamp || 0) - new Date(a.createdAt || a.timestamp || 0));
+      return list.sort((a, b) => new Date(a.createdAt || a.timestamp || 0) - new Date(b.createdAt || b.timestamp || 0));
     }
     return list;
   }, [messages, sortBy]);
+
+  // Mensajes mostrados en orden
+  const displayedMessages = sortedMessages;
 
   // Enviar mensaje enriquecido
   const handleSend = ({ text, images }) => {
@@ -188,6 +198,11 @@ export default function LiveChatRoom({
       token: currentUser.token,
       userId: currentUser.id,
       username: currentUser.username,
+      avatar: currentUser.avatar || null,
+      role: currentUser.role || null,
+      rank: currentUser.rank || currentUser.badge || null,
+      badge: currentUser.badge || currentUser.rank || null,
+      level: currentUser.level || null,
       text: text || '',
       images: images || [],
       page: (showPageTag && includePageTag && currentPage) ? currentPage : null,
@@ -204,12 +219,12 @@ export default function LiveChatRoom({
       setIsSending(false);
       setReplyingTo(null);
       if (createdMsg) {
-        setMessages(prev => prev.some(m => m.id === createdMsg.id) ? prev : [...prev, createdMsg]);
+        setMessages(prev => prev.some(m => m.id === createdMsg.id) ? prev : [createdMsg, ...prev]);
       }
       setTimeout(() => {
         if (chatContainerRef.current) {
           chatContainerRef.current.scrollTo({
-            top: chatContainerRef.current.scrollHeight,
+            top: 0,
             behavior: 'smooth'
           });
         }
@@ -318,8 +333,19 @@ export default function LiveChatRoom({
     if (!currentUser) return;
     if (!confirm('¿Deseas eliminar este comentario?')) return;
 
+    const socket = getSocket();
+    if (socket && socket.connected) {
+      socket.emit('delete_message', { messageId: msgId, roomId, token: currentUser.token }, (res) => {
+        if (res?.success) {
+          setMessages(prev => prev.filter(m => m.id !== msgId));
+          showToast('Comentario eliminado');
+        }
+      });
+    }
+
     axios.delete(`/api/chat/message/${msgId}`, {
-      headers: { Authorization: `Bearer ${currentUser.token}` }
+      headers: { Authorization: `Bearer ${currentUser.token}` },
+      data: { roomId, messageId: msgId }
     }).then(() => {
       setMessages(prev => prev.filter(m => m.id !== msgId));
       showToast('Comentario eliminado');
@@ -336,8 +362,10 @@ export default function LiveChatRoom({
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const isSeamless = variant === 'seamless';
+
   return (
-    <div className={`flex flex-col bg-[#0b0e14] border border-gray-800 rounded-3xl overflow-hidden shadow-2xl transition-all ${compact ? 'h-[520px]' : 'h-[620px]'}`}>
+    <div className={`flex flex-col w-full ${limit ? 'min-h-0' : 'min-h-[600px]'} h-full bg-transparent transition-all ${className}`}>
       
       {/* Toast Notification */}
       {toastMessage && (
@@ -346,10 +374,10 @@ export default function LiveChatRoom({
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 py-3.5 bg-[#0f131d] border-b border-gray-800 shrink-0">
+      {/* Header Abierto e Integrado con el Fondo */}
+      <div className="flex items-center justify-between px-1 py-2 mb-2 shrink-0 bg-transparent">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-purple-600/20">
+          <div className="w-8 h-8 rounded-xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-400 shadow-sm">
             <MessageSquare className="w-4 h-4" />
           </div>
           <div>
@@ -357,7 +385,7 @@ export default function LiveChatRoom({
               <span>{title}</span>
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="En directo"></span>
             </h3>
-            <p className="text-[11px] text-gray-400 truncate max-w-[200px] sm:max-w-xs">
+            <p className="text-[11px] text-gray-400 truncate max-w-[220px] sm:max-w-md">
               {subtitle}
             </p>
           </div>
@@ -371,7 +399,7 @@ export default function LiveChatRoom({
             <button
               type="button"
               onClick={() => setIsSortDropdownOpen(prev => !prev)}
-              className="yomori-sort-dropdown-trigger flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#111420] hover:bg-[#161a29] border border-gray-800 hover:border-gray-700 text-xs font-semibold text-gray-200 transition cursor-pointer shadow-sm"
+              className="yomori-sort-dropdown-trigger flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#111420]/80 hover:bg-[#161a29] border border-gray-800 hover:border-gray-700 text-xs font-semibold text-gray-200 transition cursor-pointer shadow-sm"
               title="Cambiar orden de los comentarios"
             >
               <ArrowUpDown className="w-3.5 h-3.5 text-purple-400" />
@@ -414,206 +442,10 @@ export default function LiveChatRoom({
         </div>
       </div>
 
-      {/* Lista de Mensajes */}
-      <div 
-        ref={chatContainerRef}
-        className="flex-1 overflow-y-auto px-4 py-4 space-y-3.5 custom-scrollbar bg-radial from-purple-950/10 via-transparent to-transparent"
-      >
-        {loadingHistory ? (
-          <div className="h-full flex flex-col items-center justify-center gap-2 text-gray-500 py-12">
-            <Loader2 className="w-6 h-6 animate-spin text-purple-500" />
-            <span className="text-xs">Cargando comentarios...</span>
-          </div>
-        ) : sortedMessages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-center p-8 text-gray-500 space-y-2">
-            <div className="w-12 h-12 rounded-2xl bg-gray-900 flex items-center justify-center text-gray-600">
-              <MessageSquare className="w-6 h-6" />
-            </div>
-            <p className="text-xs font-semibold text-gray-400">Aún no hay comentarios.</p>
-            <p className="text-[11px] text-gray-600 max-w-xs">
-              ¡Sé el primero en iniciar la conversación y comparte tu opinión!
-            </p>
-          </div>
-        ) : (
-          sortedMessages.map((msg) => {
-            const isMe = currentUser && (msg.userId === currentUser.id || msg.username === currentUser.username);
-            const isLikedByMe = currentUser && Array.isArray(msg.likedUsers) && msg.likedUsers.includes(currentUser.id);
-            const likesCount = msg.likesCount || msg.likes || 0;
-
-            return (
-              <div 
-                key={msg.id || `${msg.timestamp}-${Math.random()}`}
-                id={`comment-${msg.id}`}
-                className="group relative flex gap-3 items-start animate-fade-in hover:bg-white/[0.02] p-2 rounded-2xl transition"
-              >
-                {/* Avatar */}
-                <button
-                  onClick={() => onOpenUserCard && onOpenUserCard(msg.username)}
-                  className="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-purple-500/30 hover:border-purple-400 transition transform hover:scale-105"
-                  title={`Ver perfil de @${msg.username}`}
-                >
-                  <img 
-                    src={msg.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(msg.username || 'guest')}`} 
-                    alt={msg.username}
-                    className="w-full h-full object-cover"
-                  />
-                </button>
-
-                {/* Contenido del Mensaje */}
-                <div className="flex-1 min-w-0">
-                  
-                  {/* Cabecera del Mensaje */}
-                  <div className="flex items-center justify-between gap-2 mb-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <button
-                        onClick={() => onOpenUserCard && onOpenUserCard(msg.username)}
-                        className="text-xs font-bold text-gray-200 hover:text-purple-400 transition"
-                      >
-                        @{msg.username}
-                      </button>
-
-                      {msg.role === 'admin' && (
-                        <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                          ADMIN
-                        </span>
-                      )}
-
-                      {msg.page && (
-                        <span className="px-1.5 py-0.2 rounded text-[9px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                          Pág. {msg.page}
-                        </span>
-                      )}
-
-                      <span className="text-[10px] text-gray-600">
-                        {formatTimestamp(msg.createdAt || msg.timestamp)}
-                      </span>
-                    </div>
-
-                    {/* Menú de 3 puntos y botón Me Gusta */}
-                    <div className="flex items-center gap-1.5 relative">
-                      
-                      {/* Botón de Like */}
-                      <button
-                        onClick={() => handleLike(msg.id)}
-                        className={`flex items-center gap-1 px-1.5 py-0.5 rounded-lg text-[11px] transition cursor-pointer ${
-                          isLikedByMe 
-                            ? 'text-rose-400 bg-rose-950/40 border border-rose-800/50' 
-                            : 'text-gray-500 hover:text-rose-400 hover:bg-gray-800/60'
-                        }`}
-                        title={isLikedByMe ? 'Quitar Me Gusta' : 'Me Gusta'}
-                      >
-                        <Heart className={`w-3 h-3 ${isLikedByMe ? 'fill-rose-500 text-rose-500' : ''}`} />
-                        {likesCount > 0 && <span className="font-semibold text-[10px]">{likesCount}</span>}
-                      </button>
-
-                      {/* Menú Flotante de 3 puntos */}
-                      <div className="relative">
-                        <button
-                          type="button"
-                          onClick={() => setActiveMenuId(activeMenuId === msg.id ? null : msg.id)}
-                          className="yomori-chat-menu-trigger p-1 rounded-lg text-gray-500 hover:text-gray-200 hover:bg-gray-800/80 transition cursor-pointer"
-                          title="Opciones del comentario"
-                        >
-                          <MoreVertical className="w-3.5 h-3.5" />
-                        </button>
-
-                        {/* Panel Flotante Desplegable */}
-                        {activeMenuId === msg.id && (
-                          <div className="yomori-chat-menu-popup absolute right-0 top-6 w-48 rounded-xl bg-[#131722] border border-gray-700 shadow-2xl p-1 z-50 animate-fade-in text-xs text-gray-200 space-y-0.5">
-                            
-                            {/* Responder */}
-                            <button
-                              onClick={() => handleReplyToMessage(msg)}
-                              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-purple-600/20 hover:text-purple-300 transition text-left cursor-pointer"
-                            >
-                              <Reply className="w-3.5 h-3.5 text-purple-400" />
-                              <span>Responder</span>
-                            </button>
-
-                            {/* Copiar Enlace */}
-                            <button
-                              onClick={() => handleCopyLink(msg.id)}
-                              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-gray-800 transition text-left cursor-pointer"
-                            >
-                              <Link2 className="w-3.5 h-3.5 text-indigo-400" />
-                              <span>Copiar enlace</span>
-                            </button>
-
-                            {/* Copiar Texto */}
-                            {msg.text && (
-                              <button
-                                onClick={() => handleCopyText(msg.text)}
-                                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-gray-800 transition text-left cursor-pointer"
-                              >
-                                <Copy className="w-3.5 h-3.5 text-gray-400" />
-                                <span>Copiar texto</span>
-                              </button>
-                            )}
-
-                            <div className="h-px bg-gray-800 my-1" />
-
-                            {/* Reportar */}
-                            <button
-                              onClick={() => handleReport(msg.id)}
-                              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-amber-950/40 text-amber-300/80 hover:text-amber-300 transition text-left cursor-pointer"
-                            >
-                              <Flag className="w-3.5 h-3.5 text-amber-400" />
-                              <span>Reportar comentario</span>
-                            </button>
-
-                            {/* Eliminar (si es propio o admin) */}
-                            {(isMe || currentUser?.role === 'admin') && (
-                              <button
-                                onClick={() => handleDelete(msg.id)}
-                                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-rose-950/40 text-rose-400 hover:text-rose-300 transition text-left cursor-pointer"
-                              >
-                                <Trash2 className="w-3.5 h-3.5 text-rose-400" />
-                                <span>Eliminar comentario</span>
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-
-                    </div>
-                  </div>
-
-                  {/* Cita de Respuesta si existe */}
-                  {msg.replyTo && (
-                    <div className="mb-2 px-2.5 py-1 rounded-lg bg-purple-950/30 border-l-2 border-purple-500 text-[11px] text-gray-300">
-                      <span className="font-bold text-purple-300">@{msg.replyTo.username}: </span>
-                      <span className="text-gray-400 italic">"{msg.replyTo.text}"</span>
-                    </div>
-                  )}
-
-                  {/* Cuerpo Formateado (Soporte spoilers, negritas, links e imágenes) */}
-                  <div className="text-xs sm:text-sm text-gray-200">
-                    <FormattedMessage text={msg.text} images={msg.images} />
-                  </div>
-
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-
-      {/* Editor WYSIWYG de Comentarios en la parte inferior */}
-      <div className="p-3 bg-[#0f131d] border-t border-gray-800 shrink-0">
-        {currentUser ? (
-          <RichCommentEditor
-            placeholder="Escribe un comentario..."
-            onSend={handleSend}
-            isSending={isSending}
-            replyingTo={replyingTo}
-            onCancelReply={() => setReplyingTo(null)}
-            showPageTag={showPageTag}
-            currentPage={currentPage}
-            includePageTag={includePageTag}
-            onTogglePageTag={setIncludePageTag}
-          />
-        ) : (
-          <div className="p-4 rounded-2xl bg-[#111420] border border-purple-900/40 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+      {/* Editor WYSIWYG de Comentarios en la PARTE SUPERIOR (El único cuadro de redacción) */}
+      <div className="shrink-0 mb-3 bg-transparent">
+        {!currentUser ? (
+          <div className="p-3.5 rounded-2xl bg-[#111420] border border-purple-900/40 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
             <div className="flex items-center gap-2.5">
               <div className="p-2 rounded-xl bg-purple-950/80 text-purple-400 border border-purple-800/60 shrink-0">
                 <LogIn className="w-4 h-4" />
@@ -623,7 +455,7 @@ export default function LiveChatRoom({
                   Únete a la conversación
                 </span>
                 <p className="text-[11px] text-gray-400">
-                  Inicia sesión o regístrate para poder enviar comentarios, fotos y spoilers interactivos.
+                  Inicia sesión o regístrate para comentar en directo.
                 </p>
               </div>
             </div>
@@ -635,6 +467,250 @@ export default function LiveChatRoom({
               Iniciar Sesión
             </button>
           </div>
+        ) : isCommunityMember === false ? (
+          <div className="p-3.5 rounded-2xl bg-[#111420]/90 border border-purple-600/40 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left shadow-lg">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-purple-950/90 text-purple-400 border border-purple-700/60 shrink-0">
+                <Users className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-xs font-bold text-white block">
+                  Únete a esta comunidad para escribir
+                </span>
+                <p className="text-[11px] text-gray-400">
+                  Debes unirte a la comunidad para enviar comentarios y participar en los debates.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => onJoinCommunity && onJoinCommunity()}
+              className="w-full sm:w-auto px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-md shadow-purple-600/40 transition transform hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center gap-1.5 shrink-0"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>Unirme a la comunidad</span>
+            </button>
+          </div>
+        ) : (
+          <RichCommentEditor
+            placeholder="Escribe un comentario..."
+            onSend={handleSend}
+            isSending={isSending}
+            replyingTo={replyingTo}
+            onCancelReply={() => setReplyingTo(null)}
+            showPageTag={showPageTag}
+            currentPage={currentPage}
+            includePageTag={includePageTag}
+            onTogglePageTag={setIncludePageTag}
+          />
+        )}
+      </div>
+
+      {/* Lista de Mensajes con Scroll Interno y Flujo Integrado al Fondo */}
+      <div 
+        ref={chatContainerRef}
+        className="flex-1 overflow-y-auto custom-scrollbar min-h-0 px-1 py-1 space-y-2 bg-transparent"
+      >
+        {loadingHistory ? (
+          <div className="h-full flex flex-col items-center justify-center gap-2 text-gray-500 py-12">
+            <Loader2 className="w-6 h-6 animate-spin text-purple-500" />
+            <span className="text-xs">Cargando comentarios...</span>
+          </div>
+        ) : displayedMessages.length === 0 ? (
+          <div className="h-full flex flex-col items-center justify-center text-center p-8 text-gray-500 space-y-2">
+            <div className="w-12 h-12 rounded-2xl bg-gray-900/60 flex items-center justify-center text-gray-600">
+              <MessageSquare className="w-6 h-6" />
+            </div>
+            <p className="text-xs font-semibold text-gray-400">Sé el primero en comentar</p>
+            <p className="text-[11px] text-gray-500">Comparte tu opinión con la comunidad en vivo.</p>
+          </div>
+        ) : (
+          <>
+            {displayedMessages.map((msg) => {
+              const isMe = currentUser && (msg.userId === currentUser.id || msg.username === currentUser.username);
+              const isCommunityLeader = false;
+              const userRankBadge = msg.userBadge || msg.badge || msg.rank || '🌱 Lector Novato';
+              const userLevel = msg.level || 1;
+
+              return (
+                <div 
+                  key={msg.id} 
+                  id={`comment-${msg.id}`}
+                  className={`group flex items-start gap-3 p-3 rounded-2xl transition-all duration-200 ${
+                    isMe 
+                      ? 'bg-purple-950/15 border border-purple-900/30 hover:border-purple-800/50' 
+                      : 'bg-white/[0.02] hover:bg-white/[0.04] border border-gray-800/40 hover:border-gray-700/60'
+                  }`}
+                >
+                  {/* Avatar de Usuario */}
+                  <button
+                    type="button"
+                    onClick={() => onOpenUserCard && onOpenUserCard(msg.userId, msg.username)}
+                    className="shrink-0 relative group/avatar focus:outline-none"
+                    title={`Ver perfil de @${msg.username}`}
+                  >
+                    <div className="w-9 h-9 rounded-2xl overflow-hidden bg-purple-950 border border-purple-800/60 shadow-sm flex items-center justify-center text-purple-300 font-bold text-xs">
+                      {msg.userAvatar || msg.avatar ? (
+                        <img src={msg.userAvatar || msg.avatar} alt={msg.username} className="w-full h-full object-cover" />
+                      ) : (
+                        <span>{(msg.username || 'U').charAt(0).toUpperCase()}</span>
+                      )}
+                    </div>
+                  </button>
+
+                  {/* Contenido del Mensaje */}
+                  <div className="flex-1 min-w-0">
+                    
+                    {/* Cabecera del Mensaje */}
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => onOpenUserCard && onOpenUserCard(msg.userId, msg.username)}
+                          className="text-xs font-bold text-purple-300 hover:text-purple-200 transition truncate max-w-[140px] focus:outline-none"
+                        >
+                          @{msg.username}
+                        </button>
+
+                        {/* Insignia de Rango de Lector */}
+                        <span className="px-1.5 py-0.2 rounded-md bg-purple-950/80 border border-purple-700/50 text-[10px] text-purple-300 font-semibold font-mono tracking-tight shadow-sm">
+                          {userRankBadge}
+                        </span>
+
+                        {/* Nivel */}
+                        <span className="px-1 py-0.2 rounded-md bg-gray-900 border border-gray-700 text-[9px] text-gray-400 font-bold">
+                          Nv.{userLevel}
+                        </span>
+
+                        {msg.page && (
+                          <span className="px-1.5 py-0.2 rounded bg-indigo-950 text-indigo-300 border border-indigo-800/50 text-[9px] font-bold">
+                            Pág. {msg.page}
+                          </span>
+                        )}
+
+                        <span className="text-[10px] text-gray-500 font-medium">
+                          {formatTimestamp(msg.createdAt || msg.timestamp)}
+                        </span>
+                      </div>
+
+                      {/* Menú de 3 puntos y botón Me Gusta */}
+                      <div className="flex items-center gap-1 shrink-0">
+                        
+                        {/* Botón de Like */}
+                        <button
+                          onClick={() => handleLike(msg.id)}
+                          className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs transition cursor-pointer ${
+                            currentUser && (msg.likedUsers || []).includes(currentUser.id)
+                              ? 'text-rose-400 bg-rose-950/40 border border-rose-800/40'
+                              : 'text-gray-400 hover:text-rose-400 hover:bg-gray-800/60'
+                          }`}
+                          title="Me gusta"
+                        >
+                          <Heart className={`w-3.5 h-3.5 ${(msg.likesCount || (msg.likedUsers || []).length) ? 'fill-rose-500 text-rose-500' : ''}`} />
+                          {(msg.likesCount || (msg.likedUsers || []).length > 0) && (
+                            <span className="text-[11px] font-semibold">{msg.likesCount || (msg.likedUsers || []).length}</span>
+                          )}
+                        </button>
+
+                        {/* Menú Flotante de 3 puntos */}
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => setActiveMenuId(activeMenuId === msg.id ? null : msg.id)}
+                            className="yomori-chat-menu-trigger p-1 rounded-lg text-gray-500 hover:text-gray-200 hover:bg-gray-800/80 transition cursor-pointer"
+                            title="Opciones del comentario"
+                          >
+                            <MoreVertical className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Panel Flotante Desplegable */}
+                          {activeMenuId === msg.id && (
+                            <div className="yomori-chat-menu-popup absolute right-0 top-6 w-48 rounded-xl bg-[#131722] border border-gray-700 shadow-2xl p-1.5 z-50 animate-fade-in text-xs text-gray-200 space-y-0.5">
+                              
+                              {/* Responder */}
+                              <button
+                                onClick={() => handleReplyToMessage(msg)}
+                                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-purple-600/20 hover:text-purple-300 transition text-left cursor-pointer"
+                              >
+                                <Reply className="w-3.5 h-3.5 text-purple-400" />
+                                <span>Responder</span>
+                              </button>
+
+                              {/* Copiar Enlace */}
+                              <button
+                                onClick={() => handleCopyLink(msg.id)}
+                                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-gray-800 transition text-left cursor-pointer"
+                              >
+                                <Link2 className="w-3.5 h-3.5 text-indigo-400" />
+                                <span>Copiar enlace</span>
+                              </button>
+
+                              {/* Copiar Texto */}
+                              {msg.text && (
+                                <button
+                                  onClick={() => handleCopyText(msg.text)}
+                                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-gray-800 transition text-left cursor-pointer"
+                                >
+                                  <Copy className="w-3.5 h-3.5 text-gray-400" />
+                                  <span>Copiar texto</span>
+                                </button>
+                              )}
+
+                              <div className="h-px bg-gray-800 my-1" />
+
+                              {/* Reportar */}
+                              <button
+                                onClick={() => handleReport(msg.id)}
+                                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-amber-950/40 text-amber-300/80 hover:text-amber-300 transition text-left cursor-pointer"
+                              >
+                                <Flag className="w-3.5 h-3.5 text-amber-400" />
+                                <span>Reportar comentario</span>
+                              </button>
+
+                              {/* Eliminar (si es propio, líder o admin global) */}
+                              {(isMe || currentUser?.role === 'admin' || (currentUser?.username || '').toLowerCase() === 'rey_palomo' || (currentUser?.username || '').toLowerCase() === 'admin' || isCommunityLeader) && (
+                                <button
+                                  onClick={() => handleDelete(msg.id)}
+                                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-rose-950/40 text-rose-400 hover:text-rose-300 transition text-left cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                                  <span>Eliminar comentario</span>
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                      </div>
+                    </div>
+
+                    {/* Cita de Respuesta si existe */}
+                    {msg.replyTo && (
+                      <div className="mb-2 px-2.5 py-1 rounded-lg bg-purple-950/30 border-l-2 border-purple-500 text-[11px] text-gray-300">
+                        <span className="font-bold text-purple-300">@{msg.replyTo.username}: </span>
+                        <span className="text-gray-400 italic">"{msg.replyTo.text}"</span>
+                      </div>
+                    )}
+
+                    {/* Cuerpo Formateado */}
+                    <div className="text-xs sm:text-sm text-gray-200">
+                      <FormattedMessage text={msg.text} images={msg.images} />
+                    </div>
+
+                  </div>
+                </div>
+              );
+            })}
+
+            {sortedMessages.length > 9 && (
+              <div className="pt-3 pb-2 text-center">
+                <span className="text-[11px] font-medium text-gray-500 bg-gray-900/60 border border-gray-800/80 px-3.5 py-1 rounded-full inline-flex items-center gap-1.5 shadow-sm">
+                  <span>Has llegado al final de los comentarios ({sortedMessages.length} en total)</span>
+                </span>
+              </div>
+            )}
+          </>
         )}
       </div>
 

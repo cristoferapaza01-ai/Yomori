@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, RefreshCw, AlertTriangle, CheckCircle, ArrowUp, Sun, Moon, Loader2, Lock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RefreshCw, AlertTriangle, CheckCircle, ArrowUp, Sun, Moon, Loader2, Lock, Play } from 'lucide-react';
 import { getSocket } from '../services/socket.js';
+import { updateReadingStreak } from '../services/readerRankService.js';
 
 function ChapterImage({ page, index, totalPages, useProxy, gap, filterStyle }) {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -237,7 +238,9 @@ export default function Reader({
   onPageChange,
   onRetry
 }) {
-  const totalPages = chapterData?.pages?.length || 0;
+  const pages = Array.isArray(chapterData?.pages) ? chapterData.pages : [];
+  const totalPages = pages.length;
+  const isLoading = !!chapterData?.loading || (!chapterData?.error && !chapterData?.isLocked && totalPages === 0);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const currentPageRef = useRef(currentPage);
 
@@ -278,7 +281,40 @@ export default function Reader({
 
     socket.emit('reading_activity', payload);
 
+    // Actualizar racha diaria de lectura
+    try {
+      updateReadingStreak();
+    } catch (e) {}
+
+    // Registrar evento en analíticas globales de popularidad
+    try {
+      fetch('/api/analytics/track-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mangaUrl: chapterData.mangaUrl || chapterData.currentUrl || '',
+          title: chapterData.mangaTitle || chapterData.title || 'Manga',
+          cover: chapterData.mangaCover || chapterData.cover || '',
+          scanSource: chapterData.scan || chapterData.scanSource || '',
+          extensionId: chapterData.extension || '',
+          chapterTitle: chapterData.chapterTitle || '',
+          chapterUrl: chapterData.currentUrl || '',
+          userId: userObj?.id || 'anon',
+          username: userObj?.username || 'Lector'
+        })
+      }).catch(() => {});
+    } catch (e) {}
+
+    // Temporizador para contar tiempo de lectura activo
+    const timeInterval = setInterval(() => {
+      try {
+        const curr = parseInt(localStorage.getItem('yomori_reading_seconds') || '0', 10);
+        localStorage.setItem('yomori_reading_seconds', String(curr + 10));
+      } catch (e) {}
+    }, 10000);
+
     return () => {
+      clearInterval(timeInterval);
       socket.emit('reading_activity', {
         token,
         userId: userObj?.id,
@@ -290,7 +326,7 @@ export default function Reader({
 
   // Desplazar automáticamente a la página donde se quedó el usuario (initialPage)
   useEffect(() => {
-    if (initialPage && initialPage > 1 && chapterData?.pages?.length > 0) {
+    if (initialPage && initialPage > 1 && pages.length > 0) {
       const timer = setTimeout(() => {
         const targetElement = document.getElementById(`page-${initialPage}`);
         if (targetElement) {
@@ -299,12 +335,11 @@ export default function Reader({
       }, 150);
       return () => clearTimeout(timer);
     }
-  }, [chapterData?.currentUrl, initialPage, chapterData?.pages?.length]);
+  }, [chapterData?.currentUrl, initialPage, pages.length]);
 
   // Precarga inteligente en segundo plano de TODAS las viñetas del capítulo actual
   useEffect(() => {
-    if (!chapterData?.pages || chapterData.pages.length === 0) return;
-    const pages = chapterData.pages;
+    if (pages.length === 0) return;
 
     pages.forEach((p) => {
       const src = settings.useProxy && p.proxyUrl ? p.proxyUrl : (p.originalUrl || p.url);
@@ -313,7 +348,7 @@ export default function Reader({
         img.src = src;
       }
     });
-  }, [chapterData?.pages, settings.useProxy]);
+  }, [pages, settings.useProxy]);
 
   // Manejador de Auto-Scroll continuo (Play/Pausa)
   useEffect(() => {
@@ -453,7 +488,7 @@ export default function Reader({
   const handleNextPage = () => {
     if (currentPage < totalPages) {
       setCurrentPage(prev => prev + 1);
-    } else if (chapterData.nextChapterUrl) {
+    } else if (chapterData?.nextChapterUrl) {
       if (onChapterFinished) onChapterFinished(chapterData.currentUrl);
       onNavigateChapter(chapterData.nextChapterUrl);
     }
@@ -462,7 +497,7 @@ export default function Reader({
   const handlePrevPage = () => {
     if (currentPage > 1) {
       setCurrentPage(prev => prev - 1);
-    } else if (chapterData.prevChapterUrl) {
+    } else if (chapterData?.prevChapterUrl) {
       onNavigateChapter(chapterData.prevChapterUrl);
     }
   };
@@ -491,6 +526,95 @@ export default function Reader({
     }
   };
 
+function AnimeVideoPlayer({ chapterData, onNavigateChapter }) {
+  const videos = chapterData?.videos || [];
+  const [selectedServerIndex, setSelectedServerIndex] = useState(0);
+  const currentServer = videos[selectedServerIndex] || videos[0];
+
+  return (
+    <div className="w-full max-w-5xl mx-auto px-3 sm:px-6 py-6 flex flex-col items-center gap-5 select-text" onClick={(e) => e.stopPropagation()}>
+      {/* Cabecera del Episodio de Anime */}
+      <div className="w-full flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl bg-[#0e121d] border border-gray-800 shadow-xl">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800/60 font-mono">
+              Anime Streaming
+            </span>
+            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800/60">
+              {currentServer?.quality || 'HD 720p'}
+            </span>
+          </div>
+          <h2 className="text-base sm:text-lg font-black text-white mt-1 truncate">
+            {chapterData?.mangaTitle || 'Anime'} - {chapterData?.chapterTitle || 'Episodio'}
+          </h2>
+          <p className="text-xs text-gray-400">
+            Fuente: <span className="text-purple-400 font-semibold">{chapterData?.extension || 'Anime'}</span>
+          </p>
+        </div>
+
+        {/* Selector de Servidores */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-gray-400 font-semibold">Servidor:</span>
+          {videos.map((srv, idx) => (
+            <button
+              key={idx}
+              onClick={() => setSelectedServerIndex(idx)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                selectedServerIndex === idx
+                  ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-600/30'
+                  : 'bg-[#161a29] text-gray-400 hover:text-white border border-gray-800'
+              }`}
+            >
+              {srv.server || `Opción ${idx + 1}`}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Ventana del Reproductor de Video */}
+      <div className="w-full aspect-video rounded-3xl overflow-hidden bg-black border border-gray-800 shadow-2xl relative flex items-center justify-center">
+        {currentServer?.url ? (
+          <iframe
+            src={currentServer.url}
+            title={`Reproductor ${currentServer.server}`}
+            allow="fullscreen; autoplay; picture-in-picture; encrypted-media"
+            allowFullScreen
+            className="w-full h-full border-0"
+          />
+        ) : (
+          <div className="flex flex-col items-center justify-center text-center p-8 gap-3 text-gray-400">
+            <Play className="w-14 h-14 text-purple-500/40" />
+            <p className="text-sm font-semibold text-gray-300">
+              No se encontraron servidores de video activos para este episodio.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Navegación entre Episodios */}
+      <div className="w-full flex items-center justify-between gap-4 pt-2">
+        <button
+          disabled={!chapterData?.prevChapterUrl}
+          onClick={() => chapterData?.prevChapterUrl && onNavigateChapter(chapterData.prevChapterUrl)}
+          className="px-5 py-2.5 rounded-2xl bg-[#121624] hover:bg-[#1a2035] border border-gray-800 disabled:opacity-30 text-xs font-bold text-gray-200 flex items-center gap-2 transition cursor-pointer"
+        >
+          <ChevronLeft className="w-4 h-4" />
+          <span>Episodio Anterior</span>
+        </button>
+
+        <button
+          disabled={!chapterData?.nextChapterUrl}
+          onClick={() => chapterData?.nextChapterUrl && onNavigateChapter(chapterData.nextChapterUrl)}
+          className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 disabled:opacity-30 text-xs font-bold text-white flex items-center gap-2 transition cursor-pointer shadow-lg shadow-purple-600/30"
+        >
+          <span>Siguiente Episodio</span>
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
   return (
     <div
       onClick={onToggleControls}
@@ -499,11 +623,13 @@ export default function Reader({
         isLightBg ? 'text-gray-900' : 'text-white'
       }`}
     >
-      {/* MODO 1: WEBTOON (Scroll Continuo Vertical) */}
-      {readingMode === 'webtoon' ? (
+      {/* MODO ANIME: REPRODUCTOR DE VIDEO STREAMING */}
+      {(chapterData?.isAnime || (chapterData?.videos && chapterData.videos.length > 0)) ? (
+        <AnimeVideoPlayer chapterData={chapterData} onNavigateChapter={onNavigateChapter} />
+      ) : readingMode === 'webtoon' ? (
         <div className={`w-full ${getContainerMaxWidth()} mx-auto px-0 sm:px-2 transition-all duration-200`}>
 
-          {chapterData.isLocked ? (
+          {chapterData?.isLocked ? (
             <div className="py-24 px-6 flex flex-col items-center justify-center text-center max-w-md mx-auto">
               <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mb-4 text-amber-400 shadow-inner">
                 <Lock className="w-8 h-8" />
@@ -516,7 +642,7 @@ export default function Reader({
                 ℹ️ <strong className="text-gray-200">Aviso informativo:</strong> Nuestra aplicación indexa todos los capítulos del catálogo, pero el contenido de este episodio requiere pase VIP o monedas en la web oficial de MiauScan.
               </div>
             </div>
-          ) : chapterData.error ? (
+          ) : chapterData?.error ? (
             <div className="py-24 px-6 flex flex-col items-center justify-center text-center max-w-md mx-auto">
               <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-4">
                 <AlertTriangle className="w-8 h-8 text-amber-400" />
@@ -531,28 +657,28 @@ export default function Reader({
                     e.stopPropagation();
                     onRetry();
                   }}
-                  className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs sm:text-sm font-semibold rounded-xl flex items-center gap-2 shadow-lg shadow-purple-600/30 transition active:scale-95"
+                  className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs sm:text-sm font-semibold rounded-xl flex items-center gap-2 shadow-lg shadow-purple-600/30 transition active:scale-95 cursor-pointer"
                 >
                   <RefreshCw className="w-4 h-4" />
                   <span>Reintentar conexión</span>
                 </button>
               )}
             </div>
-          ) : chapterData.pages.length === 0 ? (
-            <div className="py-24 flex flex-col items-center justify-center text-center">
-              <Loader2 className="w-10 h-10 animate-spin text-purple-500 mb-3" />
-              <h3 className="text-base font-bold text-white">Extrayendo viñetas en tiempo real...</h3>
-              <p className="text-xs text-gray-400 mt-1">Conectando con la fuente</p>
+          ) : isLoading ? (
+            <div className="py-28 flex flex-col items-center justify-center text-center">
+              <Loader2 className="w-12 h-12 animate-spin text-purple-500 mb-4" />
+              <h3 className="text-base font-bold text-white">{chapterData?.chapterTitle || 'Cargando capítulo...'}</h3>
+              <p className="text-xs text-purple-300/80 mt-1">Extrayendo viñetas en alta calidad desde el scan...</p>
             </div>
           ) : (
             <div className="flex flex-col items-center w-full">
-              {chapterData.isOffline && (
+              {chapterData?.isOffline && (
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs font-semibold shadow-lg backdrop-blur-md mb-4 mt-2">
                   <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
                   <span>Modo Offline (Guardado en tu PC)</span>
                 </div>
               )}
-              {chapterData.pages.map((page, index) => (
+              {pages.map((page, index) => (
                 <ChapterImage
                   key={`${page.index}-${index}`}
                   page={page}
@@ -569,7 +695,7 @@ export default function Reader({
       ) : (
         /* MODO 2: PAGINADO (Manga RTL o Cómic LTR) */
         <div className="flex-1 w-full max-w-5xl mx-auto flex flex-col items-center justify-center p-4 relative min-h-[80vh]">
-          {chapterData.isLocked ? (
+          {chapterData?.isLocked ? (
             <div className="py-24 px-6 flex flex-col items-center justify-center text-center max-w-md mx-auto">
               <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mb-4 text-amber-400 shadow-inner">
                 <Lock className="w-8 h-8" />
@@ -582,7 +708,7 @@ export default function Reader({
                 ℹ️ <strong className="text-gray-200">Aviso informativo:</strong> Nuestra aplicación indexa todos los capítulos del catálogo, pero el contenido de este episodio requiere pase VIP o monedas en la web oficial de MiauScan.
               </div>
             </div>
-          ) : chapterData.error ? (
+          ) : chapterData?.error ? (
             <div className="py-24 px-6 flex flex-col items-center justify-center text-center max-w-md mx-auto">
               <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-4">
                 <AlertTriangle className="w-8 h-8 text-amber-400" />
@@ -597,22 +723,22 @@ export default function Reader({
                     e.stopPropagation();
                     onRetry();
                   }}
-                  className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs sm:text-sm font-semibold rounded-xl flex items-center gap-2 shadow-lg shadow-purple-600/30 transition active:scale-95"
+                  className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs sm:text-sm font-semibold rounded-xl flex items-center gap-2 shadow-lg shadow-purple-600/30 transition active:scale-95 cursor-pointer"
                 >
                   <RefreshCw className="w-4 h-4" />
                   <span>Reintentar conexión</span>
                 </button>
               )}
             </div>
-          ) : chapterData.pages?.length === 0 ? (
-            <div className="py-24 flex flex-col items-center justify-center text-center">
-              <Loader2 className="w-10 h-10 animate-spin text-purple-500 mb-3" />
-              <h3 className="text-base font-bold text-white">Extrayendo viñetas en tiempo real...</h3>
-              <p className="text-xs text-gray-400 mt-1">Conectando con la fuente</p>
+          ) : isLoading ? (
+            <div className="py-28 flex flex-col items-center justify-center text-center">
+              <Loader2 className="w-12 h-12 animate-spin text-purple-500 mb-4" />
+              <h3 className="text-base font-bold text-white">{chapterData?.chapterTitle || 'Cargando capítulo...'}</h3>
+              <p className="text-xs text-purple-300/80 mt-1">Extrayendo viñetas en alta calidad desde el scan...</p>
             </div>
           ) : (
             <PaginatedImage
-              page={chapterData.pages[currentPage - 1]}
+              page={pages[currentPage - 1]}
               currentPage={currentPage}
               totalPages={totalPages}
               useProxy={settings.useProxy}

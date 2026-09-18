@@ -37,8 +37,8 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(morgan('dev'));
 
 // Rutas API
@@ -61,9 +61,16 @@ const distPath = possibleDistPaths.find(p => fs.existsSync(p) && fs.existsSync(p
 
 if (fs.existsSync(distPath)) {
   console.log('[Server] Sirviendo frontend estático desde:', distPath);
-  app.use(express.static(distPath));
+  app.use(express.static(distPath, {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      }
+    }
+  }));
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) return next();
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.sendFile(path.join(distPath, 'index.html'));
   });
 } else {
@@ -294,16 +301,37 @@ io.on('connection', (socket) => {
       const user = users.find(u => u.token === token);
 
       const chats = loadChats();
-      const roomMessages = chats[roomId] || [];
-      const msg = roomMessages.find(m => m.id === messageId);
+      let foundRoomId = roomId;
+      let msg = chats[foundRoomId]?.find(m => m.id === messageId);
+
+      if (!msg) {
+        for (const [rId, msgs] of Object.entries(chats)) {
+          const found = msgs.find(m => m.id === messageId);
+          if (found) {
+            msg = found;
+            foundRoomId = rId;
+            break;
+          }
+        }
+      }
+
       if (!msg) return;
 
-      if (user && user.id !== msg.userId && user.role !== 'admin') return;
+      const isAdmin = user && (
+        user.role === 'admin' || 
+        (user.username || '').toLowerCase() === 'rey_palomo' || 
+        (user.email || '').toLowerCase() === 'admin@yomori.com'
+      );
+      const isAuthor = user && user.id === msg.userId;
 
-      chats[roomId] = roomMessages.filter(m => m.id !== messageId);
+      if (!isAdmin && !isAuthor) return;
+
+      chats[foundRoomId] = (chats[foundRoomId] || []).filter(m => m.id !== messageId);
       saveChats(chats);
 
-      io.to(roomId).emit('message_deleted', { roomId, messageId });
+      io.to(foundRoomId).emit('message_deleted', { roomId: foundRoomId, messageId });
+      io.to(foundRoomId).emit('delete_message', { roomId: foundRoomId, messageId });
+      io.emit('delete_message', { roomId: foundRoomId, messageId });
       if (typeof callback === 'function') callback({ success: true, messageId });
     } catch (e) {}
   });

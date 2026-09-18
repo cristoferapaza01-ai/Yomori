@@ -35,12 +35,12 @@ export default function Header({
               <span className="hidden sm:inline">Volver</span>
             </button>
           ) : (
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center shadow-md shadow-purple-500/20">
-                <BookOpen className="w-4 h-4 text-white" />
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-[#161D24] border border-[#2D3848] flex items-center justify-center shadow-md text-white font-black text-sm tracking-tighter shrink-0 select-none">
+                <span className="text-[#3DD6D0]">夜</span>
               </div>
-              <span className="font-bold text-base sm:text-lg tracking-tight bg-gradient-to-r from-purple-400 via-indigo-300 to-sky-400 bg-clip-text text-transparent hidden sm:inline">
-                Yomori<span className="text-white font-light text-xs ml-1 px-1.5 py-0.5 rounded bg-purple-950/60 border border-purple-800/50">Reader</span>
+              <span className="font-extrabold text-base sm:text-lg tracking-tight text-white hidden sm:inline">
+                Yomori<span className="text-[#3DD6D0] font-mono text-[10px] uppercase font-bold ml-1.5 px-1.5 py-0.5 rounded bg-[#16272E] border border-[#3DD6D0]/30">Reader</span>
               </span>
             </div>
           )}

@@ -1,0 +1,16 @@
+{
+  "usr_1788991964318_s09yt": {
+    "userId": "usr_1788991964318_s09yt",
+    "username": "Rey_Palomo",
+    "avatar": "https://api.dicebear.com/7.x/bottts/svg?seed=CyberOtaku",
+    "mangaTitle": "Bleach: Sennen Kessen-hen - Kashin-tan",
+    "chapterTitle": "Episodio 1",
+    "cover": "http://localhost:4000/api/proxy-image?url=https%3A%2F%2Fcdn.animeav1.com%2Fcovers%2F4429.jpg&extensionId=animeav1-es",
+    "url": "https://animeav1.com/media/bleach-sennen-kessen-hen-kashin-tan",
+    "extensionId": "",
+    "page": 1,
+    "totalPages": 1,
+    "startedAt": 1789508123571,
+    "updatedAt": 1789508123571
+  }
+}

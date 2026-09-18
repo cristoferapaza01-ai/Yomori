@@ -56,8 +56,9 @@ async function createWindow() {
     minWidth: 950,
     minHeight: 650,
     title: 'Yomori Desktop Reader',
-    backgroundColor: '#07080b',
-    show: true,
+    icon: path.join(__dirname, 'icon.png'),
+    backgroundColor: '#07090e',
+    show: false,
     autoHideMenuBar: true,
     webPreferences: {
       nodeIntegration: false,
@@ -66,8 +67,37 @@ async function createWindow() {
     }
   });
 
-  // Ocultar menú superior por defecto
-  Menu.setApplicationMenu(null);
+  mainWindow.once('ready-to-show', () => {
+    if (mainWindow) {
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+
+  mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+    console.log(`[Browser Console L${level}] ${message} (at ${sourceId}:${line})`);
+  });
+
+  setTimeout(() => {
+    if (mainWindow && !mainWindow.isVisible()) {
+      mainWindow.show();
+    }
+  }, 1200);
+
+  // Ocultar menú superior pero registrar atajos de recarga (F5), pantalla completa (F11) y DevTools (F12)
+  const template = [
+    {
+      label: 'Ver',
+      submenu: [
+        { role: 'reload', accelerator: 'CmdOrCtrl+R' },
+        { role: 'forceReload', accelerator: 'CmdOrCtrl+Shift+R' },
+        { role: 'toggleDevTools', accelerator: 'F12' },
+        { type: 'separator' },
+        { role: 'togglefullscreen', accelerator: 'F11' }
+      ]
+    }
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 
   // Abrir enlaces externos en el navegador predeterminado del sistema
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -88,7 +118,7 @@ async function createWindow() {
     console.error('[Electron] Error cargando URL, reintentando con backend local...', errorCode, errorDescription);
     setTimeout(() => {
       if (mainWindow) mainWindow.loadURL(BACKEND_URL + '?mode=app');
-    }, 500);
+    }, 1000);
   });
 
   mainWindow.on('closed', () => {

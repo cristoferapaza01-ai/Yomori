@@ -34,7 +34,7 @@ export const proxyImage = async (req, res) => {
       }
     }
 
-    if (fetchUrl.includes('mangadex.org')) {
+    if (fetchUrl.includes('mangadex.org') || fetchUrl.includes('mangadex.network')) {
       refererHeader = 'https://mangadex.org/';
     } else if (fetchUrl.includes('skymangas.com')) {
       refererHeader = 'https://skymangas.com/';
@@ -44,6 +44,8 @@ export const proxyImage = async (req, res) => {
       refererHeader = 'https://leercapitulo.com/';
     } else if (fetchUrl.includes('olympusxyz.com') || fetchUrl.includes('imagesolymp.xyz')) {
       refererHeader = 'https://olympusxyz.com/';
+    } else if (fetchUrl.includes('rncalation.online')) {
+      refererHeader = 'https://rncalation.online/';
     } else if (fetchUrl.includes('zonatmo.org') || fetchUrl.includes('tmofans.com') || fetchUrl.includes('storage2.zonatmo') || fetchUrl.includes('storage.zonatmo')) {
       refererHeader = 'https://zonatmo.org/';
     } else if (fetchUrl.includes('miauscan') || fetchUrl.includes('leemiau')) {

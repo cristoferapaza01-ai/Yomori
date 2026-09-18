@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import LiveChatRoom from './LiveChatRoom.jsx';
 import { 
   ArrowLeft, 
@@ -6,6 +7,7 @@ import {
   ArrowDownUp, 
   Search, 
   BookOpen, 
+  MessageSquare,
   Check, 
   Bookmark, 
   BookmarkCheck, 
@@ -23,8 +25,29 @@ import {
   DownloadCloud,
   CheckCircle,
   Loader2,
-  HardDrive
+  HardDrive,
+  Sparkles,
+  Flame,
+  Star
 } from 'lucide-react';
+
+const FALLBACK_COVER = "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 450'%3E%3Cdefs%3E%3ClinearGradient id='bg' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%2318182b'/%3E%3Cstop offset='100%25' stop-color='%230b0b14'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100%25' height='100%25' fill='url(%23bg)'/%3E%3Ccircle cx='150' cy='200' r='48' fill='%237c3aed' fill-opacity='0.25'/%3E%3Cpath d='M135 180h30v40h-30z' fill='%23a78bfa' fill-opacity='0.7'/%3E%3Ctext x='50%25' y='275' dominant-baseline='middle' text-anchor='middle' fill='%23e2e8f0' font-family='system-ui, -apple-system, sans-serif' font-size='14' font-weight='700' letter-spacing='1'%3EYOMORI%3C/text%3E%3Ctext x='50%25' y='298' dominant-baseline='middle' text-anchor='middle' fill='%2364748b' font-family='system-ui, -apple-system, sans-serif' font-size='11' font-weight='500'%3ESin Portada%3C/text%3E%3C/svg%3E";
+
+// Helper para mostrar el nombre canónico y elegante del scan
+const getExtensionDisplayName = (ext, extId) => {
+  if (ext && ext !== 'ZonaTMO') return ext;
+  const id = (extId || '').toLowerCase();
+  if (id === 'olympus-scanlation') return 'Olympus Scanlation';
+  if (id === 'rn-scanlation') return 'RN Scanlation';
+  if (id === 'plot-twist-no-fansub') return 'Plot Twist No Fansub';
+  if (id === 'skymangas') return 'SkyMangas';
+  if (id === 'miauscan') return 'MiauScan';
+  if (id === 'manhwalatino') return 'ManhwaLatino';
+  if (id === 'mangadex') return 'MangaDex';
+  if (id === 'zonatmo') return 'ZonaTMO';
+  if (id === 'ikigai-mnagas') return 'Ikigai Mangas';
+  return ext || (extId ? extId.replace(/-/g, ' ').toUpperCase() : 'Scan Oficial');
+};
 
 export default function MangaDetailsView({
   manga,
@@ -35,6 +58,7 @@ export default function MangaDetailsView({
   onMarkAllChapters,
   onBack,
   onSelectChapter,
+  onSelectManga,
   loadingChapter,
   categories = ['Todos'],
   readChaptersMap = {},
@@ -46,14 +70,73 @@ export default function MangaDetailsView({
   onDeleteDownload,
   currentUser = null,
   onOpenAuth,
-  onOpenUserCard
+  onOpenUserCard,
+  appMode = 'manga'
 }) {
+  const isAnimeMode = appMode === 'anime' ||
+    manga?.type === 'anime' ||
+    manga?.type === 'TV (Serie)' ||
+    (manga?.extensionId || '').toLowerCase().includes('anime') ||
+    (manga?.extensionId || '').toLowerCase().includes('monos');
+
+  const [activeTab, setActiveTab] = useState('chapters'); // 'chapters' | 'comments'
   const [sortAsc, setSortAsc] = useState(false);
   const [chapterFilter, setChapterFilter] = useState('');
+  const [selectedLangFilter, setSelectedLangFilter] = useState('Todos'); // 'Todos' | 'Latino' | 'Castellano'
+  const [selectedRangeTab, setSelectedRangeTab] = useState('Todos'); // 'Todos' | '1-50' | '51-100' ...
   const [showCategoryMenu, setShowCategoryMenu] = useState(false);
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
   const [deleteConfirmModal, setDeleteConfirmModal] = useState(null);
   const [lockedModal, setLockedModal] = useState(null);
+  const [needLibraryModal, setNeedLibraryModal] = useState(null);
+
+  // Estados de Recomendaciones Similares
+  const [recommendations, setRecommendations] = useState([]);
+  const [loadingRecommendations, setLoadingRecommendations] = useState(false);
+
+  // Detectar automáticamente dialectos disponibles en los capítulos
+  const detectedLanguages = React.useMemo(() => {
+    const found = new Set();
+    (manga?.chapters || []).forEach(c => {
+      const name = (c.name || c.title || '').toLowerCase();
+      if (name.includes('latino') || name.includes('🇲🇽') || name.includes('[mx') || name.includes('es-la') || name.includes('es-419')) {
+        found.add('Latino');
+      }
+      if (name.includes('castellano') || name.includes('españa') || name.includes('espana') || name.includes('🇪🇸') || name.includes('[es]') || name.includes('es-es')) {
+        found.add('Castellano');
+      }
+    });
+    return Array.from(found);
+  }, [manga?.chapters]);
+
+  useEffect(() => {
+    if (!manga?.title) return;
+    let isMounted = true;
+    setLoadingRecommendations(true);
+
+    const genresStr = Array.isArray(manga.genres) ? manga.genres.join(',') : (manga.genres || '');
+    axios.get('/api/recommendations', {
+      params: {
+        title: manga.title,
+        genres: genresStr,
+        synopsis: manga.synopsis || '',
+        extensionId: manga.extensionId || '',
+        type: isAnimeMode ? 'anime' : 'manga',
+        limit: 30
+      },
+      timeout: 8000
+    }).then(res => {
+      if (isMounted && res.data?.success) {
+        setRecommendations(res.data.data || []);
+      }
+    }).catch(err => {
+      console.warn('[Recommendations Fetch Error]', err.message);
+    }).finally(() => {
+      if (isMounted) setLoadingRecommendations(false);
+    });
+
+    return () => { isMounted = false; };
+  }, [manga?.title, manga?.url, isAnimeMode]);
 
   if (!manga) return null;
 
@@ -66,12 +149,43 @@ export default function MangaDetailsView({
   const isInLibrary = !!libraryItem;
   const currentCategory = libraryItem?.category || 'General';
 
+  const triggerDownloadChapter = (chapter) => {
+    if (!isInLibrary) {
+      setNeedLibraryModal({ type: 'single', chapter });
+      return;
+    }
+    if (onDownloadChapter) onDownloadChapter(chapter, manga);
+  };
+
+  const triggerDownloadBatch = (chaptersList) => {
+    if (!chaptersList || chaptersList.length === 0) return;
+    if (!isInLibrary) {
+      setNeedLibraryModal({ type: 'batch', chapters: chaptersList });
+      return;
+    }
+    if (onDownloadBatch) onDownloadBatch(chaptersList, manga);
+  };
+
   // Filtrar
   const filteredChapters = chapters.filter(c => {
     if (!c) return false;
     const name = (c.name || c.title || '').toLowerCase();
     const num = String(c.chapterNumber || '');
     const filter = (chapterFilter || '').toLowerCase().trim();
+
+    // Filtro estricto por dialecto / idioma
+    if (selectedLangFilter === 'Latino') {
+      const isLatino = name.includes('latino') || name.includes('🇲🇽') || name.includes('[mx') || name.includes('es-la') || name.includes('es-419');
+      if (!isLatino && (name.includes('castellano') || name.includes('españa') || name.includes('espana') || name.includes('🇪🇸') || name.includes('[es]'))) {
+        return false;
+      }
+    } else if (selectedLangFilter === 'Castellano') {
+      const isCastellano = name.includes('castellano') || name.includes('españa') || name.includes('espana') || name.includes('🇪🇸') || name.includes('[es]') || name.includes('es-es');
+      if (!isCastellano && (name.includes('latino') || name.includes('🇲🇽') || name.includes('[mx') || name.includes('es-la'))) {
+        return false;
+      }
+    }
+
     if (!filter) return true;
     return name.includes(filter) || num.includes(filter);
   });
@@ -82,11 +196,9 @@ export default function MangaDetailsView({
     
     let rawStr = String(c.name || c.title || '');
     if (manga?.title) {
-      // Eliminar el título del manga para no capturar números que pertenezcan al nombre (ej. 10.000 Años)
       const cleanTitle = manga.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       rawStr = rawStr.replace(new RegExp(cleanTitle, 'gi'), '');
     }
-    // Eliminar números mayores o iguales a 1000 que pertenezcan al título (ej. 10.000, 10000, etc.)
     rawStr = rawStr.replace(/\b10[.,]?000\b/gi, '').replace(/\b\d{4,}\b/g, '');
 
     const capMatch = rawStr.match(/(?:cap[íi]tulo|cap\.?|ch\.?|episodio|ep\.?)\s*(\d+(?:\.\d+)?)/i);
@@ -125,17 +237,99 @@ export default function MangaDetailsView({
     ? availableCategories 
     : ['General', 'Leyendo', 'Favoritos', 'Pendientes', 'Completados'];
 
+  // Dividir recomendaciones para los dos costados laterales (Solo en modo Manga)
+  const leftRecs = isAnimeMode ? [] : recommendations.filter((_, i) => i % 2 === 0);
+  const rightRecs = isAnimeMode ? [] : recommendations.filter((_, i) => i % 2 !== 0);
+
+  // Duplicar solo 1 vez para el ciclo continuo infinito de desplazamiento suave hacia abajo sin mangas repetidos
+  const loopLeft = leftRecs.length > 0 ? [...leftRecs, ...leftRecs] : [];
+  const loopRight = rightRecs.length > 0 ? [...rightRecs, ...rightRecs] : [];
+
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 pb-24 select-none">
-      
-      {/* Botón Volver con Microanimación */}
-      <button
-        onClick={onBack}
-        className="mb-4 px-3.5 py-2 rounded-xl bg-[#141822] hover:bg-gray-800 border border-gray-800 text-gray-300 text-xs font-semibold flex items-center gap-1.5 transition-all duration-200 hover:-translate-x-1 active:scale-95 cursor-pointer shadow-sm animate-fadeIn"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        <span>Volver</span>
-      </button>
+    <div className="w-full mx-auto px-2 sm:px-4 lg:px-6 py-6 pb-24 select-none">
+      <div className="flex gap-4 lg:gap-6 items-start justify-center">
+        
+        {/* COLUMNA LATERAL IZQUIERDA: Recomendaciones Deslizantes */}
+        {loopLeft.length > 0 && (
+          <aside className="hidden xl:flex flex-col w-44 2xl:w-52 shrink-0 sticky top-16 h-[calc(100vh-4.5rem)] overflow-hidden rounded-3xl bg-[#0e111a]/85 border border-gray-800/80 p-2 shadow-2xl relative select-none pause-on-hover">
+            {/* Degradado Superior */}
+            <div className="absolute top-0 inset-x-0 h-14 bg-gradient-to-b from-[#0e111a] via-[#0e111a]/85 to-transparent z-20 pointer-events-none rounded-t-3xl" />
+            
+            {/* Cabecera */}
+            <div className="relative z-30 pt-1 pb-1.5 text-center text-[10px] font-black uppercase text-purple-400 tracking-wider flex items-center justify-center gap-1.5 border-b border-gray-800/60 shrink-0">
+              <Sparkles className="w-3 h-3 text-purple-400" />
+              <span>Similares</span>
+            </div>
+
+            {/* Pista animada que baja lentamente */}
+            <div className="flex-1 overflow-hidden relative">
+              <div className="animate-scrollDownSlow flex flex-col gap-3 py-2">
+                {loopLeft.map((rec, idx) => (
+                  <div
+                    key={`left-${rec.url || rec.title}-${idx}`}
+                    onClick={() => {
+                      if (onSelectManga) {
+                        onSelectManga({
+                          title: rec.title,
+                          url: rec.url,
+                          cover: rec.cover,
+                          coverProxy: rec.coverProxy,
+                          extension: rec.scan || rec.extensionId,
+                          extensionId: rec.extensionId,
+                          genres: rec.genres,
+                          synopsis: rec.synopsis
+                        }, rec.extensionId);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }
+                    }}
+                    className="group relative rounded-2xl bg-[#141824]/90 border border-gray-800/90 hover:border-purple-500/80 p-2 transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-purple-950/50 cursor-pointer text-center shrink-0"
+                  >
+                    <div className="relative w-full aspect-[3/4] rounded-xl overflow-hidden bg-black shadow-md">
+                      <img
+                        src={rec.coverProxy || rec.cover}
+                        alt={rec.title}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        loading="lazy"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          if (e.target.src.includes('/api/proxy-image') && rec.cover && !e.target.src.endsWith(encodeURIComponent(rec.cover))) {
+                            e.target.src = rec.cover;
+                          } else {
+                            e.target.src = FALLBACK_COVER;
+                          }
+                        }}
+                      />
+                      {/* Badge de capítulos dentro de la portada */}
+                      <div className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-black/85 backdrop-blur-sm text-purple-300 text-[10px] font-black font-mono border border-purple-500/40 shadow-md">
+                        {rec.status === 'Finalizado' ? 'Finalizado' : (rec.totalChapters ? `${rec.totalChapters} caps` : (rec.latestChapter || 'Completo'))}
+                      </div>
+                    </div>
+                    <h4 
+                      className="text-[11px] font-bold text-gray-200 group-hover:text-purple-300 transition-colors line-clamp-2 leading-tight mt-1.5 px-0.5"
+                      title={rec.title}
+                    >
+                      {rec.title}
+                    </h4>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Degradado Inferior */}
+            <div className="absolute bottom-0 inset-x-0 h-14 bg-gradient-to-t from-[#0e111a] via-[#0e111a]/85 to-transparent z-20 pointer-events-none rounded-b-3xl" />
+          </aside>
+        )}
+
+        {/* COLUMNA CENTRAL: CONTENIDO DEL MANGA */}
+        <div className="flex-1 min-w-0 w-full">
+          {/* Botón Volver con Microanimación */}
+          <button
+            onClick={onBack}
+            className="mb-4 px-3.5 py-2 rounded-xl bg-[#141822] hover:bg-gray-800 border border-gray-800 text-gray-300 text-xs font-semibold flex items-center gap-1.5 transition-all duration-200 hover:-translate-x-1 active:scale-95 cursor-pointer shadow-sm animate-fadeIn"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Volver</span>
+          </button>
 
       {/* Header Ficha del Manga con Animación de Entrada Suave */}
       <div className="relative rounded-3xl bg-[#121622] border border-gray-800/90 p-6 sm:p-8 shadow-2xl mb-8 animate-detailsHeroIn z-10">
@@ -160,7 +354,11 @@ export default function MangaDetailsView({
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
               onError={(e) => {
                 e.target.onerror = null;
-                e.target.src = 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=600&auto=format&fit=crop&q=80';
+                if (e.target.src.includes('/api/proxy-image') && manga.cover && !e.target.src.endsWith(encodeURIComponent(manga.cover))) {
+                  e.target.src = manga.cover;
+                } else {
+                  e.target.src = FALLBACK_COVER;
+                }
               }}
             />
           </div>
@@ -170,7 +368,7 @@ export default function MangaDetailsView({
             
             <div className="flex flex-wrap items-center gap-2 mb-2 animate-fadeInScale">
               <span className="px-2.5 py-0.5 rounded-full bg-purple-950 text-purple-300 border border-purple-800/60 text-xs font-semibold">
-                {manga.extension || 'ZonaTMO'}
+                {getExtensionDisplayName(manga.extension, manga.extensionId)}
               </span>
               {manga.type && (
                 <span className="px-2.5 py-0.5 rounded-full bg-blue-950 text-blue-300 border border-blue-800/60 text-xs font-bold uppercase tracking-wider">
@@ -225,7 +423,7 @@ export default function MangaDetailsView({
             {/* Botones de Acción */}
             <div className="flex flex-wrap items-center gap-3 pt-2">
               
-              {/* Botón de Continuar o Iniciar Lectura */}
+              {/* Botón de Continuar o Iniciar Lectura/Reproducción */}
               {nextUnreadChapter && (
                 <button
                   onClick={() => onSelectChapter(nextUnreadChapter.url, nextUnreadPage)}
@@ -234,11 +432,15 @@ export default function MangaDetailsView({
                 >
                   <Play className="w-4 h-4 fill-white" />
                   <span>
-                    {nextUnreadPage > 1 
-                      ? `Continuar: ${nextUnreadChapter.name} (Pág. ${nextUnreadPage})`
-                      : readChaptersSet.size > 0 
-                        ? `Continuar: ${nextUnreadChapter.name}` 
-                        : `Leer: ${nextUnreadChapter.name}`}
+                    {isAnimeMode
+                      ? (readChaptersSet.size > 0 
+                          ? `Continuar: ${nextUnreadChapter.name}` 
+                          : `Reproducir: ${nextUnreadChapter.name}`)
+                      : (nextUnreadPage > 1 
+                          ? `Continuar: ${nextUnreadChapter.name} (Pág. ${nextUnreadPage})`
+                          : readChaptersSet.size > 0 
+                            ? `Continuar: ${nextUnreadChapter.name}` 
+                            : `Leer: ${nextUnreadChapter.name}`)}
                   </span>
                 </button>
               )}
@@ -350,11 +552,11 @@ export default function MangaDetailsView({
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 mb-4 border-b border-gray-800">
           <div>
             <h3 className="text-base font-bold text-white flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-purple-400" />
-              <span>Capítulos ({chapters.length})</span>
+              {isAnimeMode ? <Sparkles className="w-4 h-4 text-purple-400" /> : <BookOpen className="w-4 h-4 text-purple-400" />}
+              <span>{isAnimeMode ? `Episodios (${chapters.length})` : `Capítulos (${chapters.length})`}</span>
             </h3>
             <p className="text-xs text-purple-300/80 font-mono mt-0.5">
-              {readChaptersSet.size} de {chapters.length} leídos
+              {readChaptersSet.size} de {chapters.length} {isAnimeMode ? 'vistos' : 'leídos'}
             </p>
           </div>
 
@@ -363,92 +565,139 @@ export default function MangaDetailsView({
             <button
               onClick={() => onMarkAllChapters(manga.url, chapters.map(c => c.url), true)}
               className="px-2.5 py-1.5 rounded-lg bg-gray-800/80 hover:bg-gray-700 text-gray-300 text-xs flex items-center gap-1 cursor-pointer transition"
-              title="Marcar todos como leídos"
+              title={isAnimeMode ? "Marcar todos como vistos" : "Marcar todos como leídos"}
             >
               <Eye className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Todos leídos</span>
+              <span className="hidden sm:inline">{isAnimeMode ? "Todos vistos" : "Todos leídos"}</span>
             </button>
 
             <button
               onClick={() => onMarkAllChapters(manga.url, [], false)}
               className="px-2.5 py-1.5 rounded-lg bg-gray-800/80 hover:bg-gray-700 text-gray-400 text-xs flex items-center gap-1 cursor-pointer transition"
-              title="Marcar todos como no leídos"
+              title={isAnimeMode ? "Marcar todos como no vistos" : "Marcar todos como no leídos"}
             >
               <EyeOff className="w-3.5 h-3.5" />
             </button>
 
-            {/* Menú de Descargas en Lote (Estilo Suwayomi) */}
-            <div className="relative">
-              <button
-                onClick={() => setShowDownloadMenu(prev => !prev)}
-                className="px-2.5 py-1.5 rounded-lg bg-purple-950/40 hover:bg-purple-900/60 border border-purple-800/50 text-purple-300 text-xs flex items-center gap-1.5 cursor-pointer transition font-medium"
-                title="Descargar capítulos a la PC"
-              >
-                <DownloadCloud className="w-3.5 h-3.5 text-purple-400" />
-                <span className="hidden sm:inline">Descargar</span>
-                <ChevronDown className="w-3 h-3 opacity-60" />
-              </button>
+            {/* Menú de Descargas en Lote (Solo en modo Manga) */}
+            {!isAnimeMode && (
+              <div className="relative">
+                <button
+                  onClick={() => setShowDownloadMenu(prev => !prev)}
+                  className="px-2.5 py-1.5 rounded-lg bg-purple-950/40 hover:bg-purple-900/60 border border-purple-800/50 text-purple-300 text-xs flex items-center gap-1.5 cursor-pointer transition font-medium"
+                  title="Descargar capítulos a la PC"
+                >
+                  <DownloadCloud className="w-3.5 h-3.5 text-purple-400" />
+                  <span className="hidden sm:inline">Descargar</span>
+                  <ChevronDown className="w-3 h-3 opacity-60" />
+                </button>
 
-              {showDownloadMenu && (
-                <>
-                  <div className="fixed inset-0 z-20" onClick={() => setShowDownloadMenu(false)} />
-                  <div className="absolute right-0 top-full mt-2 w-64 bg-[#141824] border border-purple-500/30 rounded-2xl p-2 shadow-2xl z-50 flex flex-col gap-1 backdrop-blur-xl animate-fadeInScale">
-                    <div className="px-2.5 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                      <HardDrive className="w-3 h-3 text-purple-400" />
-                      <span>Descargas Locales (PC)</span>
+                {showDownloadMenu && (
+                  <>
+                    <div className="fixed inset-0 z-20" onClick={() => setShowDownloadMenu(false)} />
+                    <div className="absolute right-0 top-full mt-2 w-64 bg-[#141824] border border-purple-500/30 rounded-2xl p-2 shadow-2xl z-50 flex flex-col gap-1 backdrop-blur-xl animate-fadeInScale">
+                      <div className="px-2.5 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <HardDrive className="w-3 h-3 text-purple-400" />
+                        <span>Descargas Locales (PC)</span>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          const unread = chapters.filter(c => !readChaptersSet.has(c.url) && !(downloadStatusMap[c.url]?.isDownloaded || c.isDownloaded) && !c.isLocked);
+                          triggerDownloadBatch(unread.slice(0, 5));
+                          setShowDownloadMenu(false);
+                        }}
+                        className="text-left px-3 py-2 rounded-xl text-xs text-gray-200 hover:bg-purple-950/50 hover:text-white flex items-center justify-between transition cursor-pointer"
+                      >
+                        <span>Descargar próximos 5 no leídos</span>
+                        <Download className="w-3.5 h-3.5 text-purple-400" />
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          const unread = chapters.filter(c => !readChaptersSet.has(c.url) && !(downloadStatusMap[c.url]?.isDownloaded || c.isDownloaded) && !c.isLocked);
+                          triggerDownloadBatch(unread.slice(0, 10));
+                          setShowDownloadMenu(false);
+                        }}
+                        className="text-left px-3 py-2 rounded-xl text-xs text-gray-200 hover:bg-purple-950/50 hover:text-white flex items-center justify-between transition cursor-pointer"
+                      >
+                        <span>Descargar próximos 10 no leídos</span>
+                        <Download className="w-3.5 h-3.5 text-purple-400" />
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          const unread = chapters.filter(c => !readChaptersSet.has(c.url) && !(downloadStatusMap[c.url]?.isDownloaded || c.isDownloaded) && !c.isLocked);
+                          triggerDownloadBatch(unread);
+                          setShowDownloadMenu(false);
+                        }}
+                        className="text-left px-3 py-2 rounded-xl text-xs text-gray-200 hover:bg-purple-950/50 hover:text-white flex items-center justify-between transition cursor-pointer"
+                      >
+                        <span>Descargar todos los no leídos</span>
+                        <Download className="w-3.5 h-3.5 text-purple-400" />
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          const notDl = chapters.filter(c => !(downloadStatusMap[c.url]?.isDownloaded || c.isDownloaded) && !c.isLocked);
+                          triggerDownloadBatch(notDl);
+                          setShowDownloadMenu(false);
+                        }}
+                        className="text-left px-3 py-2 rounded-xl text-xs text-purple-300 font-semibold hover:bg-purple-900/40 hover:text-white flex items-center justify-between transition cursor-pointer"
+                      >
+                        <span>Descargar todo el manga ({chapters.length})</span>
+                        <Download className="w-3.5 h-3.5 text-purple-400" />
+                      </button>
                     </div>
+                  </>
+                )}
+              </div>
+            )}
 
-                    <button
-                      onClick={() => {
-                        const unread = chapters.filter(c => !readChaptersSet.has(c.url) && !(downloadStatusMap[c.url]?.isDownloaded || c.isDownloaded) && !c.isLocked);
-                        onDownloadBatch(unread.slice(0, 5), manga);
-                        setShowDownloadMenu(false);
-                      }}
-                      className="text-left px-3 py-2 rounded-xl text-xs text-gray-200 hover:bg-purple-950/50 hover:text-white flex items-center justify-between transition cursor-pointer"
-                    >
-                      <span>Descargar próximos 5 no leídos</span>
-                      <Download className="w-3.5 h-3.5 text-purple-400" />
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        const unread = chapters.filter(c => !readChaptersSet.has(c.url) && !(downloadStatusMap[c.url]?.isDownloaded || c.isDownloaded) && !c.isLocked);
-                        onDownloadBatch(unread.slice(0, 10), manga);
-                        setShowDownloadMenu(false);
-                      }}
-                      className="text-left px-3 py-2 rounded-xl text-xs text-gray-200 hover:bg-purple-950/50 hover:text-white flex items-center justify-between transition cursor-pointer"
-                    >
-                      <span>Descargar próximos 10 no leídos</span>
-                      <Download className="w-3.5 h-3.5 text-purple-400" />
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        const unread = chapters.filter(c => !readChaptersSet.has(c.url) && !(downloadStatusMap[c.url]?.isDownloaded || c.isDownloaded) && !c.isLocked);
-                        onDownloadBatch(unread, manga);
-                        setShowDownloadMenu(false);
-                      }}
-                      className="text-left px-3 py-2 rounded-xl text-xs text-gray-200 hover:bg-purple-950/50 hover:text-white flex items-center justify-between transition cursor-pointer"
-                    >
-                      <span>Descargar todos los no leídos</span>
-                      <Download className="w-3.5 h-3.5 text-purple-400" />
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        const notDl = chapters.filter(c => !(downloadStatusMap[c.url]?.isDownloaded || c.isDownloaded) && !c.isLocked);
-                        onDownloadBatch(notDl, manga);
-                        setShowDownloadMenu(false);
-                      }}
-                      className="text-left px-3 py-2 rounded-xl text-xs text-purple-300 font-semibold hover:bg-purple-900/40 hover:text-white flex items-center justify-between transition cursor-pointer"
-                    >
-                      <span>Descargar todo el manga ({chapters.length})</span>
-                      <Download className="w-3.5 h-3.5 text-purple-400" />
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
+            {/* Selector de Dialecto / Idioma (si el manga tiene múltiples idiomas) */}
+            {detectedLanguages.length > 0 && (
+              <div className="flex items-center gap-1 bg-[#0b0e14] p-0.5 rounded-xl border border-gray-700/80 shrink-0">
+                <button
+                  onClick={() => setSelectedLangFilter('Todos')}
+                  className={`px-2 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    selectedLangFilter === 'Todos'
+                      ? 'bg-purple-600 text-white shadow-sm'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                  title="Mostrar todos los capítulos"
+                >
+                  Todos
+                </button>
+                {detectedLanguages.includes('Latino') && (
+                  <button
+                    onClick={() => setSelectedLangFilter('Latino')}
+                    className={`px-2 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
+                      selectedLangFilter === 'Latino'
+                        ? 'bg-purple-600 text-white shadow-sm'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                    title="Filtrar por Español Latino"
+                  >
+                    <span>🇲🇽</span>
+                    <span className="hidden xs:inline sm:inline">Latino</span>
+                  </button>
+                )}
+                {detectedLanguages.includes('Castellano') && (
+                  <button
+                    onClick={() => setSelectedLangFilter('Castellano')}
+                    className={`px-2 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
+                      selectedLangFilter === 'Castellano'
+                        ? 'bg-purple-600 text-white shadow-sm'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                    title="Filtrar por Español España"
+                  >
+                    <span>🇪🇸</span>
+                    <span className="hidden xs:inline sm:inline">España</span>
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* Buscador */}
             <div className="relative flex-1 sm:w-36">
@@ -474,211 +723,290 @@ export default function MangaDetailsView({
           </div>
         </div>
 
-        {/* Lista de Capítulos con Checkbox de Leído y Progreso */}
-        <div className="rounded-2xl bg-[#090c13]/60 border border-gray-800/80 p-2 max-h-[440px] overflow-y-auto pr-2 divide-y divide-gray-800/40 space-y-1">
-          {sortedChapters.map((chapter, idx) => {
-            const displayName = (chapter.name || `Capítulo ${chapter.chapterNumber || idx + 1}`)
-              .replace(/[\r\n\t]+/g, ' ')
-              .replace(/\s+/g, ' ')
-              .trim();
+        {/* 1. MODO ANIME: Grid Expansivo de Tarjetas de Episodios */}
+        {isAnimeMode ? (
+          <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-2.5 max-h-[500px] overflow-y-auto p-1 pr-2">
+            {sortedChapters.map((chapter, idx) => {
+              const isWatched = readChaptersSet.has(chapter.url);
+              const num = chapter.chapterNumber || idx + 1;
+              const epName = (chapter.name || `Episodio ${num}`)
+                .replace(/[\r\n\t]+/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
 
-            const isManuallyOrFinishedRead = readChaptersSet.has(chapter.url);
-            const progress = chapterProgressMap[chapter.url];
-            const isPartiallyRead = !!(progress?.page && progress.page > 1 && progress.page < (progress.totalPages || 999));
-            const isRead = isManuallyOrFinishedRead && !isPartiallyRead;
-            const hasProgress = isPartiallyRead || (!isManuallyOrFinishedRead && progress?.page && progress.page > 1);
-            const resumePage = hasProgress ? progress.page : 1;
-
-            const isDownloaded = !!(downloadStatusMap[chapter.url]?.isDownloaded || chapter.isDownloaded);
-            const queueItem = downloadQueue?.items?.find(q => q.chapterUrl === chapter.url);
-            const isDownloading = queueItem && (queueItem.status === 'downloading' || queueItem.status === 'pending');
-
-            const isLocked = !!chapter.isLocked;
-            const handleChapterClick = () => {
-              if (isLocked) {
-                setLockedModal({
-                  title: displayName,
-                  reason: chapter.lockedReason || 'Este capítulo se encuentra bloqueado o protegido directamente por el scan original bajo modalidad de pago o cuenta VIP en su página web oficial.'
-                });
-                return;
-              }
-              onSelectChapter(chapter.url, resumePage);
-            };
-
-            return (
-              <div
-                key={chapter.url || idx}
-                style={{ animationDelay: `${Math.min(idx * 18, 500)}ms` }}
-                className={`py-2.5 px-3 rounded-xl transition-all duration-200 flex items-center justify-between gap-3 group animate-chapterRowSlide ${
-                  isLocked 
-                    ? 'bg-amber-950/10 hover:bg-amber-950/20 border border-amber-900/20' 
-                    : isRead 
-                      ? 'opacity-60 bg-transparent hover:bg-[#141822]' 
-                      : 'hover:bg-[#181d2a]'
-                }`}
-              >
-                {/* Botón de toggle Leído/No leído */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (!isLocked) onToggleChapterRead(manga.url, chapter.url);
-                  }}
-                  disabled={isLocked}
-                  className={`p-1 rounded-lg transition cursor-pointer ${
-                    isLocked 
-                      ? 'text-amber-500/40 cursor-not-allowed'
-                      : isRead 
-                        ? 'text-purple-400 hover:text-gray-400' 
-                        : 'text-gray-600 hover:text-purple-400'
+              return (
+                <div
+                  key={chapter.url || idx}
+                  onClick={() => onSelectChapter(chapter.url, 1)}
+                  style={{ animationDelay: `${Math.min(idx * 15, 400)}ms` }}
+                  className={`group relative p-3 rounded-2xl border transition-all duration-200 flex flex-col justify-between items-center text-center cursor-pointer select-none hover:scale-105 active:scale-95 shadow-md animate-cascadeCard ${
+                    isWatched
+                      ? 'bg-[#10131d]/70 border-gray-800 text-gray-400 hover:border-purple-500/60 hover:text-white'
+                      : 'bg-[#141926] border-purple-900/30 hover:border-purple-500 text-gray-200 hover:text-white shadow-purple-950/20'
                   }`}
-                  title={isLocked ? 'Capítulo bloqueado en la fuente' : isRead ? 'Marcar como no leído' : 'Marcar como leído'}
                 >
-                  {isLocked ? (
-                    <Lock className="w-4 h-4 text-amber-500/70" />
-                  ) : (
-                    <CheckCircle2 className={`w-4 h-4 ${isRead ? 'fill-purple-500/20' : ''}`} />
-                  )}
-                </button>
-
-                {/* Título del Capítulo */}
-                <div 
-                  onClick={handleChapterClick}
-                  className="min-w-0 flex-1 cursor-pointer"
-                >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h4 className={`text-xs sm:text-sm font-semibold transition truncate ${
-                      isLocked
-                        ? 'text-gray-300 group-hover:text-amber-300'
-                        : isRead 
-                          ? 'text-gray-400 line-through decoration-gray-600' 
-                          : 'text-gray-200 group-hover:text-purple-300'
-                    }`}>
-                      {displayName}
-                    </h4>
-
-                    {/* Insignia y Candadito con Tooltip */}
-                    {isLocked && (
-                      <div 
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/40 text-amber-400 text-[10px] font-bold shadow-sm cursor-help hover:bg-amber-500/25 transition"
-                        title="🔒 Bloqueado por el scan original. Este capítulo tiene acceso VIP o de pago en su sitio web oficial."
-                      >
-                        <Lock className="w-2.5 h-2.5 shrink-0" />
-                        <span>Bloqueado por el scan</span>
-                      </div>
-                    )}
-
-                    {/* Insignia de Guardado en PC / Offline */}
-                    {isDownloaded && !isLocked && (
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold shadow-sm">
-                        <CheckCircle className="w-2.5 h-2.5" />
-                        <span>Guardado en PC</span>
+                  <div className="w-full flex items-center justify-between gap-1 text-[10px] text-gray-400 mb-1.5">
+                    <span className="font-mono font-bold text-purple-400">EP {num}</span>
+                    {isWatched ? (
+                      <span className="text-emerald-400 flex items-center gap-0.5" title="Episodio Visto">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
                       </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2 mt-0.5">
-                    {chapter.date && (
-                      <p className="text-[11px] text-gray-500 flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
-                        <span>{chapter.date}</span>
-                      </p>
-                    )}
-                    {hasProgress && !isLocked && (
-                      <span className="text-[11px] text-purple-400 font-mono font-medium">
-                        • Pág. {progress.page}/{progress.totalPages || '?'} ({Math.round((progress.page / (progress.totalPages || 1)) * 100)}%)
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Botón de Descarga individual en disco */}
-                {!isLocked && (
-                  (() => {
-                    if (isDownloaded) {
-                      return (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteConfirmModal(chapter);
-                          }}
-                          className="p-1.5 rounded-lg bg-emerald-950/40 hover:bg-rose-950/60 border border-emerald-500/40 hover:border-rose-500/50 text-emerald-400 hover:text-rose-400 transition cursor-pointer shadow-sm group/btn"
-                          title="Descargado en PC (Clic para eliminar del disco)"
-                        >
-                          <CheckCircle className="w-4 h-4 group-hover/btn:hidden" />
-                          <Trash2 className="w-4 h-4 hidden group-hover/btn:block" />
-                        </button>
-                      );
-                    }
-
-                    if (isDownloading) {
-                      return (
-                        <div 
-                          className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-purple-950/60 border border-purple-500/50 text-purple-300 text-[11px] font-mono shadow-sm"
-                          title={`Descargando a disco: ${queueItem.downloadedPages || 0}/${queueItem.totalPages || '?'} páginas (${queueItem.progress || 0}%)`}
-                        >
-                          <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-400" />
-                          <span>{queueItem.progress || 0}%</span>
-                        </div>
-                      );
-                    }
-
-                    return (
+                    ) : (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          onDownloadChapter(chapter, manga);
+                          onToggleChapterRead(chapter.url);
                         }}
-                        className="p-1.5 rounded-lg text-gray-400 hover:text-purple-300 hover:bg-gray-800 transition cursor-pointer"
-                        title="Descargar capítulo a tu computadora (Lectura offline)"
+                        className="opacity-0 group-hover:opacity-100 hover:text-purple-300 transition cursor-pointer"
+                        title="Marcar como visto"
                       >
-                        <Download className="w-4 h-4" />
+                        <Eye className="w-3.5 h-3.5" />
                       </button>
-                    );
-                  })()
-                )}
+                    )}
+                  </div>
 
-                {/* Botón Leer / Bloqueado */}
-                {isLocked ? (
-                  <button
-                    onClick={handleChapterClick}
-                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-950/40 hover:bg-amber-900/60 border border-amber-800/60 text-amber-300 hover:text-amber-100 transition flex items-center gap-1.5 shrink-0 cursor-pointer shadow-sm"
-                    title="Capítulo bloqueado por el scan original"
-                  >
-                    <Lock className="w-3 h-3 text-amber-400" />
-                    <span>Bloqueado</span>
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleChapterClick}
-                    disabled={loadingChapter}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1 shrink-0 cursor-pointer ${
-                      isRead 
-                        ? 'bg-gray-800 text-gray-400 group-hover:bg-purple-950 group-hover:text-purple-300' 
-                        : hasProgress
-                          ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
-                          : 'bg-purple-600/20 group-hover:bg-purple-600 text-purple-300 group-hover:text-white'
-                    }`}
-                  >
-                    <span>{isRead ? 'Releer' : hasProgress ? `Pág. ${progress.page}` : 'Leer'}</span>
-                    <Play className="w-3 h-3 fill-current" />
-                  </button>
-                )}
+                  <div className="w-10 h-10 rounded-xl bg-purple-950/40 group-hover:bg-purple-600 group-hover:text-white text-purple-300 border border-purple-800/40 flex items-center justify-center transition-all duration-300 my-1 shadow-inner group-hover:shadow-lg group-hover:shadow-purple-600/40">
+                    <Play className="w-4 h-4 fill-current ml-0.5" />
+                  </div>
+
+                  <span className="text-[11px] font-bold line-clamp-1 mt-1 text-gray-200 group-hover:text-purple-300 transition-colors">
+                    {epName}
+                  </span>
+                </div>
+              );
+            })}
+
+            {sortedChapters.length === 0 && (
+              <div className="col-span-full py-12 text-center text-gray-500 text-xs">
+                No se encontraron episodios disponibles.
               </div>
-            );
-          })}
+            )}
+          </div>
+        ) : (
+          /* 2. MODO MANGA: Lista de Capítulos tradicional */
+          <div className="rounded-2xl bg-[#090c13]/60 border border-gray-800/80 p-2 max-h-[440px] overflow-y-auto pr-2 divide-y divide-gray-800/40 space-y-1">
+            {sortedChapters.map((chapter, idx) => {
+              const displayName = (chapter.name || `Capítulo ${chapter.chapterNumber || idx + 1}`)
+                .replace(/[\r\n\t]+/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
 
-          {sortedChapters.length === 0 && (
-            <div className="py-12 text-center text-gray-500 text-xs">
-              No se encontraron capítulos coincidentes.
-            </div>
-          )}
-        </div>
+              const isManuallyOrFinishedRead = readChaptersSet.has(chapter.url);
+              const progress = chapterProgressMap[chapter.url];
+              const isPartiallyRead = !!(progress?.page && progress.page > 1 && progress.page < (progress.totalPages || 999));
+              const isRead = isManuallyOrFinishedRead && !isPartiallyRead;
+              const hasProgress = isPartiallyRead || (!isManuallyOrFinishedRead && progress?.page && progress.page > 1);
+              const resumePage = hasProgress ? progress.page : 1;
+
+              const isDownloaded = !!(downloadStatusMap[chapter.url]?.isDownloaded || chapter.isDownloaded);
+              const queueItem = downloadQueue?.items?.find(q => q.chapterUrl === chapter.url);
+              const isDownloading = queueItem && (queueItem.status === 'downloading' || queueItem.status === 'pending');
+
+              const isLocked = !!chapter.isLocked;
+              const handleChapterClick = () => {
+                if (isLocked) {
+                  setLockedModal({
+                    title: displayName,
+                    reason: chapter.lockedReason || 'Este capítulo se encuentra bloqueado o protegido directamente por el scan original bajo modalidad de pago o cuenta VIP en su página web oficial.'
+                  });
+                  return;
+                }
+                onSelectChapter(chapter.url, resumePage);
+              };
+
+              return (
+                <div
+                  key={chapter.url || idx}
+                  style={{ animationDelay: `${Math.min(idx * 18, 500)}ms` }}
+                  className={`py-2.5 px-3 rounded-xl transition-all duration-200 flex items-center justify-between gap-3 group animate-chapterRowSlide ${
+                    isLocked 
+                      ? 'bg-amber-950/10 hover:bg-amber-950/20 border border-amber-900/20' 
+                      : isRead 
+                        ? 'opacity-60 bg-transparent hover:bg-[#141822]' 
+                        : 'hover:bg-[#141824]'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <button
+                      onClick={() => onToggleChapterRead(chapter.url)}
+                      className="p-1 rounded-lg hover:bg-gray-800 text-gray-500 hover:text-purple-400 transition cursor-pointer"
+                      title={isRead ? "Marcar como no leído" : "Marcar como leído"}
+                    >
+                      {isRead ? (
+                        <CheckCircle className="w-4 h-4 text-emerald-400" />
+                      ) : (
+                        <div className="w-4 h-4 rounded-full border border-gray-600 hover:border-purple-400" />
+                      )}
+                    </button>
+
+                    <div className="min-w-0 flex-1 cursor-pointer" onClick={handleChapterClick}>
+                      <p className={`text-xs font-semibold truncate transition-colors ${
+                        isRead ? 'text-gray-400' : 'text-gray-200 group-hover:text-purple-300'
+                      }`}>
+                        {displayName}
+                      </p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[10px] text-gray-500 font-mono">
+                          {chapter.date || 'Reciente'}
+                        </span>
+                        {hasProgress && !isRead && (
+                          <span className="text-[10px] text-purple-400 font-mono font-semibold">
+                            Pág. {progress.page}/{progress.totalPages || '?'}
+                          </span>
+                        )}
+                        {isDownloaded && (
+                          <span className="text-[10px] text-emerald-400 flex items-center gap-0.5 font-mono">
+                            <CheckCircle2 className="w-2.5 h-2.5" /> Descargado
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Acciones */}
+                  <div className="flex items-center gap-2">
+                    {/* Botón Descargar */}
+                    {!isDownloaded && (
+                      (() => {
+                        if (isDownloading) {
+                          return (
+                            <div 
+                              className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-purple-950/60 border border-purple-500/50 text-purple-300 text-[11px] font-mono shadow-sm"
+                              title={`Descargando: ${queueItem.progress || 0}%`}
+                            >
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-400" />
+                              <span>{queueItem.progress || 0}%</span>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              triggerDownloadChapter(chapter);
+                            }}
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-purple-300 hover:bg-gray-800 transition cursor-pointer"
+                            title="Descargar capítulo"
+                          >
+                            <Download className="w-4 h-4" />
+                          </button>
+                        );
+                      })()
+                    )}
+
+                    {/* Botón Leer / Bloqueado */}
+                    {isLocked ? (
+                      <button
+                        onClick={handleChapterClick}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-950/40 hover:bg-amber-900/60 border border-amber-800/60 text-amber-300 hover:text-amber-100 transition flex items-center gap-1.5 shrink-0 cursor-pointer shadow-sm"
+                        title="Capítulo bloqueado por el scan"
+                      >
+                        <Lock className="w-3 h-3 text-amber-400" />
+                        <span>Bloqueado</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleChapterClick}
+                        disabled={loadingChapter}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1 shrink-0 cursor-pointer ${
+                          isRead 
+                            ? 'bg-gray-800 text-gray-400 group-hover:bg-purple-950 group-hover:text-purple-300' 
+                            : hasProgress
+                              ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
+                              : 'bg-purple-600/20 group-hover:bg-purple-600 text-purple-300 group-hover:text-white'
+                        }`}
+                      >
+                        <span>{isRead ? 'Releer' : hasProgress ? `Pág. ${progress.page}` : 'Leer'}</span>
+                        <Play className="w-3 h-3 fill-current" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+
+            {sortedChapters.length === 0 && (
+              <div className="py-12 text-center text-gray-500 text-xs">
+                No se encontraron capítulos coincidentes.
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
+      {/* SECCIÓN DE ANIMES SIMILARES (Exclusiva de Modo Anime) */}
+      {isAnimeMode && recommendations.length > 0 && (
+        <div className="mt-8 rounded-3xl bg-[#121622] border border-gray-800/90 p-6 shadow-2xl animate-detailsHeroIn">
+          <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-800">
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <Sparkles className="w-4.5 h-4.5 text-purple-400" />
+              <span>Animes Similares</span>
+            </h3>
+            <span className="text-xs text-gray-400">
+              Recomendaciones para {manga.title}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
+            {recommendations.slice(0, 12).map((rec, idx) => (
+              <div
+                key={`sim-${rec.url || idx}`}
+                onClick={() => {
+                  if (onSelectManga) {
+                    onSelectManga({
+                      title: rec.title,
+                      url: rec.url,
+                      cover: rec.cover,
+                      coverProxy: rec.coverProxy,
+                      extension: rec.scan || rec.extensionId,
+                      extensionId: rec.extensionId,
+                      genres: rec.genres,
+                      synopsis: rec.synopsis,
+                      type: 'anime'
+                    }, rec.extensionId);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }
+                }}
+                className="group relative rounded-2xl bg-[#141824] border border-gray-800/90 hover:border-purple-500/80 p-2.5 transition-all duration-300 hover:scale-[1.03] hover:shadow-xl hover:shadow-purple-950/50 cursor-pointer flex flex-col justify-between"
+              >
+                <div className="relative w-full aspect-[3/4] rounded-xl overflow-hidden bg-black shadow-md">
+                  <img
+                    src={rec.coverProxy || rec.cover}
+                    alt={rec.title}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    loading="lazy"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = FALLBACK_COVER;
+                    }}
+                  />
+                  {rec.status && (
+                    <div className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-black/85 backdrop-blur-sm text-purple-300 text-[10px] font-black font-mono border border-purple-500/40">
+                      {rec.status}
+                    </div>
+                  )}
+                </div>
+                <h4 className="text-xs font-bold text-gray-200 group-hover:text-purple-300 transition-colors line-clamp-2 mt-2 leading-tight">
+                  {rec.title}
+                </h4>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* 3. COMUNIDAD Y CHAT EN VIVO DEL MANGA */}
-      <div className="mt-8 animate-detailsHeroIn" style={{ animationDelay: '180ms', animationFillMode: 'both' }}>
+      <div className="mt-8 animate-detailsHeroIn" style={{ animationDelay: '140ms', animationFillMode: 'both' }}>
         <LiveChatRoom
-          roomId={`manga:${btoa(encodeURIComponent(manga.url || manga.title || 'default')).slice(0, 32)}`}
+          roomId={(() => {
+            const raw = manga.url || manga.title || 'default';
+            try {
+              return `manga:${btoa(unescape(encodeURIComponent(raw))).slice(0, 32)}`;
+            } catch {
+              return `manga:${raw.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 32)}`;
+            }
+          })()}
           title={`Comunidad de ${manga.title}`}
           subtitle={`Debate sobre la historia, teorías y comparte opiniones en vivo con otros lectores de ${manga.title}.`}
           currentUser={currentUser}
@@ -687,6 +1015,81 @@ export default function MangaDetailsView({
           mangaTitle={manga.title}
         />
       </div>
+    </div>
+
+    {/* COLUMNA LATERAL DERECHA: Recomendaciones Deslizantes */}
+    {loopRight.length > 0 && (
+      <aside className="hidden xl:flex flex-col w-44 2xl:w-52 shrink-0 sticky top-16 h-[calc(100vh-4.5rem)] overflow-hidden rounded-3xl bg-[#0e111a]/85 border border-gray-800/80 p-2 shadow-2xl relative select-none pause-on-hover">
+        {/* Degradado Superior */}
+        <div className="absolute top-0 inset-x-0 h-14 bg-gradient-to-b from-[#0e111a] via-[#0e111a]/85 to-transparent z-20 pointer-events-none rounded-t-3xl" />
+        
+        {/* Cabecera */}
+        <div className="relative z-30 pt-1 pb-1.5 text-center text-[10px] font-black uppercase text-purple-400 tracking-wider flex items-center justify-center gap-1.5 border-b border-gray-800/60 shrink-0">
+          <Sparkles className="w-3 h-3 text-purple-400" />
+          <span>Recomendados</span>
+        </div>
+
+        {/* Pista animada que baja lentamente */}
+        <div className="flex-1 overflow-hidden relative">
+          <div className="animate-scrollDownSlow flex flex-col gap-3 py-2">
+            {loopRight.map((rec, idx) => (
+              <div
+                key={`right-${rec.url || rec.title}-${idx}`}
+                onClick={() => {
+                  if (onSelectManga) {
+                    onSelectManga({
+                      title: rec.title,
+                      url: rec.url,
+                      cover: rec.cover,
+                      coverProxy: rec.coverProxy,
+                      extension: rec.scan || rec.extensionId,
+                      extensionId: rec.extensionId,
+                      genres: rec.genres,
+                      synopsis: rec.synopsis
+                    }, rec.extensionId);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }
+                }}
+                className="group relative rounded-2xl bg-[#141824]/90 border border-gray-800/90 hover:border-purple-500/80 p-2 transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-purple-950/50 cursor-pointer text-center shrink-0"
+              >
+                <div className="relative w-full aspect-[3/4] rounded-xl overflow-hidden bg-black shadow-md">
+                  <img
+                    src={rec.coverProxy || rec.cover}
+                    alt={rec.title}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    loading="lazy"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      if (e.target.src.includes('/api/proxy-image') && rec.cover && !e.target.src.endsWith(encodeURIComponent(rec.cover))) {
+                        e.target.src = rec.cover;
+                      } else {
+                        e.target.src = FALLBACK_COVER;
+                      }
+                    }}
+                  />
+                  {/* Badge de capítulos dentro de la portada */}
+                  <div className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-black/85 backdrop-blur-sm text-purple-300 text-[10px] font-black font-mono border border-purple-500/40 shadow-md">
+                    {rec.status === 'Finalizado' ? 'Finalizado' : (rec.totalChapters ? `${rec.totalChapters} caps` : (rec.latestChapter || 'Completo'))}
+                  </div>
+                </div>
+                <h4 
+                  className="text-[11px] font-bold text-gray-200 group-hover:text-purple-300 transition-colors line-clamp-2 leading-tight mt-1.5 px-0.5"
+                  title={rec.title}
+                >
+                  {rec.title}
+                </h4>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Degradado Inferior */}
+        <div className="absolute bottom-0 inset-x-0 h-14 bg-gradient-to-t from-[#0e111a] via-[#0e111a]/85 to-transparent z-20 pointer-events-none rounded-b-3xl" />
+      </aside>
+    )}
+  </div>
+
+  {/* Modales */}
 
       {/* Modal Confirmación de Eliminación de Descarga */}
       {deleteConfirmModal && (
@@ -736,7 +1139,7 @@ export default function MangaDetailsView({
             className="w-full max-w-md bg-[#141824] border border-amber-500/40 rounded-3xl p-6 shadow-2xl relative text-left"
             onClick={(e) => e.stopPropagation()}
           >
-            <button
+            <button 
               onClick={() => setLockedModal(null)}
               className="absolute top-4 right-4 p-1.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white transition cursor-pointer"
             >
@@ -772,6 +1175,72 @@ export default function MangaDetailsView({
             >
               Entendido
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Aviso: Requiere Agregar a la Biblioteca */}
+      {needLibraryModal && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn"
+          onClick={() => setNeedLibraryModal(null)}
+        >
+          <div 
+            className="w-full max-w-md bg-[#0e121a] border border-purple-500/40 rounded-3xl p-6 shadow-2xl relative text-left space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div className="w-12 h-12 rounded-2xl bg-purple-950/80 border border-purple-600/60 flex items-center justify-center text-purple-400 shadow-lg">
+                <Bookmark className="w-6 h-6" />
+              </div>
+              <button 
+                onClick={() => setNeedLibraryModal(null)}
+                className="p-1.5 rounded-xl hover:bg-gray-800 text-gray-400 hover:text-white transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div>
+              <h3 className="text-base font-bold text-white mb-1.5">
+                Agrega este manga a tu biblioteca
+              </h3>
+              <p className="text-xs text-gray-300 leading-relaxed">
+                Para descargar capítulos y habilitar la lectura sin conexión, primero debes guardar <span className="text-purple-300 font-semibold font-mono">"{manga.title}"</span> en tu biblioteca.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-purple-950/30 border border-purple-900/40 flex items-center gap-3 text-xs text-purple-200">
+              <Download className="w-5 h-5 text-purple-400 shrink-0" />
+              <span>
+                Guardar en tu biblioteca permite sincronizar tus capítulos descargados, historial y progreso de lectura en todos tus dispositivos.
+              </span>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => setNeedLibraryModal(null)}
+                className="px-4 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold transition"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  const pending = needLibraryModal;
+                  setNeedLibraryModal(null);
+                  if (onToggleLibrary) onToggleLibrary(manga);
+                  if (pending.type === 'single' && onDownloadChapter) {
+                    onDownloadChapter(pending.chapter, manga);
+                  } else if (pending.type === 'batch' && onDownloadBatch) {
+                    onDownloadBatch(pending.chapters, manga);
+                  }
+                }}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-lg shadow-purple-600/30 flex items-center gap-2 transition cursor-pointer"
+              >
+                <BookmarkCheck className="w-4 h-4" />
+                <span>Agregar a Biblioteca y Descargar</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

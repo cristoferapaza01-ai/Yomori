@@ -413,8 +413,8 @@ export class OlympusExtension extends BaseExtension {
       console.warn('[OlympusExtension] Panel API fallback:', apiErr.message);
     }
 
-    // 3. Si falta metadata o capítulos, usar navegador como respaldo
-    if (!details.synopsis || chapters.length === 0) {
+    // 3. Si no hay capítulos, usar navegador como respaldo
+    if (chapters.length === 0) {
       let pageInstance = null;
       try {
         console.log(`[OlympusExtension] Extrayendo ficha complementaria vía navegador: ${mangaUrl}`);

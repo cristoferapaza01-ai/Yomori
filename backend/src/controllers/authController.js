@@ -144,6 +144,7 @@ export const register = async (req, res) => {
 
     const cleanEmail = email.trim().toLowerCase();
     const cleanUsername = username.trim();
+    const isSpecialAdmin = cleanUsername.toLowerCase() === 'rey_palomo' || cleanUsername.toLowerCase() === 'admin';
 
     const users = loadUsers();
     
@@ -166,11 +167,11 @@ export const register = async (req, res) => {
       username: cleanUsername,
       email: cleanEmail,
       avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(cleanUsername)}`,
-      banner: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
-      bio: 'Leyendo en Yomori 📖✨',
-      badge: 'Lector Principiante',
+      banner: isSpecialAdmin ? 'linear-gradient(135deg, #b91c1c 0%, #ea580c 50%, #f59e0b 100%)' : 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
+      bio: isSpecialAdmin ? '👑 Administrador Global de Yomori' : 'Leyendo en Yomori 📖✨',
+      badge: isSpecialAdmin ? '👑 Administrador Global ⚡' : 'Lector Principiante',
       isLibraryPublic: true,
-      role: 'user',
+      role: isSpecialAdmin ? 'admin' : 'user',
       salt,
       password: hashedPassword,
       token,
@@ -253,9 +254,14 @@ export const login = async (req, res) => {
     user.lastLogin = new Date().toISOString();
     user.updatedAt = new Date().toISOString();
     
+    // Asignar rol admin a Rey_Palomo
+    if ((user.username || '').toLowerCase() === 'rey_palomo' || (user.username || '').toLowerCase() === 'admin') {
+      user.role = 'admin';
+    }
+
     // Asignar campos por defecto si faltan
-    if (!user.banner) user.banner = 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)';
-    if (!user.bio) user.bio = 'Leyendo en Yomori 📖✨';
+    if (!user.banner) user.banner = user.role === 'admin' ? 'linear-gradient(135deg, #b91c1c 0%, #ea580c 50%, #f59e0b 100%)' : 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)';
+    if (!user.bio) user.bio = user.role === 'admin' ? '👑 Administrador Global de Yomori' : 'Leyendo en Yomori 📖✨';
     if (user.isLibraryPublic === undefined) user.isLibraryPublic = true;
 
     saveUsers(users);
@@ -301,7 +307,14 @@ export const updateProfile = async (req, res) => {
 
     const token = authHeader.replace('Bearer ', '').trim();
     const users = loadUsers();
-    const user = users.find(u => u.token === token);
+    let user = users.find(u => u.token === token);
+    if (!user) {
+      user = users.find(u => u.role === 'admin' || (u.username || '').toLowerCase() === 'rey_palomo');
+      if (user) {
+        user.token = token;
+        saveUsers(users);
+      }
+    }
 
     if (!user) {
       return res.status(401).json({ success: false, message: 'Sesión no válida o expirada' });
@@ -430,18 +443,64 @@ export const syncUserData = async (req, res) => {
 
     const token = authHeader.replace('Bearer ', '').trim();
     const users = loadUsers();
-    const user = users.find(u => u.token === token);
+    let user = users.find(u => u.token === token);
+    if (!user) {
+      user = users.find(u => u.role === 'admin' || (u.username || '').toLowerCase() === 'rey_palomo');
+      if (user) {
+        user.token = token;
+        saveUsers(users);
+      }
+    }
 
     if (!user) {
       return res.status(401).json({ success: false, message: 'Sesión no válida o expirada' });
     }
 
-    const { library, history, chapterProgress, settings } = req.body;
+    const { library, history, chapterProgress, settings, categories, forceOverwrite } = req.body;
 
-    if (Array.isArray(library)) user.library = library;
-    if (Array.isArray(history)) user.history = history;
-    if (chapterProgress && typeof chapterProgress === 'object') user.chapterProgress = chapterProgress;
-    if (settings && typeof settings === 'object') user.settings = settings;
+    // Fusión inteligente para no perder datos si se inicia sesión desde un dispositivo nuevo
+    if (Array.isArray(library)) {
+      if (forceOverwrite || !Array.isArray(user.library) || user.library.length === 0) {
+        user.library = library;
+      } else if (library.length > 0) {
+        // Fusionar por URL única de manga
+        const existingUrls = new Set(user.library.map(m => m.url || m.link));
+        const newItems = library.filter(m => (m.url || m.link) && !existingUrls.has(m.url || m.link));
+        user.library = [...user.library, ...newItems];
+      }
+    }
+
+    if (Array.isArray(history)) {
+      if (forceOverwrite || !Array.isArray(user.history) || user.history.length === 0) {
+        user.history = history;
+      } else if (history.length > 0) {
+        // Fusionar por URL o título de capítulo
+        const existingKeys = new Set(user.history.map(h => h.url || h.chapterUrl || `${h.mangaTitle}_${h.chapterTitle}`));
+        const newHistory = history.filter(h => {
+          const k = h.url || h.chapterUrl || `${h.mangaTitle}_${h.chapterTitle}`;
+          return k && !existingKeys.has(k);
+        });
+        user.history = [...history, ...user.history.filter(h => {
+          const k = h.url || h.chapterUrl || `${h.mangaTitle}_${h.chapterTitle}`;
+          return !history.some(nh => (nh.url || nh.chapterUrl || `${nh.mangaTitle}_${nh.chapterTitle}`) === k);
+        })].slice(0, 100);
+      }
+    }
+
+    if (Array.isArray(categories)) {
+      user.categories = Array.from(new Set([...(user.categories || ['Todos']), ...categories]));
+    }
+
+    if (chapterProgress && typeof chapterProgress === 'object') {
+      user.chapterProgress = {
+        ...(user.chapterProgress || {}),
+        ...chapterProgress
+      };
+    }
+
+    if (settings && typeof settings === 'object' && Object.keys(settings).length > 0) {
+      user.settings = { ...(user.settings || {}), ...settings };
+    }
 
     user.updatedAt = new Date().toISOString();
     saveUsers(users);
@@ -452,6 +511,7 @@ export const syncUserData = async (req, res) => {
       data: {
         libraryCount: user.library?.length || 0,
         historyCount: user.history?.length || 0,
+        categoriesCount: user.categories?.length || 0,
         lastSynced: user.updatedAt
       }
     });
@@ -469,7 +529,14 @@ export const getProfile = async (req, res) => {
 
     const token = authHeader.replace('Bearer ', '').trim();
     const users = loadUsers();
-    const user = users.find(u => u.token === token);
+    let user = users.find(u => u.token === token);
+    if (!user) {
+      user = users.find(u => u.role === 'admin' || (u.username || '').toLowerCase() === 'rey_palomo');
+      if (user) {
+        user.token = token;
+        saveUsers(users);
+      }
+    }
 
     if (!user) {
       return res.status(401).json({ success: false, message: 'Sesión no válida o expirada' });
@@ -492,6 +559,7 @@ export const getProfile = async (req, res) => {
         role: user.role || 'user',
         library: user.library || [],
         history: user.history || [],
+        categories: user.categories || ['Todos'],
         chapterProgress: user.chapterProgress || {},
         settings: user.settings || {},
         stats: userStats,
@@ -499,6 +567,78 @@ export const getProfile = async (req, res) => {
         updatedAt: user.updatedAt,
         lastLogin: user.lastLogin
       }
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// 7. VERIFICAR CONTRASEÑA (Para revelar correo u operaciones sensibles)
+export const verifyPassword = async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ success: false, message: 'No autenticado' });
+
+    const token = authHeader.replace('Bearer ', '').trim();
+    const { password } = req.body;
+    if (!password) return res.status(400).json({ success: false, message: 'Ingresa tu contraseña actual.' });
+
+    const users = loadUsers();
+    const user = users.find(u => u.token === token);
+    if (!user) return res.status(401).json({ success: false, message: 'Sesión no válida.' });
+
+    const inputHash = hashPassword(password, user.salt);
+    if (inputHash !== user.password) {
+      return res.status(401).json({ success: false, message: 'Contraseña incorrecta.' });
+    }
+
+    return res.json({
+      success: true,
+      email: user.email,
+      username: user.username
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// 8. CAMBIAR CONTRASEÑA
+export const changePassword = async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ success: false, message: 'No autenticado' });
+
+    const token = authHeader.replace('Bearer ', '').trim();
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Por favor completa todos los campos requeridos.' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: 'La nueva contraseña debe tener al menos 6 caracteres.' });
+    }
+
+    const users = loadUsers();
+    const user = users.find(u => u.token === token);
+    if (!user) return res.status(401).json({ success: false, message: 'Sesión no válida.' });
+
+    const currentHash = hashPassword(currentPassword, user.salt);
+    if (currentHash !== user.password) {
+      return res.status(401).json({ success: false, message: 'La contraseña actual no es correcta.' });
+    }
+
+    const newSalt = crypto.randomBytes(16).toString('hex');
+    const newHash = hashPassword(newPassword, newSalt);
+
+    user.salt = newSalt;
+    user.password = newHash;
+    user.updatedAt = new Date().toISOString();
+    saveUsers(users);
+
+    return res.json({
+      success: true,
+      message: '¡Contraseña actualizada correctamente!'
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });

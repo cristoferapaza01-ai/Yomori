@@ -88,5 +88,16 @@
     "lang": "es",
     "scriptFile": "rn-scanlation.js",
     "installedAt": "2026-09-09T21:06:10.388Z"
+  },
+  {
+    "id": "animeav1-es",
+    "name": "AnimeAV1",
+    "version": "1.2.0",
+    "baseUrl": "https://animeav1.com",
+    "icon": "https://animeav1.com/favicon.ico",
+    "lang": "es",
+    "type": "anime",
+    "scriptFile": "animeav1-es.js",
+    "installedAt": "2026-09-15T21:04:45.509Z"
   }
 ]
