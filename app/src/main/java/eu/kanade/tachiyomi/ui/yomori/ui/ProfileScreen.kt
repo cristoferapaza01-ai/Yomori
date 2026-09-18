@@ -74,7 +74,7 @@ fun YomoriProfileScreen(onBack: (() -> Unit)? = null) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Mi Perfil & Rangos", color = TextPrimary, fontWeight = FontWeight.Bold) },
+                title = { Text("Mi Perfil", color = TextPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     if (onBack != null) {
                         IconButton(onClick = onBack) {
@@ -100,7 +100,7 @@ fun YomoriProfileScreen(onBack: (() -> Unit)? = null) {
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // 1. Tarjeta Principal de Perfil (Avatar, Nivel, Rango, Apodo, Username y Bio)
+                // 1. Tarjeta Principal de Perfil (Avatar a la izquierda, Apodo + Rango + @username a la derecha, Seguir/Amigos/Seguidores, Descripción editable)
                 item {
                     Surface(
                         shape = RoundedCornerShape(18.dp),
@@ -113,145 +113,210 @@ fun YomoriProfileScreen(onBack: (() -> Unit)? = null) {
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
-                            modifier = Modifier.padding(18.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                            modifier = Modifier.padding(16.dp)
                         ) {
-                            // Avatar con borde del color del Rango
-                            Box(contentAlignment = Alignment.BottomEnd) {
-                                AsyncImage(
-                                    model = user.avatarUrl,
-                                    contentDescription = user.nickname,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier
-                                        .size(86.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFF131924))
-                                        .border(2.dp, Color(user.rankColor), CircleShape)
-                                )
-                                Surface(
-                                    shape = CircleShape,
-                                    color = Color(user.rankColor),
-                                    modifier = Modifier.size(26.dp)
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
+                            // Fila superior: Foto de perfil a la izquierda + Apodo, Rango y @usuario a la derecha
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Avatar a la izquierda pegado
+                                Box(contentAlignment = Alignment.BottomEnd) {
+                                    AsyncImage(
+                                        model = user.avatarUrl,
+                                        contentDescription = user.nickname,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier
+                                            .size(76.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(0xFF131924))
+                                            .border(2.dp, Color(user.rankColor), CircleShape)
+                                    )
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = Color(user.rankColor),
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Text(
+                                                "${user.level}",
+                                                color = YomoriBgDark,
+                                                fontWeight = FontWeight.Black,
+                                                fontSize = 10.sp
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.width(14.dp))
+
+                                // Columna derecha: Apodo arriba más grande + Rango al costado + @usuario abajo
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
                                         Text(
-                                            "${user.level}",
-                                            color = YomoriBgDark,
+                                            text = user.nickname,
+                                            color = TextPrimary,
+                                            fontSize = 19.sp,
                                             fontWeight = FontWeight.Black,
-                                            fontSize = 11.sp
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.weight(1f, fill = false)
+                                        )
+
+                                        // Rango al costado del apodo
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = Color(user.rankColor).copy(alpha = 0.2f),
+                                            border = CardDefaults.outlinedCardBorder().copy(
+                                                brush = Brush.linearGradient(
+                                                    listOf(Color(user.rankColor), Color(user.rankColor).copy(alpha = 0.5f))
+                                                )
+                                            )
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            ) {
+                                                if (user.isAdmin) {
+                                                    Text("👑 ", fontSize = 9.sp)
+                                                }
+                                                Text(
+                                                    if (user.isAdmin) "ADMIN" else "[${user.rankTier}] ${user.rankTitle}",
+                                                    color = Color(user.rankColor),
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Black,
+                                                    maxLines = 1
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(3.dp))
+
+                                    // Nombre de @usuario abajo
+                                    Text(
+                                        text = "@${user.username}",
+                                        color = TextMuted,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+                            HorizontalDivider(color = YomoriBorder.copy(alpha = 0.4f), thickness = 0.8.dp)
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            // 3 cosas: Seguir, Amigos y Seguidores
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceEvenly,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("0", color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                    Text("Seguir", color = TextMuted, fontSize = 11.sp)
+                                }
+                                Box(modifier = Modifier.height(18.dp).width(1.dp).background(YomoriBorder.copy(alpha = 0.4f)))
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("0", color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                    Text("Amigos", color = TextMuted, fontSize = 11.sp)
+                                }
+                                Box(modifier = Modifier.height(18.dp).width(1.dp).background(YomoriBorder.copy(alpha = 0.4f)))
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("0", color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                    Text("Seguidores", color = TextMuted, fontSize = 11.sp)
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            // Descripción / Biografía editable
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = YomoriSurfaceVariant,
+                                border = CardDefaults.outlinedCardBorder().copy(
+                                    brush = Brush.linearGradient(listOf(YomoriBorder, YomoriBorder.copy(alpha = 0.3f)))
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        editNickname = user.nickname
+                                        editUsername = user.username
+                                        editBio = user.bio
+                                        editAvatarUrl = user.avatarUrl
+                                        showEditProfileModal = true
+                                    }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            "Descripción",
+                                            color = YomoriTeal,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Spacer(modifier = Modifier.height(3.dp))
+                                        Text(
+                                            if (user.bio.isNotBlank()) user.bio else "Sin descripción. Toca aquí para añadir una biografía sobre tus gustos...",
+                                            color = if (user.bio.isNotBlank()) TextSecondary else TextMuted,
+                                            fontSize = 12.sp,
+                                            lineHeight = 16.sp
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = {
+                                            editNickname = user.nickname
+                                            editUsername = user.username
+                                            editBio = user.bio
+                                            editAvatarUrl = user.avatarUrl
+                                            showEditProfileModal = true
+                                        },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Filled.Edit,
+                                            contentDescription = "Editar descripción",
+                                            tint = YomoriTeal,
+                                            modifier = Modifier.size(15.dp)
                                         )
                                     }
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(10.dp))
+                            Spacer(modifier = Modifier.height(14.dp))
 
-                            // Apodo (Nickname)
-                            Text(
-                                user.nickname,
-                                color = TextPrimary,
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Black
-                            )
-
-                            // @Username
-                            Text(
-                                "@${user.username}",
-                                color = TextMuted,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            // Insignia de Rango
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = Color(user.rankColor).copy(alpha = 0.2f),
-                                border = CardDefaults.outlinedCardBorder().copy(
-                                    brush = Brush.linearGradient(
-                                        listOf(Color(user.rankColor), Color(user.rankColor).copy(alpha = 0.4f))
-                                    )
-                                )
-                            ) {
+                            // Barra de Progreso XP y Nivel
+                            val progress = if (user.nextLevelXp > 0) (user.currentXp.toFloat() / user.nextLevelXp.toFloat()).coerceIn(0f, 1f) else 0f
+                            Column(modifier = Modifier.fillMaxWidth()) {
                                 Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    if (user.isAdmin) {
-                                        Text("👑 ", fontSize = 11.sp)
-                                    }
-                                    Text(
-                                        if (user.isAdmin) "ADMIN" else "RANGO [${user.rankTier}] • ${user.rankTitle.uppercase()}",
-                                        color = Color(user.rankColor),
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Black
-                                    )
+                                    Text("Nivel ${user.level}", color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    Text("${user.currentXp} / ${user.nextLevelXp} XP", color = YomoriTeal, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                 }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                LinearProgressIndicator(
+                                    progress = { progress },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(8.dp)
+                                        .clip(RoundedCornerShape(4.dp)),
+                                    color = Color(user.rankColor),
+                                    trackColor = Color(0xFF1F2937),
+                                )
                             }
-
-                        // Biografía / Descripción
-                        if (user.bio.isNotBlank()) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                user.bio,
-                                color = TextSecondary,
-                                fontSize = 12.sp,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // Barra de Progreso XP
-                        val progress = if (user.nextLevelXp > 0) (user.currentXp.toFloat() / user.nextLevelXp.toFloat()).coerceIn(0f, 1f) else 0f
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text("Nivel ${user.level}", color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                Text("${user.currentXp} / ${user.nextLevelXp} XP", color = YomoriTeal, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
-                            Spacer(modifier = Modifier.height(6.dp))
-                            LinearProgressIndicator(
-                                progress = { progress },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(8.dp)
-                                    .clip(RoundedCornerShape(4.dp)),
-                                color = Color(user.rankColor),
-                                trackColor = Color(0xFF1F2937),
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        // Botón Editar Perfil
-                        OutlinedButton(
-                            onClick = {
-                                editNickname = user.nickname
-                                editUsername = user.username
-                                editBio = user.bio
-                                editAvatarUrl = user.avatarUrl
-                                showEditProfileModal = true
-                            },
-                            border = CardDefaults.outlinedCardBorder().copy(
-                                brush = Brush.linearGradient(listOf(YomoriTeal, YomoriBorder))
-                            ),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(38.dp)
-                        ) {
-                            Icon(Icons.Filled.Edit, contentDescription = null, tint = YomoriTeal, modifier = Modifier.size(15.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Editar Perfil & Foto", color = YomoriTeal, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         }
                     }
                 }
-            }
 
             // 2. Estadísticas de Lectura
             item {

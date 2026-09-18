@@ -344,15 +344,33 @@ object UserManager {
         avatarUrl: String
     ) {
         val current = _userState.value
+        val cleanNick = nickname.trim().ifBlank { current.nickname }
+        val cleanUser = username.trim().replace("@", "").ifBlank { current.username }
+        val cleanBio = bio.trim()
+        val cleanAvatar = avatarUrl.trim().ifBlank { current.avatarUrl }
+
         val updated = current.copy(
-            nickname = nickname.trim().ifBlank { current.nickname },
-            username = username.trim().replace("@", "").ifBlank { current.username },
-            bio = bio.trim(),
-            avatarUrl = avatarUrl.trim().ifBlank { current.avatarUrl }
+            nickname = cleanNick,
+            username = cleanUser,
+            bio = cleanBio,
+            avatarUrl = cleanAvatar
         )
         _userState.value = updated
         saveSession(updated, rememberMe = true)
-        syncProfileToCloud(updated)
+        if (updated.isLoggedIn) {
+            syncProfileToCloud(updated)
+        }
+    }
+
+    fun updateBio(bio: String) {
+        val current = _userState.value
+        val cleanBio = bio.trim()
+        val updated = current.copy(bio = cleanBio)
+        _userState.value = updated
+        saveSession(updated, rememberMe = true)
+        if (updated.isLoggedIn) {
+            syncProfileToCloud(updated)
+        }
     }
 
     fun getQuests(): List<Quest> {
@@ -759,7 +777,7 @@ object UserManager {
                     // Limpia favoritos locales previos y luego restaura la biblioteca del usuario desde Supabase
                     YomoriSyncManager.clearLocalLibraryFavorites()
                     YomoriSyncManager.pullLibraryFromCloud()
-                } catch (_: Throwable) {}
+                } catch (e: Throwable) {}
             }
         }
     }
@@ -821,7 +839,7 @@ object UserManager {
                 putBoolean(KEY_IS_ADMIN, restored.isAdmin)
                 apply()
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {}
     }
 
     private fun syncProfileToCloud(user: YomoriUser) {
@@ -853,7 +871,7 @@ object UserManager {
                     .build()
 
                 okHttpClient.newCall(request).execute().close()
-            } catch (_: Throwable) {}
+            } catch (e: Throwable) {}
         }
     }
 }
