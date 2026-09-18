@@ -252,18 +252,56 @@ object BuiltInScansRepository {
         }
     }
 
+    fun isNsfwOrHentai(
+        sourceName: String,
+        mangaTitle: String = "",
+        genres: List<String> = emptyList(),
+        description: String = ""
+    ): Boolean {
+        val nsfwKeywords = listOf(
+            "hentai", "tmohentai", "tmo hentai", "nhentai", "hitomi", "luscious", "pururin",
+            "asmhentai", "eromanga", "doujin", "fakku", "tsumino", "allporncomic", "hentai2read",
+            "hentaihere", "multporn", "8muses", "simplyhentai", "hentaifox", "milftoon",
+            "lewd", "porn", "xxx", "yaoi", "yuri", "nsfw", "+18", "18+", "erotica", "smut", "adulto"
+        )
+        val lowerSource = sourceName.lowercase()
+        val lowerTitle = mangaTitle.lowercase()
+        val lowerDesc = description.lowercase()
+        val lowerGenres = genres.map { it.lowercase() }
+
+        if (nsfwKeywords.any { lowerSource.contains(it) }) return true
+        if (nsfwKeywords.any { lowerTitle.contains(it) }) return true
+        if (lowerGenres.any { g -> nsfwKeywords.any { g.contains(it) } }) return true
+        if (lowerDesc.contains("hentai") || lowerDesc.contains("doujinshi") || lowerDesc.contains("porn")) return true
+
+        return false
+    }
+
+    private fun isSourceNsfw(source: CatalogueSource): Boolean {
+        if (isNsfwOrHentai(source.name)) return true
+        try {
+            val extensionManager = Injekt.get<eu.kanade.tachiyomi.extension.ExtensionManager>()
+            val installed = extensionManager.installedExtensionsFlow.value
+            val match = installed.find { ext -> ext.sources.any { it.id == source.id } }
+            if (match?.isNsfw == true) return true
+        } catch (e: Throwable) {}
+        return false
+    }
+
     fun refresh() {
         scope.launch {
             try {
                 _isRefreshing.value = true
                 val sourceManager = Injekt.get<SourceManager>()
-                val sources = sourceManager.getOnlineSources().filterIsInstance<CatalogueSource>()
+                val sources = sourceManager.getOnlineSources()
+                    .filterIsInstance<CatalogueSource>()
+                    .filterNot { isSourceNsfw(it) }
                 if (sources.isEmpty()) {
                     _isRefreshing.value = false
                     return@launch
                 }
 
-                // 1. Fetch latest updates from all installed sources in parallel
+                // 1. Fetch latest updates from all clean installed sources in parallel
                 val latestDeferred = sources.map { src ->
                     async {
                         try {
@@ -271,13 +309,13 @@ object BuiltInScansRepository {
                                 val page = src.getLatestUpdates(1)
                                 src to page.mangas
                             }
-                        } catch (_: Throwable) {
+                        } catch (e: Throwable) {
                             null
                         }
                     }
                 }
 
-                // 2. Fetch popular manga from all installed sources in parallel
+                // 2. Fetch popular manga from all clean installed sources in parallel
                 val popularDeferred = sources.map { src ->
                     async {
                         try {
@@ -285,7 +323,7 @@ object BuiltInScansRepository {
                                 val page = src.getPopularManga(1)
                                 src to page.mangas
                             }
-                        } catch (_: Throwable) {
+                        } catch (e: Throwable) {
                             null
                         }
                     }
@@ -307,6 +345,9 @@ object BuiltInScansRepository {
                     for ((source, mangas) in latestResults) {
                         if (i < mangas.size) {
                             val manga = mangas[i]
+                            if (isNsfwOrHentai(source.name, manga.title, manga.genre?.split(",") ?: emptyList(), manga.description ?: "")) {
+                                continue
+                            }
                             val clean = normalizeTitle(manga.title)
                             if (clean.length > 1 && seenTitles.add(clean)) {
                                 candidates.add(CandidateManga(source, manga, i))
@@ -404,6 +445,9 @@ object BuiltInScansRepository {
                         for ((source, mangas) in popularResults) {
                             if (i < mangas.size) {
                                 val manga = mangas[i]
+                                if (isNsfwOrHentai(source.name, manga.title, manga.genre?.split(",") ?: emptyList(), manga.description ?: "")) {
+                                    continue
+                                }
                                 val clean = normalizeTitle(manga.title)
                                 if (clean.length > 1 && topSeen.add(clean)) {
                                     val ratingVal = String.format(java.util.Locale.US, "%.1f", (9.9 - (topIndex * 0.04)).coerceAtLeast(9.1))

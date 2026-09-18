@@ -30,6 +30,31 @@ object YomoriSupabaseService {
         }
     }
 
+    fun isNsfwOrHentai(
+        sourceName: String = "",
+        mangaTitle: String = "",
+        genres: List<String> = emptyList(),
+        description: String = ""
+    ): Boolean {
+        val nsfwKeywords = listOf(
+            "hentai", "tmohentai", "tmo hentai", "nhentai", "hitomi", "luscious", "pururin",
+            "asmhentai", "eromanga", "doujin", "fakku", "tsumino", "allporncomic", "hentai2read",
+            "hentaihere", "multporn", "8muses", "simplyhentai", "hentaifox", "milftoon",
+            "lewd", "porn", "xxx", "yaoi", "yuri", "nsfw", "+18", "18+", "erotica", "smut", "adulto"
+        )
+        val lowerSource = sourceName.lowercase()
+        val lowerTitle = mangaTitle.lowercase()
+        val lowerDesc = description.lowercase()
+        val lowerGenres = genres.map { it.lowercase() }
+
+        if (nsfwKeywords.any { lowerSource.contains(it) }) return true
+        if (nsfwKeywords.any { lowerTitle.contains(it) }) return true
+        if (lowerGenres.any { g -> nsfwKeywords.any { g.contains(it) } }) return true
+        if (lowerDesc.contains("hentai") || lowerDesc.contains("doujinshi") || lowerDesc.contains("porn")) return true
+
+        return false
+    }
+
     /**
      * Obtiene el Manga más leído del DÍA para el Banner Principal de Inicio.
      */
@@ -53,6 +78,9 @@ object YomoriSupabaseService {
             if (jsonArray.length() == 0) return@withContext null
 
             val obj = jsonArray.getJSONObject(0)
+            val title = obj.optString("title", "")
+            val scanSource = obj.optString("scan_source", "Yomori Cloud")
+            val synopsis = obj.optString("synopsis", "El manga más leído del día por la comunidad Yomori.")
             val genresList = mutableListOf<String>()
             val genresArr = obj.optJSONArray("genres")
             if (genresArr != null) {
@@ -63,20 +91,24 @@ object YomoriSupabaseService {
                 genresList.addAll(listOf("Acción", "Fantasía"))
             }
 
+            if (isNsfwOrHentai(scanSource, title, genresList, synopsis)) {
+                return@withContext null
+            }
+
             WeeklyTopManga(
                 id = obj.optString("id", "daily-top-1"),
-                title = obj.optString("title", ""),
-                originalTitle = obj.optString("original_title", obj.optString("title", "")),
-                synopsis = obj.optString("synopsis", "El manga más leído del día por la comunidad Yomori."),
+                title = title,
+                originalTitle = obj.optString("original_title", title),
+                synopsis = synopsis,
                 coverUrl = obj.optString("cover_url", ""),
                 rating = obj.optString("rating", "9.9"),
-                scanSource = obj.optString("scan_source", "Yomori Cloud"),
+                scanSource = scanSource,
                 latestChapter = obj.optString("latest_chapter", "Capítulo 1"),
                 genres = genresList,
                 sourceId = obj.optLong("source_id", 0L),
                 mangaUrl = obj.optString("manga_url", "")
             )
-        } catch (_: Throwable) {
+        } catch (e: Throwable) {
             null
         }
     }
@@ -125,6 +157,10 @@ object YomoriSupabaseService {
                     genresList.addAll(listOf("Acción", "Fantasía"))
                 }
 
+                if (isNsfwOrHentai(scanSource, title, genresList, synopsis)) {
+                    continue
+                }
+
                 resultList.add(
                     WeeklyTopManga(
                         id = id,
@@ -142,7 +178,7 @@ object YomoriSupabaseService {
                 )
             }
             resultList
-        } catch (_: Throwable) {
+        } catch (e: Throwable) {
             emptyList()
         }
     }
@@ -155,6 +191,9 @@ object YomoriSupabaseService {
         chapterName: String? = null,
         scanSource: String? = null
     ) {
+        if (isNsfwOrHentai(scanSource ?: "", manga.title, manga.genre ?: emptyList(), manga.description ?: "")) {
+            return
+        }
         scope.launch {
             try {
                 val mangaId = "manga-${manga.source}-${manga.url.hashCode()}"
@@ -179,7 +218,7 @@ object YomoriSupabaseService {
                     .build()
 
                 okHttpClient.newCall(request).execute().close()
-            } catch (_: Throwable) {
+            } catch (e: Throwable) {
                 // Silently ignore network failures to never interrupt the user
             }
         }
