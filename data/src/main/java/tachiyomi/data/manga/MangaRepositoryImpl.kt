@@ -214,4 +214,14 @@ class MangaRepositoryImpl(
             }
         }
     }
+
+    override suspend fun resetAllFavorites(): Boolean {
+        return try {
+            database.mangasQueries.resetAllFavorites()
+            true
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR, e)
+            false
+        }
+    }
 }

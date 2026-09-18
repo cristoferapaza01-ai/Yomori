@@ -126,3 +126,7 @@ SET manga_id = coalesce(:mangaId, manga_id),
     is_syncing = coalesce(:isSyncing, is_syncing),
     memo = coalesce(:memo, memo)
 WHERE _id = :chapterId;
+
+resetAllChaptersReadProgress:
+UPDATE chapters
+SET read = 0, last_page_read = 0, bookmark = 0;

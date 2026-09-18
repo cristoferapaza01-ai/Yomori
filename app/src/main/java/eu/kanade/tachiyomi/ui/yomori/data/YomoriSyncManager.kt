@@ -403,15 +403,25 @@ object YomoriSyncManager {
     }
 
     /**
-     * Limpia tanto los favoritos locales de la biblioteca como el historial local para aislar las sesiones
-     * de usuarios e invitados, asegurando que un usuario sin cuenta o un invitado no vea datos previos.
+     * Limpia completamente los favoritos locales de la biblioteca, el progreso de lectura de capítulos y el historial
+     * para aislar al 100% las sesiones de usuarios e invitados, asegurando que un usuario sin cuenta o un nuevo perfil
+     * empiece desde cero y no herede capítulos leídos de otras cuentas.
      */
     suspend fun clearLocalSession() = withContext(Dispatchers.IO) {
         try {
-            clearLocalLibraryFavorites()
+            try {
+                Injekt.get<tachiyomi.domain.manga.repository.MangaRepository>().resetAllFavorites()
+            } catch (e: Exception) {
+                logcat(LogPriority.ERROR, e) { "YomoriSync: Error reseteando favoritos" }
+            }
+            try {
+                Injekt.get<tachiyomi.domain.chapter.repository.ChapterRepository>().resetAllProgress()
+            } catch (e: Exception) {
+                logcat(LogPriority.ERROR, e) { "YomoriSync: Error reseteando capítulos leídos" }
+            }
             try {
                 Injekt.get<RemoveHistory>().awaitAll()
-                logcat(LogPriority.INFO) { "YomoriSync: Historial local y biblioteca vaciados para sesión sin cuenta/invitado." }
+                logcat(LogPriority.INFO) { "YomoriSync: Historial local, capítulos y biblioteca vaciados para sesión sin cuenta/invitado." }
             } catch (e: Exception) {
                 logcat(LogPriority.ERROR, e) { "YomoriSync: Error vaciando historial local" }
             }
@@ -426,18 +436,8 @@ object YomoriSyncManager {
      */
     suspend fun clearLocalLibraryFavorites() = withContext(Dispatchers.IO) {
         try {
-            val mangaRepository = Injekt.get<tachiyomi.domain.manga.repository.MangaRepository>()
-            val favorites = getFavorites.await()
-            if (favorites.isNotEmpty()) {
-                val updates = favorites.map { manga ->
-                    tachiyomi.domain.manga.model.MangaUpdate(
-                        id = manga.id,
-                        favorite = false
-                    )
-                }
-                mangaRepository.updateAll(updates)
-                logcat(LogPriority.INFO) { "YomoriSync: Limpiados ${favorites.size} favoritos locales para aislar la sesión." }
-            }
+            Injekt.get<tachiyomi.domain.manga.repository.MangaRepository>().resetAllFavorites()
+            logcat(LogPriority.INFO) { "YomoriSync: Limpiados favoritos locales para aislar la sesión." }
         } catch (e: Exception) {
             logcat(LogPriority.ERROR, e) { "YomoriSync: Error limpiando favoritos locales" }
         }

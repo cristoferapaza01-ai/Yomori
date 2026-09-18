@@ -165,4 +165,12 @@ class ChapterRepositoryImpl(
         version = version,
         memo = memo,
     )
+
+    override suspend fun resetAllProgress() {
+        try {
+            database.chaptersQueries.resetAllChaptersReadProgress()
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR, e)
+        }
+    }
 }

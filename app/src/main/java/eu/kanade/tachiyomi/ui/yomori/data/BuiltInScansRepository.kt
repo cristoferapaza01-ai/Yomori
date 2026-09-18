@@ -531,36 +531,34 @@ object BuiltInScansRepository {
                 .trim()
 
             val cleanScan = clean(scanName)
-            val cleanTitle = title.trim()
+            val cleanTitle = cleanDisplayTitle(title).trim()
 
-            // 1. If direct valid CatalogueSource exists by ID and has real URL
+            // 1. Direct or matched source by name/id
             val direct = sourceManager.get(sourceId) as? CatalogueSource
-            if (direct != null && currentUrl.isNotBlank() && currentUrl.startsWith("/")) {
-                return direct to currentUrl
-            }
-
-            // 2. Find matching source by scan name among installed sources
             val matchedByName = onlineSources.firstOrNull { src ->
                 val sName = clean(src.name)
                 cleanScan.isNotBlank() && (sName.contains(cleanScan) || cleanScan.contains(sName))
             }
 
-            // 3. Search candidate sources for the manga title
-            val candidateSources = if (matchedByName != null) {
-                listOf(matchedByName) + onlineSources.filter { it.id != matchedByName.id }
+            val targetSource = direct ?: matchedByName
+
+            // 2. Search dynamically across target and candidate sources to get the verified working URL
+            val candidateSources = if (targetSource != null) {
+                listOf(targetSource) + onlineSources.filter { it.id != targetSource.id }
             } else {
                 onlineSources
             }
 
             for (src in candidateSources) {
                 try {
-                    val searchRes = withTimeoutOrNull(4000L) {
+                    val searchRes = withTimeoutOrNull(4500L) {
                         src.getSearchManga(1, cleanTitle, eu.kanade.tachiyomi.source.model.FilterList())
                     }
                     val match = searchRes?.mangas?.firstOrNull { sm ->
                         val smTitle = sm.title.trim().lowercase()
                         val qTitle = cleanTitle.lowercase()
-                        smTitle == qTitle || smTitle.contains(qTitle) || qTitle.contains(smTitle)
+                        smTitle == qTitle || smTitle.contains(qTitle) || qTitle.contains(smTitle) ||
+                                normalizeTitle(smTitle) == normalizeTitle(qTitle)
                     }
                     if (match != null && match.url.isNotBlank()) {
                         return src to match.url
@@ -568,17 +566,16 @@ object BuiltInScansRepository {
                 } catch (_: Throwable) {}
             }
 
-            // 4. If matched by scan name and currentUrl exists
+            // 3. If direct valid CatalogueSource exists and has real URL fallback
+            if (direct != null && currentUrl.isNotBlank() && currentUrl.startsWith("/")) {
+                return direct to currentUrl
+            }
+
             if (matchedByName != null && currentUrl.isNotBlank()) {
                 return matchedByName to currentUrl
             }
 
-            // 5. If direct source existed
-            if (direct != null) {
-                return direct to currentUrl
-            }
-
-            // 6. Fallback to first online source
+            // 4. Fallback to first online source
             onlineSources.firstOrNull()?.let { it to currentUrl }
         } catch (_: Throwable) {
             null

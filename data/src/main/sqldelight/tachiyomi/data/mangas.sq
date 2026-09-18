@@ -291,3 +291,7 @@ insertNetworkManga {
     AND url = :url
     LIMIT 1;
 }
+
+resetAllFavorites:
+UPDATE mangas
+SET favorite = 0;

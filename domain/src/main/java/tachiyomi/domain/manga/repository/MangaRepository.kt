@@ -43,4 +43,5 @@ interface MangaRepository {
     suspend fun updateAll(mangaUpdates: List<MangaUpdate>): Boolean
 
     suspend fun insertNetworkManga(manga: List<Manga>): List<Manga>
+    suspend fun resetAllFavorites(): Boolean
 }
