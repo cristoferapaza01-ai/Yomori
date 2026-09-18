@@ -118,12 +118,12 @@ class OlympusScanlation : HttpSource() {
     override fun searchMangaParse(response: Response): MangasPage = popularMangaParse(response)
 
     private fun getSlugFromUrl(url: String): String {
-        val clean = url.trimEnd('/').substringAfterLast('/')
+        val clean = url.substringBefore('?').substringBefore('#').trimEnd('/').substringAfterLast('/')
         return clean.removePrefix("comic-").removePrefix("novel-").removePrefix("manga-")
     }
 
     private fun getTypeFromUrl(url: String): String {
-        val clean = url.trimEnd('/').substringAfterLast('/')
+        val clean = url.substringBefore('?').substringBefore('#').trimEnd('/').substringAfterLast('/')
         return when {
             clean.startsWith("novel-") -> "novel"
             clean.startsWith("manga-") -> "manga"

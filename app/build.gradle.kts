@@ -32,8 +32,8 @@ android {
     defaultConfig {
         applicationId = "org.yomori.app"
 
-        versionCode = 29
-        versionName = "0.20.4"
+        versionCode = 31
+        versionName = "0.20.6"
 
         buildConfigField("String", "COMMIT_COUNT", "\"${getLatestCommitCount()}\"")
         buildConfigField("String", "COMMIT_SHA", "\"${getLatestCommitSha()}\"")

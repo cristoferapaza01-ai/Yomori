@@ -66,10 +66,10 @@ class UpdateMangaFromRemote(
 
             var actualSource = source
             if (actualSource is StubSource) {
+                val cleanSourceName = actualSource.name.trim()
                 val installed = sourceManager.getOnlineSources().firstOrNull {
-                    it.name.equals(actualSource.name, ignoreCase = true) ||
-                    it.name.contains(actualSource.name, ignoreCase = true) ||
-                    actualSource.name.contains(it.name, ignoreCase = true)
+                    it.name.trim().equals(cleanSourceName, ignoreCase = true) ||
+                    (cleanSourceName.length >= 4 && it.name.trim().replace(" ", "").equals(cleanSourceName.replace(" ", ""), ignoreCase = true))
                 }
                 if (installed != null) {
                     actualSource = installed
@@ -129,11 +129,28 @@ class UpdateMangaFromRemote(
                 null
             }
 
+            fun normalize(str: String): String {
+                return str.lowercase()
+                    .replace(Regex("[^a-z0-9áéíóúñü]"), "")
+                    .trim()
+            }
+
+            val normSearch = normalize(searchTitle)
+            if (normSearch.isBlank()) return null
+
             val bestMatch = searchPage?.mangas?.firstOrNull { sManga ->
-                val sTitle = sManga.title.trim().lowercase()
-                val mTitle = searchTitle.lowercase()
-                sTitle == mTitle || sTitle.contains(mTitle) || mTitle.contains(sTitle)
-            } ?: searchPage?.mangas?.firstOrNull()
+                val normRemote = normalize(sManga.title)
+                if (normRemote.isBlank()) return@firstOrNull false
+                if (normRemote == normSearch) return@firstOrNull true
+                if (normRemote.length >= 6 && normSearch.length >= 6) {
+                    val minLen = minOf(normRemote.length, normSearch.length).toDouble()
+                    val maxLen = maxOf(normRemote.length, normSearch.length).toDouble()
+                    if (minLen / maxLen >= 0.8 && (normRemote.contains(normSearch) || normSearch.contains(normRemote))) {
+                        return@firstOrNull true
+                    }
+                }
+                false
+            }
 
             if (bestMatch != null && bestMatch.url.isNotBlank() && bestMatch.url != manga.url) {
                 logcat(LogPriority.INFO) { "[Yomori] Auto-resolved URL for '${manga.title}': '${manga.url}' -> '${bestMatch.url}'" }
