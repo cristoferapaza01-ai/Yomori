@@ -813,6 +813,9 @@ fun YomoriHomeScreen(
                         }
                     }
                 }
+
+                // Espacio inferior para que el dock flotante nunca tape el chat
+                Spacer(modifier = Modifier.height(110.dp))
             }
         }
     }
