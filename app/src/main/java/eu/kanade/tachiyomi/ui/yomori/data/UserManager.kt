@@ -449,12 +449,14 @@ object UserManager {
     ): Result<YomoriUser> = withContext(Dispatchers.IO) {
         try {
             val cleanInput = usernameOrEmail.trim()
+            val normalizedUser = cleanInput.removePrefix("@")
             if (cleanInput.isBlank()) {
                 return@withContext Result.failure(Exception("Por favor ingresa tu usuario o correo"))
             }
 
             // Verificación Especial de Cuenta Administrador
             val isAdminAttempt = cleanInput.equals("Rey_Palomo", ignoreCase = true) ||
+                    normalizedUser.equals("Rey_Palomo", ignoreCase = true) ||
                     cleanInput.equals("reypalomo@yomori.app", ignoreCase = true)
 
             if (isAdminAttempt) {
@@ -486,8 +488,12 @@ object UserManager {
                 return@withContext Result.success(adminUser)
             }
 
-            // Consultar perfil en Supabase
-            val queryParam = if (cleanInput.contains("@")) "email=eq.$cleanInput" else "username=eq.$cleanInput"
+            // Consultar perfil en Supabase (busca por nombre de usuario sin @ o por correo electrónico)
+            val queryParam = if (cleanInput.contains("@") && cleanInput.contains(".")) {
+                "or=(email.eq.$cleanInput,username.eq.$normalizedUser)"
+            } else {
+                "or=(username.eq.$normalizedUser,email.eq.$cleanInput)"
+            }
             val url = "$SUPABASE_URL/rest/v1/yomori_profiles?$queryParam&limit=1"
 
             val request = Request.Builder()
@@ -509,9 +515,9 @@ object UserManager {
                 val rank = getRankForLevel(lvl)
                 val user = YomoriUser(
                     id = obj.optString("id", "user_${UUID.randomUUID()}"),
-                    nickname = obj.optString("nickname", obj.optString("username", cleanInput)),
-                    username = obj.optString("username", cleanInput),
-                    email = obj.optString("email", "$cleanInput@yomori.app"),
+                    nickname = obj.optString("nickname", obj.optString("username", normalizedUser)),
+                    username = obj.optString("username", normalizedUser),
+                    email = obj.optString("email", if (cleanInput.contains("@")) cleanInput else "$normalizedUser@yomori.app"),
                     avatarUrl = obj.optString("avatar_url", AVATAR_PRESETS[0]),
                     bio = obj.optString("bio", "Amante de los mangas y manhwas de acción y cultivo."),
                     level = lvl,

@@ -283,11 +283,11 @@ fun YomoriAuthScreen(
                             OutlinedTextField(
                                 value = usernameInput,
                                 onValueChange = {
-                                    usernameInput = it.replace(" ", "")
+                                    usernameInput = it.replace(" ", "").replace("@", "")
                                     errorMessage = null
                                 },
-                                label = { Text("Usuario (@usuario)") },
-                                placeholder = { Text("ej: shadow_reader", color = TextMuted.copy(alpha = 0.5f)) },
+                                label = { Text("Nombre de Usuario") },
+                                placeholder = { Text("ej: shadow_reader (sin @)", color = TextMuted.copy(alpha = 0.5f)) },
                                 leadingIcon = {
                                     Icon(Icons.Filled.AlternateEmail, contentDescription = null, tint = YomoriTeal)
                                 },
@@ -343,11 +343,11 @@ fun YomoriAuthScreen(
                             OutlinedTextField(
                                 value = usernameInput,
                                 onValueChange = {
-                                    usernameInput = it
+                                    usernameInput = it.trim()
                                     errorMessage = null
                                 },
                                 label = { Text("Usuario o Correo") },
-                                placeholder = { Text("Ingresa tu usuario o correo", color = TextMuted.copy(alpha = 0.5f)) },
+                                placeholder = { Text("ej: shadow_reader o tu@correo.com", color = TextMuted.copy(alpha = 0.5f)) },
                                 leadingIcon = {
                                     Icon(Icons.Filled.Person, contentDescription = null, tint = YomoriTeal)
                                 },
