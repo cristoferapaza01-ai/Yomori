@@ -101,7 +101,6 @@ object HomeScreen : Screen() {
         YomoriHomeTab,
         YomoriCommunityTab,
         LibraryTab,
-        UpdatesTab,
         BrowseTab,
         MoreTab,
     )
@@ -217,9 +216,18 @@ object HomeScreen : Screen() {
                 launch {
                     openTabEvent.receiveAsFlow().collectLatest {
                         tabNavigator.current = when (it) {
-                            is Tab.Library -> LibraryTab
-                            Tab.Updates -> UpdatesTab
-                            Tab.History -> HistoryTab
+                            is Tab.Library -> {
+                                LibraryTab.showCollection()
+                                LibraryTab
+                            }
+                            Tab.Updates -> {
+                                LibraryTab.showUpdates()
+                                LibraryTab
+                            }
+                            Tab.History -> {
+                                LibraryTab.showHistory()
+                                LibraryTab
+                            }
                             is Tab.Browse -> {
                                 if (it.toExtensions) {
                                     BrowseTab.showExtension()
@@ -248,24 +256,35 @@ object HomeScreen : Screen() {
         val scope = rememberCoroutineScope()
         val selected = tabNavigator.current::class == tab::class
 
+        val isSelected = selected
+        val iconColor = if (isSelected) YomoriTeal else TextMuted
+
         Box(
             modifier = Modifier
                 .weight(1f)
-                .height(42.dp)
-                .clip(RoundedCornerShape(20.dp))
-                .background(
-                    if (selected) YomoriTeal.copy(alpha = 0.18f) else Color.Transparent
-                )
+                .fillMaxHeight()
                 .clickable {
-                    if (!selected) {
-                        tabNavigator.current = tab
-                    } else {
+                    if (tabNavigator.current::class == tab::class) {
                         scope.launch { tab.onReselect(navigator) }
+                    } else {
+                        tabNavigator.current = tab
                     }
                 },
             contentAlignment = Alignment.Center
         ) {
-            NavigationIconItem(tab, isSelected = selected)
+            if (isSelected) {
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = YomoriTeal.copy(alpha = 0.22f),
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                ) {
+                    Box(modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)) {
+                        NavigationIconItem(tab, isSelected = true)
+                    }
+                }
+            } else {
+                NavigationIconItem(tab, isSelected = false)
+            }
         }
     }
 
@@ -295,18 +314,18 @@ object HomeScreen : Screen() {
     }
 
     @Composable
-    fun NavigationRailItem(tab: eu.kanade.presentation.util.Tab) {
+    private fun NavigationRailItem(tab: eu.kanade.presentation.util.Tab) {
         val tabNavigator = LocalTabNavigator.current
         val navigator = LocalNavigator.currentOrThrow
         val scope = rememberCoroutineScope()
         val selected = tabNavigator.current::class == tab::class
-        NavigationRailItem(
+        androidx.compose.material3.NavigationRailItem(
             selected = selected,
             onClick = {
-                if (!selected) {
-                    tabNavigator.current = tab
-                } else {
+                if (tabNavigator.current::class == tab::class) {
                     scope.launch { tab.onReselect(navigator) }
+                } else {
+                    tabNavigator.current = tab
                 }
             },
             icon = { NavigationIconItem(tab, isSelected = selected) },
@@ -325,7 +344,7 @@ object HomeScreen : Screen() {
         BadgedBox(
             badge = {
                 when {
-                    tab is UpdatesTab -> {
+                    tab is LibraryTab || tab is UpdatesTab -> {
                         val count by produceState(initialValue = 0) {
                             val pref = Injekt.get<LibraryPreferences>()
                             combine(
