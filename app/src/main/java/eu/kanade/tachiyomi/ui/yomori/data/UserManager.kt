@@ -150,6 +150,21 @@ object UserManager {
     private fun loadInitialUser(): YomoriUser {
         try {
             val sp = prefs ?: return YomoriUser()
+
+            // Invalida sesiones de prueba anteriores para presentar la pantalla de Login y Registro
+            val authVersion = sp.getInt("yomori_auth_v2_migration", 0)
+            if (authVersion < 2) {
+                sp.edit().putInt("yomori_auth_v2_migration", 2).putBoolean(KEY_IS_LOGGED_IN, false).apply()
+                val defaultRank = getRankForLevel(1)
+                return YomoriUser(
+                    rankTitle = defaultRank.title,
+                    rankTier = defaultRank.tier,
+                    rankColor = defaultRank.color,
+                    isLoggedIn = false,
+                    isAdmin = false
+                )
+            }
+
             val isLoggedIn = sp.getBoolean(KEY_IS_LOGGED_IN, false)
             val rememberMe = sp.getBoolean(KEY_REMEMBER_ME, true)
             val isAdmin = sp.getBoolean(KEY_IS_ADMIN, false)
@@ -203,6 +218,8 @@ object UserManager {
     fun isAutoLoginEnabled(): Boolean {
         return try {
             val sp = prefs ?: return false
+            val authVersion = sp.getInt("yomori_auth_v2_migration", 0)
+            if (authVersion < 2) return false
             sp.getBoolean(KEY_IS_LOGGED_IN, false) && sp.getBoolean(KEY_REMEMBER_ME, true)
         } catch (_: Throwable) {
             false
