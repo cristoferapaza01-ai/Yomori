@@ -60,6 +60,11 @@ data object HistoryTab : Tab {
 
     @Composable
     override fun Content() {
+        Content(headerContent = null)
+    }
+
+    @Composable
+    fun Content(headerContent: (@Composable () -> Unit)? = null) {
         val navigator = LocalNavigator.currentOrThrow
         val context = LocalContext.current
         val viewModel = viewModel<HistoryViewModel>()
@@ -73,6 +78,7 @@ data object HistoryTab : Tab {
             onClickResume = viewModel::getNextChapterForManga,
             onDialogChange = viewModel::setDialog,
             onClickFavorite = viewModel::addFavorite,
+            headerContent = headerContent,
         )
 
         val onDismissRequest = { viewModel.setDialog(null) }
