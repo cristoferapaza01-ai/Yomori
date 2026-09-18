@@ -19,6 +19,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.withContext
+import eu.kanade.tachiyomi.data.backup.models.BackupHistory
+import tachiyomi.domain.history.interactor.RemoveHistory
 import logcat.LogPriority
 import org.json.JSONArray
 import org.json.JSONObject
@@ -177,6 +179,20 @@ object YomoriSyncManager {
                         }
                     }
                     if (chArray.length() > 0) put("ch", chArray)
+
+                    // Historial de lectura
+                    if (bm.history.isNotEmpty()) {
+                        val hArray = JSONArray()
+                        for (h in bm.history) {
+                            val hObj = JSONObject().apply {
+                                put("u", h.url)
+                                put("lr", h.lastRead)
+                                put("rd", h.readDuration)
+                            }
+                            hArray.put(hObj)
+                        }
+                        put("h", hArray)
+                    }
                 }
                 mangaArray.put(mObj)
             }
@@ -350,7 +366,23 @@ object YomoriSyncManager {
                         bm.chapters = chList
                     }
 
-                    // Restaurar manga y capítulos en SQLite local
+                    val hArr = mObj.optJSONArray("h")
+                    if (hArr != null) {
+                        val hList = mutableListOf<BackupHistory>()
+                        for (h in 0 until hArr.length()) {
+                            val hObj = hArr.getJSONObject(h)
+                            hList.add(
+                                BackupHistory(
+                                    url = hObj.optString("u", ""),
+                                    lastRead = hObj.optLong("lr", 0L),
+                                    readDuration = hObj.optLong("rd", 0L),
+                                ),
+                            )
+                        }
+                        bm.history = hList
+                    }
+
+                    // Restaurar manga, capítulos e historial en SQLite local
                     mangaRestorer.restore(bm, backupCategories)
                 }
             }
@@ -367,6 +399,24 @@ object YomoriSyncManager {
             false
         } finally {
             _isSyncing.value = false
+        }
+    }
+
+    /**
+     * Limpia tanto los favoritos locales de la biblioteca como el historial local para aislar las sesiones
+     * de usuarios e invitados, asegurando que un usuario sin cuenta o un invitado no vea datos previos.
+     */
+    suspend fun clearLocalSession() = withContext(Dispatchers.IO) {
+        try {
+            clearLocalLibraryFavorites()
+            try {
+                Injekt.get<RemoveHistory>().awaitAll()
+                logcat(LogPriority.INFO) { "YomoriSync: Historial local y biblioteca vaciados para sesión sin cuenta/invitado." }
+            } catch (e: Exception) {
+                logcat(LogPriority.ERROR, e) { "YomoriSync: Error vaciando historial local" }
+            }
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR, e) { "YomoriSync: Error limpiando sesión local" }
         }
     }
 

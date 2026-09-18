@@ -147,6 +147,16 @@ object UserManager {
     private val _userState = MutableStateFlow(loadInitialUser())
     val userState = _userState.asStateFlow()
 
+    init {
+        if (!_userState.value.isLoggedIn) {
+            scope.launch {
+                try {
+                    YomoriSyncManager.clearLocalSession()
+                } catch (_: Throwable) {}
+            }
+        }
+    }
+
     private fun loadInitialUser(): YomoriUser {
         try {
             val sp = prefs ?: return YomoriUser()
@@ -571,6 +581,7 @@ object UserManager {
 
                 _userState.value = user
                 saveSession(user, rememberMe)
+                scope.launch { try { YomoriSyncManager.pullLibraryFromCloud() } catch (_: Throwable) {} }
                 Result.success(user)
             } else {
                 val fallbackId = "usr_${cleanInput.hashCode()}"
@@ -591,6 +602,7 @@ object UserManager {
                 _userState.value = user
                 saveSession(user, rememberMe)
                 syncProfileToCloud(user)
+                scope.launch { try { YomoriSyncManager.pullLibraryFromCloud() } catch (_: Throwable) {} }
                 Result.success(user)
             }
         } catch (e: Exception) {
@@ -686,6 +698,7 @@ object UserManager {
 
             _userState.value = newUser
             saveSession(newUser, rememberMe)
+            scope.launch { try { YomoriSyncManager.pullLibraryFromCloud() } catch (_: Throwable) {} }
             Result.success(newUser)
         } catch (e: Exception) {
             val rank = getRankForLevel(1)
@@ -702,6 +715,7 @@ object UserManager {
             )
             _userState.value = fallbackUser
             saveSession(fallbackUser, rememberMe)
+            scope.launch { try { YomoriSyncManager.pullLibraryFromCloud() } catch (_: Throwable) {} }
             Result.success(fallbackUser)
         }
     }
@@ -709,7 +723,7 @@ object UserManager {
     fun continueAsGuest() {
         scope.launch {
             try {
-                YomoriSyncManager.clearLocalLibraryFavorites()
+                YomoriSyncManager.clearLocalSession()
             } catch (_: Throwable) {}
         }
         val rank = getRankForLevel(1)
@@ -734,7 +748,7 @@ object UserManager {
                 if (currentUser.isLoggedIn && currentUser.username.isNotBlank()) {
                     YomoriSyncManager.pushLibraryToCloud()
                 }
-                YomoriSyncManager.clearLocalLibraryFavorites()
+                YomoriSyncManager.clearLocalSession()
             } catch (_: Throwable) {}
         }
         prefs?.edit()?.apply {
