@@ -66,6 +66,8 @@ fun YomoriAuthScreen(
     var nicknameInput by remember { mutableStateOf("") }
     var passwordInput by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
+    var confirmPasswordInput by remember { mutableStateOf("") }
+    var confirmPasswordVisible by remember { mutableStateOf(false) }
     var rememberMe by remember { mutableStateOf(true) }
 
     var isLoading by remember { mutableStateOf(false) }
@@ -392,7 +394,7 @@ fun YomoriAuthScreen(
                             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                             keyboardOptions = KeyboardOptions(
                                 keyboardType = KeyboardType.Password,
-                                imeAction = ImeAction.Done
+                                imeAction = if (isRegisterMode) ImeAction.Next else ImeAction.Done
                             ),
                             keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                             colors = OutlinedTextFieldDefaults.colors(
@@ -408,6 +410,49 @@ fun YomoriAuthScreen(
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth()
                         )
+
+                        // Campo Confirmar Contraseña (Solo en Registro)
+                        if (isRegisterMode) {
+                            OutlinedTextField(
+                                value = confirmPasswordInput,
+                                onValueChange = {
+                                    confirmPasswordInput = it
+                                    errorMessage = null
+                                },
+                                label = { Text("Confirmar Contraseña") },
+                                leadingIcon = {
+                                    Icon(Icons.Filled.Lock, contentDescription = null, tint = YomoriTeal)
+                                },
+                                trailingIcon = {
+                                    IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
+                                        Icon(
+                                            if (confirmPasswordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                                            contentDescription = "Ver contraseña",
+                                            tint = TextMuted
+                                        )
+                                    }
+                                },
+                                singleLine = true,
+                                visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Password,
+                                    imeAction = ImeAction.Done
+                                ),
+                                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = YomoriTeal,
+                                    unfocusedBorderColor = YomoriBorder,
+                                    focusedLabelColor = YomoriTeal,
+                                    unfocusedLabelColor = TextMuted,
+                                    focusedTextColor = TextPrimary,
+                                    unfocusedTextColor = TextPrimary,
+                                    focusedContainerColor = YomoriSurfaceDark,
+                                    unfocusedContainerColor = YomoriSurfaceDark
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
 
                         // Checkbox "Recordarme"
                         Row(
@@ -473,6 +518,10 @@ fun YomoriAuthScreen(
                                     }
                                     if (passwordInput.length < 4) {
                                         errorMessage = "La contraseña debe tener al menos 4 caracteres"
+                                        return@Button
+                                    }
+                                    if (passwordInput != confirmPasswordInput) {
+                                        errorMessage = "Las contraseñas no coinciden"
                                         return@Button
                                     }
                                 } else {
