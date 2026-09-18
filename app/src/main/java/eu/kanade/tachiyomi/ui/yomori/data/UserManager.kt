@@ -689,6 +689,11 @@ object UserManager {
     }
 
     fun continueAsGuest() {
+        scope.launch {
+            try {
+                YomoriSyncManager.clearLocalLibraryFavorites()
+            } catch (_: Throwable) {}
+        }
         val rank = getRankForLevel(1)
         val guest = YomoriUser(
             id = "guest_${System.currentTimeMillis()}",
@@ -705,6 +710,15 @@ object UserManager {
     }
 
     fun logout() {
+        val currentUser = _userState.value
+        scope.launch {
+            try {
+                if (currentUser.isLoggedIn && currentUser.username.isNotBlank()) {
+                    YomoriSyncManager.pushLibraryToCloud()
+                }
+                YomoriSyncManager.clearLocalLibraryFavorites()
+            } catch (_: Throwable) {}
+        }
         prefs?.edit()?.apply {
             putBoolean(KEY_IS_LOGGED_IN, false)
             putBoolean(KEY_IS_ADMIN, false)
@@ -742,6 +756,8 @@ object UserManager {
         if (user.isLoggedIn) {
             scope.launch {
                 try {
+                    // Limpia favoritos locales previos y luego restaura la biblioteca del usuario desde Supabase
+                    YomoriSyncManager.clearLocalLibraryFavorites()
                     YomoriSyncManager.pullLibraryFromCloud()
                 } catch (_: Throwable) {}
             }

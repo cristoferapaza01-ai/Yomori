@@ -369,4 +369,27 @@ object YomoriSyncManager {
             _isSyncing.value = false
         }
     }
+
+    /**
+     * Limpia los favoritos locales de la biblioteca para aislar las sesiones de usuarios e invitados,
+     * manteniendo intactos los archivos de capítulos descargados físicamente en el disco.
+     */
+    suspend fun clearLocalLibraryFavorites() = withContext(Dispatchers.IO) {
+        try {
+            val mangaRepository = Injekt.get<tachiyomi.domain.manga.repository.MangaRepository>()
+            val favorites = getFavorites.await()
+            if (favorites.isNotEmpty()) {
+                val updates = favorites.map { manga ->
+                    tachiyomi.domain.manga.model.MangaUpdate(
+                        id = manga.id,
+                        favorite = false
+                    )
+                }
+                mangaRepository.updateAll(updates)
+                logcat(LogPriority.INFO) { "YomoriSync: Limpiados ${favorites.size} favoritos locales para aislar la sesión." }
+            }
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR, e) { "YomoriSync: Error limpiando favoritos locales" }
+        }
+    }
 }
